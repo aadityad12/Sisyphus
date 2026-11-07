@@ -156,18 +156,35 @@ def review(
 
     base = [{"type": "text", "text": "\n\n".join(text)}]
     video_part = _video_part(video)
-    try:
-        if video_part is None:
-            raise _NoVideo
-        out = llm.complete_json(SYSTEM + skills, [*base, video_part, *stills], SCHEMA, "review", model=model)
-    except (_NoVideo, BadRequestError) as exc:
-        if isinstance(exc, BadRequestError):
-            log.warning("reviewer: model rejected the inline video (%s); reviewing from stills", exc)
-        out = llm.complete_json(SYSTEM + skills, [*base, *stills], SCHEMA, "review", model=model)
+    content = [*base, *stills] if video_part is None else [*base, video_part, *stills]
+    out = _ask(SYSTEM + skills, content, model)
+    if _thin(out["reason"]):
+        # The Auditor learns from the reason, so a bare tag like "framing" (seen 2026-11-07) is not enough.
+        log.warning("reviewer: reason %r is too thin; asking once more", out["reason"])
+        nudge = {"type": "text", "text": (
+            "Your reason must be one to three full sentences: what is wrong or what works, where "
+            "(clip timestamps like 0:07), and what would fix it. A tag name alone is not a reason."
+        )}
+        again = _ask(SYSTEM + skills, [*content, nudge], model)
+        if not _thin(again["reason"]):
+            out = again
 
     tags = [t for t in dict.fromkeys(out.get("tags", [])) if t in TAGS]
     return Review(approved=bool(out["approved"]), reason=out["reason"].strip(), tags=tags)
 
 
-class _NoVideo(Exception):
-    pass
+def _thin(reason: str) -> bool:
+    r = reason.strip().strip(".").lower()
+    return len(r) < 15 or r in TAGS
+
+
+def _ask(system: str, content: list[dict], model: str | None) -> dict:
+    """One review call. If the model refuses the inline video, review from the stills alone."""
+    try:
+        return llm.complete_json(system, content, SCHEMA, "review", model=model)
+    except BadRequestError as exc:
+        if not any(p.get("type") == "video_url" for p in content):
+            raise
+        log.warning("reviewer: model rejected the inline video (%s); reviewing from stills", exc)
+        stills_only = [p for p in content if p.get("type") != "video_url"]
+        return llm.complete_json(system, stills_only, SCHEMA, "review", model=model)
