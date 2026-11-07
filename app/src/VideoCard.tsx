@@ -25,6 +25,17 @@ const STEP_OF: Record<Video["status"], number> = {
 /** About four lines of a card's reason quote; longer reasons are clamped until expanded. */
 const LONG_REASON = 220;
 
+function cuts(n: number) {
+  return `${n} ${n === 1 ? "cut" : "cuts"}`;
+}
+
+/** The heading already says approved or sent back, so drop the Reviewer's own "Approved:" / "Send back:" lead-in. */
+const VERDICT_LEAD = /^\s*(approve[sd]?|reject(?:ed|s)?|sen[dt]s?(?: it)? back)(?: as[- ]is)?\s*[:.—–-]\s*/i;
+function reasonText(reason: string) {
+  const rest = reason.replace(VERDICT_LEAD, "");
+  return rest ? rest[0].toUpperCase() + rest.slice(1) : reason;
+}
+
 function fmt(s: number) {
   return `${s.toFixed(1)}s`;
 }
@@ -59,6 +70,7 @@ function Verdict({ video }: { video: Video }) {
   const [full, setFull] = useState(false);
   if (video.status === "approved" || video.status === "rejected") {
     const ok = video.status === "approved";
+    const reason = video.review_reason && reasonText(video.review_reason);
     return (
       <div className={`vc-verdict ${ok ? "ok" : "no"}`}>
         <div className="vc-verdict-head">
@@ -66,11 +78,11 @@ function Verdict({ video }: { video: Video }) {
           {ok ? "Reviewer approved" : "Reviewer sent it back"}
           {video.reviewer_version && <code className="vc-ver">{shortVersion(video.reviewer_version)}</code>}
         </div>
-        {video.review_reason ? (
+        {reason ? (
           <>
             {/* Reasons run to a paragraph; the first few lines carry the verdict, the rest is on demand. */}
-            <blockquote className={full ? "" : "clamp"}>{video.review_reason}</blockquote>
-            {video.review_reason.length > LONG_REASON && (
+            <blockquote className={full ? "" : "clamp"}>{reason}</blockquote>
+            {reason.length > LONG_REASON && (
               <button className="link vc-moreless" onClick={() => setFull(!full)}>
                 {full ? "Less" : "Read the full review"}
               </button>
@@ -230,7 +242,7 @@ export function VideoCard({
               {video.arm && <span className={`chip arm-${video.arm}`}>A/B {video.arm}</span>}
               <span className="dim">
                 {video.footage}
-                {video.plan && ` · ${fmt(duration)} · ${video.plan.segments.length} cuts`}
+                {video.plan && ` · ${fmt(duration)} · ${cuts(video.plan.segments.length)}`}
               </span>
             </p>
           </div>
@@ -277,7 +289,7 @@ export function VideoCard({
             <div className="vc-more">
               <details>
                 <summary>
-                  Edit plan <span className="dim">· {video.plan.segments.length} cuts</span>
+                  Edit plan <span className="dim">· {cuts(video.plan.segments.length)}</span>
                 </summary>
                 <div className="vc-plan">
                   <p>

@@ -5,6 +5,8 @@ import { shortVersion, VideoCard } from "./VideoCard";
 
 /** A finished clip stays in the Studio this long, so the verdict landing is visible where the job started. */
 const RECENT_S = 15 * 60;
+/** After a batch, a dozen clips can finish at once; the Studio shows the newest few, the tabs have the rest. */
+const RECENT_MAX = 4;
 
 function minutes(s?: number) {
   if (!s) return null;
@@ -142,7 +144,8 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
           <p className="dim small">
             {creator ? (
               <>
-                Creator <code className="st-creator">{shortVersion(creator)}</code> edits it, then the Reviewer judges it.
+                Creator <code className="st-creator">{shortVersion(creator)}</code> edits it, then the Reviewer judges
+                it.
               </>
             ) : (
               "The Creator edits it, then the Reviewer judges it."
@@ -221,8 +224,12 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
       {recent.length > 0 && (
         <section>
           <h2>Just finished</h2>
-          <p className="dim small st-hint">Approved clips also go to the Feed; sent-back clips go to Rejected.</p>
-          <Clips videos={recent} refresh={refresh} />
+          <p className="dim small st-hint">
+            {recent.length > RECENT_MAX
+              ? `The ${RECENT_MAX} newest of ${recent.length}. The rest are in the Feed (approved) and Rejected (sent back).`
+              : "Approved clips also go to the Feed; sent-back clips go to Rejected."}
+          </p>
+          <Clips videos={recent.slice(0, RECENT_MAX)} refresh={refresh} />
         </section>
       )}
 
