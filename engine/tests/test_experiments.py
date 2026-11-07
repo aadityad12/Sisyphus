@@ -10,6 +10,8 @@ def db(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(experiments.versioning, "promote", lambda b: calls.append(("promote", b)) or "abcdef1234")
     monkeypatch.setattr(experiments.versioning, "roll_back", lambda b: calls.append(("roll_back", b)))
+    # A promote re-renders the showcase from the real footage/manifest.json; keep tests off real jobs.
+    monkeypatch.setattr(experiments.showcase, "on_promote", lambda version: None)
     return calls
 
 

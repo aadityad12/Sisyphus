@@ -13,7 +13,7 @@ import re
 import threading
 import time
 
-from . import FOOTAGE_DIR, jobs, reviewer_ab, store, versioning
+from . import FOOTAGE_DIR, jobs, reviewer_ab, showcase, store, versioning
 from .agents import auditor
 
 log = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def _held_out(exclude_footage: set[str], n: int) -> list[dict]:
     """
     manifest = FOOTAGE_DIR / "manifest.json"
     items = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []
-    items = [m for m in items if m.get("brief") and (FOOTAGE_DIR / m["file"]).exists()]
+    items = [m for m in items if m.get("brief") and not m.get("showcase") and (FOOTAGE_DIR / m["file"]).exists()]
     kinds = {m.get("kind") for m in items if m["file"] in exclude_footage} - {None}
     used = {v["footage"] for v in store.list_videos()}
     fresh = [m for m in items if m["file"] not in exclude_footage]
@@ -167,6 +167,7 @@ def _decide(change_id: int) -> None:
         if won:
             results["merged"] = versioning.promote(change["branch"])[:8]
             store.update_change(change_id, status="promoted", results=results)
+            showcase.on_promote(versioning.agent_version("creator"))
         else:
             versioning.roll_back(change["branch"])
             store.update_change(change_id, status="rolled_back", results=results)

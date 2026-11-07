@@ -6,7 +6,7 @@ type Row = { version: string; passed: number; total: number; first: number };
 export function Progress({ videos }: { videos: Video[] }) {
   const rows = new Map<string, Row>();
   for (const v of videos) {
-    if (v.experiment_id !== null || !v.creator_version) continue;
+    if (v.experiment_id !== null || v.showcase || !v.creator_version) continue;
     const verdict = v.human_liked ?? v.review_approved;
     if (verdict === null) continue;
     const r = rows.get(v.creator_version) ?? { version: v.creator_version, passed: 0, total: 0, first: v.created_at };

@@ -1,6 +1,7 @@
 """Thin ffmpeg/ffprobe helpers."""
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -14,7 +15,20 @@ _WINGET_FFMPEG = (
 )
 
 
+# Homebrew's plain `ffmpeg` has no libass, so `subtitles=` fails and no render works on macOS
+# (2026-11-07). `brew install ffmpeg-full` has it but is keg-only (not on PATH), so look there first.
+_PREFERRED_DIRS = [
+    d
+    for d in (os.environ.get("SISYPHUS_FFMPEG_DIR"), "/opt/homebrew/opt/ffmpeg-full/bin", "/usr/local/opt/ffmpeg-full/bin")
+    if d
+]
+
+
 def _tool(name: str) -> str:
+    for d in _PREFERRED_DIRS:
+        for candidate in (Path(d) / name, Path(d) / f"{name}.exe"):
+            if candidate.exists():
+                return str(candidate)
     found = shutil.which(name)
     if found:
         return found

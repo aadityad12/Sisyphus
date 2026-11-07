@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import FOOTAGE_DIR, experiments, jobs, reviewer_ab, store, versioning
+from . import FOOTAGE_DIR, experiments, jobs, reviewer_ab, showcase, store, versioning
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="SIsyphus engine")
@@ -125,6 +125,18 @@ def versions() -> dict:
         "history": {a: versioning.history(a) for a in versioning.AGENTS},
         "changes": store.list_changes(),
     }
+
+
+@app.get("/showcase")
+def showcase_table() -> dict:
+    """Showcase briefs x Creator versions: the before/after for the demo."""
+    return showcase.table()
+
+
+@app.post("/showcase")
+def showcase_render(version: str | None = None) -> dict:
+    """Render the showcase briefs at a Creator version (default: current). Already-rendered ones are skipped."""
+    return {"queued": showcase.render(version)}
 
 
 @app.post("/audit")

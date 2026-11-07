@@ -3,17 +3,19 @@ import { api } from "./api";
 import { Studio } from "./Studio";
 import { VideoCard } from "./VideoCard";
 import { Versions } from "./Versions";
+import { Showcase } from "./Showcase";
 import { usePoll } from "./usePoll";
 import "./App.css";
 
-const TABS = ["Studio", "Feed", "Rejected", "Versions"] as const;
+const TABS = ["Studio", "Feed", "Rejected", "Versions", "Showcase"] as const;
 type Tab = (typeof TABS)[number];
 
 function App() {
   const [tab, setTab] = useState<Tab>("Studio");
   const health = usePoll(api.health, 3000);
   const videos = usePoll(() => api.videos(), 2000);
-  const all = (videos.data ?? []).filter((v) => v.experiment_id === null);
+  // A/B clips and showcase renders are not regular work: they stay out of Studio, Feed, Rejected and the pass rate.
+  const all = (videos.data ?? []).filter((v) => v.experiment_id === null && !v.showcase);
 
   const approved = all.filter((v) => v.status === "approved");
   const rejected = all.filter((v) => v.status === "rejected");
@@ -22,6 +24,7 @@ function App() {
     Feed: approved.length || null,
     Rejected: rejected.length || null,
     Versions: null,
+    Showcase: null,
   };
 
   return (
@@ -72,6 +75,7 @@ function App() {
           </>
         )}
         {tab === "Versions" && <Versions videos={all} />}
+        {tab === "Showcase" && <Showcase />}
       </section>
     </main>
   );

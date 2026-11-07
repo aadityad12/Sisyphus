@@ -70,7 +70,11 @@ def conn():
 
 
 # Columns added after the first databases were created: (table, column, type).
-MIGRATIONS = [("videos", "review_tags", "TEXT"), ("videos", "reviewer_ref", "TEXT")]
+MIGRATIONS = [
+    ("videos", "review_tags", "TEXT"),
+    ("videos", "reviewer_ref", "TEXT"),
+    ("videos", "showcase", "INTEGER"),  # 1 = a showcase render: the demo's yardstick, never Auditor input
+]
 
 
 def init() -> None:
@@ -159,7 +163,7 @@ def failures() -> list[dict]:
             "creator_version": v["creator_version"],
         }
         for v in list_videos()
-        if v["failed_agents"] and v["experiment_id"] is None
+        if v["failed_agents"] and v["experiment_id"] is None and not v.get("showcase")
     ]
 
 
