@@ -24,6 +24,11 @@ def submit(footage: str, brief: str, skills_ref: str | None = None, **fields) ->
     path = (FOOTAGE_DIR / footage).resolve()
     if path.parent != FOOTAGE_DIR.resolve() or not path.exists():
         raise FileNotFoundError(footage)
+    from . import showcase  # showcase imports jobs
+
+    if showcase.is_showcase(footage, brief):
+        # The demo's yardstick, even when started from the Studio: it must never feed the Auditor or an A/B.
+        fields["showcase"] = 1
     video_id = store.add_video(
         footage,
         brief,

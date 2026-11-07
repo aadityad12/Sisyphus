@@ -28,8 +28,9 @@ def env(tmp_path, monkeypatch):
         submitted.append((footage, skills_ref, fields))
         return vid
 
+    real_submit = showcase.jobs.submit
     monkeypatch.setattr(showcase.jobs, "submit", submit)
-    return {"version": version, "submitted": submitted}
+    return {"version": version, "submitted": submitted, "real_submit": real_submit}
 
 
 def test_renders_only_showcase_briefs_once_per_version(env):
@@ -65,3 +66,26 @@ def test_showcase_clips_never_reach_the_auditor(env):
     vid = showcase.render()[0]
     store.update_video(vid, review_approved=0, status="rejected")
     assert store.failures() == []
+
+
+def test_a_studio_job_on_a_showcase_brief_is_marked_showcase(env, monkeypatch):
+    from sisyphus_engine import jobs
+
+    monkeypatch.setattr(jobs, "FOOTAGE_DIR", showcase.FOOTAGE_DIR)
+    monkeypatch.setattr(jobs.executor, "submit", lambda *a, **k: None)
+    monkeypatch.setattr(jobs.versioning, "agent_version", lambda agent: "aaa1111")
+    same = env["real_submit"]("a.mp4", " brief a ")
+    other = env["real_submit"]("a.mp4", "a different brief")
+    assert store.get_video(same)["showcase"] == 1
+    assert not store.get_video(other)["showcase"]
+
+
+def test_concurrent_renders_queue_each_clip_once(env):
+    import threading
+
+    threads = [threading.Thread(target=showcase.render) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert len(env["submitted"]) == 2

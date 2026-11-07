@@ -11,16 +11,22 @@ commit, so a re-run reproduces that version and not whatever is checked out now.
 
 import json
 import logging
+import threading
 
 from . import FOOTAGE_DIR, jobs, store, versioning
 
 log = logging.getLogger(__name__)
+_render_lock = threading.Lock()
 
 
 def entries() -> list[dict]:
     manifest = FOOTAGE_DIR / "manifest.json"
     items = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []
     return [m for m in items if m.get("showcase") and m.get("brief") and (FOOTAGE_DIR / m["file"]).exists()]
+
+
+def is_showcase(footage: str, brief: str) -> bool:
+    return any(m["file"] == footage and m["brief"].strip() == brief.strip() for m in entries())
 
 
 def _videos() -> list[dict]:
@@ -30,7 +36,11 @@ def _videos() -> list[dict]:
 def render(version: str | None = None) -> list[int]:
     """Render every showcase brief at `version` (default: the current Creator version), skipping ones
     already rendered or in flight at that version. A failed render is retried. Returns the new video ids."""
-    version = version or versioning.agent_version("creator")
+    with _render_lock:
+        return _render(version or versioning.agent_version("creator"))
+
+
+def _render(version: str) -> list[int]:
     have = {(v["footage"], v["brief"]) for v in _videos() if v["creator_version"] == version and v["status"] != "failed"}
     ids = []
     for m in entries():
