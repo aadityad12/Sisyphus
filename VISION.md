@@ -67,6 +67,31 @@ This is left to whoever builds the editing agent. Some options:
 
 Whichever is chosen, the Auditor's changes need to be versionable and verifiable.
 
+### What the Auditor can change
+
+The Auditor can change the agents' **skills, prompts and tools, and the editing software**. Most changes will be to **skills**, but the right target depends on the failure.
+
+### Not overreacting
+
+- Every failure is logged with its reason.
+- The Auditor **groups similar failures** and proposes a change only when a pattern emerges, not after a single failure.
+- Each proposed change is small and targeted, and it still has to pass verification.
+
+### Versioning
+
+Versioning uses **Git, with one branch per change**. Promoting a change merges its branch. Rolling a change back discards it.
+
+### Verification: shadow A/B on new work
+
+Each proposed change runs **side by side with the current version on new work**. Who decides the winner depends on where the change is:
+
+| Change to | Winner decided by |
+|---|---|
+| **Creator** | A **frozen copy of the current Reviewer** compares the old and new videos. **Humans can override** its decision. |
+| **Reviewer** | **Agreement with human verdicts.** The version whose decisions match human feedback more often wins, counting both approved videos and the rejected-videos tab. A Reviewer never grades itself. |
+
+The winner becomes the new standard, and the loser is rolled back.
+
 ## Demo
 
 The demo shows two things:
