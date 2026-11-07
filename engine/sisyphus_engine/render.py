@@ -104,8 +104,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         for chunk in _chunks(timeline_words, plan.caption_words):
             texts = [_escape(w["word"]).upper() if plan.caption_caps else _escape(w["word"]) for w in chunk]
             chunk_end = chunk[-1]["end"]
+            fit = _fit(texts, size, plan.caption_caps)
             if plan.caption_style == "plain":
-                lines.append(f"Dialogue: 0,{_ass_time(chunk[0]['start'])},{_ass_time(chunk_end)},Cap,,0,0,0,,{' '.join(texts)}")
+                lines.append(f"Dialogue: 0,{_ass_time(chunk[0]['start'])},{_ass_time(chunk_end)},Cap,,0,0,0,,{fit}{' '.join(texts)}")
                 continue
             for i, w in enumerate(chunk):
                 start = w["start"]
@@ -113,8 +114,20 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 if end <= start:
                     continue
                 shown = [f"{{\\c&H{high_c}&}}{t}{{\\c&H{text_c}&}}" if j == i else t for j, t in enumerate(texts)]
-                lines.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{' '.join(shown)}")
+                lines.append(f"Dialogue: 0,{_ass_time(start)},{_ass_time(end)},Cap,,0,0,0,,{fit}{' '.join(shown)}")
     return header + "\n".join(lines) + "\n"
+
+
+def _fit(texts: list[str], size: int, caps: bool) -> str:
+    """A smaller font for a line whose longest word would run off the frame, else nothing.
+
+    A word can't wrap, so at caption_size huge a 14-letter word in capitals was cut off at both edges
+    (OVERPREDICTION, the first brain-rot render, 2026-11-07). Widths are estimated for Arial Bold.
+    """
+    room = WIDTH - 100  # the Cap style's 50 px side margins
+    per_char = 0.72 if caps else 0.6  # average advance, in font sizes
+    longest = max((len(t) for t in texts), default=0) * per_char * size
+    return "" if longest <= room else f"{{\\fs{int(size * room / longest)}}}"
 
 
 def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dict]]:
