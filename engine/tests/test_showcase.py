@@ -48,10 +48,12 @@ def test_a_failed_render_is_retried(env):
     assert len(showcase.render()) == 1
 
 
-def test_table_has_a_column_per_version_and_names_the_change(env):
+def test_table_has_a_column_per_version_and_names_the_change(env, monkeypatch):
     showcase.render()
+    # As experiments leaves it once decided: "candidate" is the arm's tally, not a commit.
     store.add_change("creator", "si/creator/1-hook", "Open on the claim", status="promoted",
-                     results={"candidate": "bbb22223", "merged": "ccc33334"})
+                     results={"candidate": {"approved": 2, "total": 4}, "merged": "ccc33334"})
+    monkeypatch.setattr(showcase.versioning, "_git", lambda *a: "bbb2222abcde" if a[-1] == "si/creator/1-hook" else "")
     env["version"]["v"] = "bbb2222"
     showcase.render()
     t = showcase.table()

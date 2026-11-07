@@ -65,8 +65,10 @@ def _change_for(version: str, changes: list[dict]) -> dict | None:
         if c["agent"] != "creator" or c["status"] != "promoted":
             continue
         r = c["results"] or {}
-        refs = [r.get("candidate"), r.get("merged"), c["branch"]]
-        if any(ref and (ref.startswith(version) or version.startswith(ref)) for ref in refs):
+        # results["candidate"] starts as the change's commit but becomes the arm's tally when decided,
+        # so match on the merge commit and on the change branch's own commit (kept after a promote).
+        refs = [r.get("merged"), versioning._git("rev-parse", "--short=12", c["branch"])]
+        if any(isinstance(ref, str) and ref and (ref.startswith(version) or version.startswith(ref)) for ref in refs):
             return c
     return None
 
