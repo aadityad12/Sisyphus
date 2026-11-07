@@ -1,6 +1,8 @@
+import json
+
 import pytest
 
-from sisyphus_engine import experiments, store
+from sisyphus_engine import experiments, jobs, store
 
 
 @pytest.fixture
@@ -156,3 +158,121 @@ def test_waits_for_clips_not_yet_submitted(db):
     change = _status(cid)
     assert change["status"] == "testing"
     assert change["results"]["pending"] == 3
+
+
+# run_audit end to end (hearty-ermine's repro of the P1 fixed in 16d4fb3 and c589de5, 2026-11-07). The
+# executor runs each job inside jobs.submit: the extreme case of a worker settling the first clip while
+# run_audit is still submitting the rest.
+
+
+class _Inline:
+    """Runs each job at once, inside submit. Like a real executor, a job's exception stays with the job
+    (kept in .errors) instead of reaching run_audit, where it would look like a failed submit."""
+
+    def __init__(self):
+        self.errors: list[Exception] = []
+
+    def submit(self, fn, *args, **kwargs):
+        try:
+            fn(*args, **kwargs)
+        except Exception as exc:
+            self.errors.append(exc)
+
+
+@pytest.fixture
+def audit(db, tmp_path, monkeypatch):
+    """A Creator audit over two held-out talks (2 × 2 arms = 4 clips) with everything but the A/B faked.
+    Returns the decisions as (promote|roll_back, number of the change's clips that existed at the time)."""
+    footage = tmp_path / "footage"
+    footage.mkdir()
+    for name in ("a.mp4", "c.mp4", "d.mp4"):
+        (footage / name).write_bytes(b"x")
+    (footage / "manifest.json").write_text(json.dumps([
+        {"file": "a.mp4", "brief": "brief a", "showcase": True},
+        {"file": "c.mp4", "brief": "brief c", "kind": "talk"},
+        {"file": "d.mp4", "brief": "brief d", "kind": "talk"},
+    ]))
+    for module in (jobs, experiments.showcase, experiments):
+        monkeypatch.setattr(module, "FOOTAGE_DIR", footage)
+    executor = _Inline()
+    monkeypatch.setattr(jobs, "executor", executor)
+    monkeypatch.setattr(experiments, "AB_SIZE", 2)
+    monkeypatch.setattr(experiments, "status", {"state": "idle", "detail": ""})  # run_audit leaves it set
+
+    def no_model(*a, **k):
+        raise AssertionError("a tie with rendered clips would ask the real Reviewer to compare them")
+
+    monkeypatch.setattr(experiments.compare, "prefer", no_model)
+
+    decisions = []
+
+    def clips():  # how many clips the change under test has when it is decided
+        testing = [c["id"] for c in store.list_changes() if c["status"] == "testing"]
+        return len(store.list_videos(experiment_id=testing[0])) if testing else -1
+
+    v = experiments.versioning
+    monkeypatch.setattr(v, "promote", lambda branch: decisions.append(("promote", clips())) or "abcdef1234")
+    monkeypatch.setattr(v, "roll_back", lambda branch: decisions.append(("roll_back", clips())))
+    monkeypatch.setattr(v, "head", lambda: "base1234567890")
+    monkeypatch.setattr(v, "create_change_branch", lambda *a, **k: "cand1234567890")
+    monkeypatch.setattr(v, "diff", lambda a, b: "")
+    monkeypatch.setattr(v, "full_ref", lambda ref: "rev1234567890")
+    monkeypatch.setattr(v, "agent_version", lambda agent: "v1")
+    monkeypatch.setattr(experiments.store, "failures", lambda: [{"video_id": 99, "agents": ["creator"]}])
+    monkeypatch.setattr(experiments.auditor, "cluster", lambda failures: [{"label": "x", "video_ids": [99]}])
+    monkeypatch.setattr(experiments.auditor, "propose", lambda *a: {"title": "t", "rationale": "r", "files": {}})
+    yield decisions
+    assert executor.errors == []  # every job ran to completion
+
+
+def _judge_by_arm(monkeypatch):
+    """Skip the Creator: every control clip is sent back and every candidate clip approved."""
+
+    def run(video_id, footage, brief, skills_ref, styles=None):
+        candidate = store.get_video(video_id)["arm"] == "candidate"
+        store.update_video(video_id, status="approved" if candidate else "rejected", review_approved=int(candidate))
+        jobs._settle(video_id)
+
+    monkeypatch.setattr(jobs, "_run", run)
+
+
+def test_audit_decides_once_every_clip_exists_when_clips_crash(audit, monkeypatch):
+    def crash(*a, **k):
+        raise RuntimeError("fast crash")
+
+    monkeypatch.setattr(jobs.creator, "create", crash)
+    cid = experiments.run_audit("creator")
+    assert audit == [("roll_back", 4)]  # before 16d4fb3: [("roll_back", 1)], on the first clip alone
+    change = _status(cid)
+    assert change["status"] == "rolled_back"
+    assert (change["results"]["control"]["total"], change["results"]["candidate"]["total"]) == (2, 2)
+
+
+def test_audit_promotes_on_all_clips_not_the_first(audit, monkeypatch):
+    _judge_by_arm(monkeypatch)
+    cid = experiments.run_audit("creator")
+    change = _status(cid)
+    # Before 16d4fb3 the first control's rejection alone tied 0-0 and rolled the change back.
+    assert audit == [("promote", 4)]
+    assert change["status"] == "promoted"
+    assert (change["results"]["candidate"]["approved"], change["results"]["control"]["approved"]) == (2, 0)
+
+
+def test_audit_decides_on_the_clips_submitted_when_a_submit_raises(audit, monkeypatch):
+    _judge_by_arm(monkeypatch)
+    real_submit, calls = jobs.submit, []
+
+    def submit(*args, **kwargs):  # the second talk's footage vanishes before its first clip is submitted
+        calls.append(args[0])
+        if len(calls) == 3:
+            raise FileNotFoundError(args[0])
+        return real_submit(*args, **kwargs)
+
+    monkeypatch.setattr(jobs, "submit", submit)
+    with pytest.raises(FileNotFoundError):
+        experiments.run_audit("creator")
+    (change,) = store.list_changes()
+    # Before c589de5 the change waited forever for 2 clips that were never submitted.
+    assert audit == [("promote", 2)]
+    assert change["status"] == "promoted"
+    assert change["results"]["expected"] == 2

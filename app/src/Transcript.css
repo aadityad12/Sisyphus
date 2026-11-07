@@ -1,0 +1,81 @@
+/* Transcript view: what the Creator kept and cut (Transcript.tsx), inside a card's disclosures. */
+.transcript {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 460px;
+  overflow-y: auto;
+}
+
+.tx-hook {
+  border: 2px solid var(--gold);
+  color: var(--gold);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tx-hook.none {
+  border: 1px dashed var(--line);
+  color: var(--dim);
+  font-weight: 400;
+}
+
+.tx-legend {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+}
+
+.tx-block {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.tx-head {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12px;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+
+.tx-num {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.tx-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.tx-kept {
+  background: rgba(245, 185, 66, 0.22);
+  color: var(--text);
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+.tx-other {
+  background: rgba(122, 167, 240, 0.16);
+  color: var(--dim);
+  border-radius: 3px;
+  padding: 1px 2px;
+}
+
+.tx-cut {
+  color: var(--dim);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.tx-more {
+  color: var(--dim);
+}

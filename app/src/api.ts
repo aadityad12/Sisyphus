@@ -107,6 +107,17 @@ export type Failure = {
   creator_version: string | null;
 };
 
+export type TranscriptWord = { word: string; start: number; end: number; kept: boolean; segment: number | null };
+export type TranscriptSegment = { index: number; start: number; end: number; words: TranscriptWord[] };
+export type TranscriptView = {
+  title: string;
+  hook: string;
+  context_s: number;
+  kept_s: number;
+  reordered: boolean;
+  segments: TranscriptSegment[];
+};
+
 export type AuditStatus = { state: "idle" | "clustering" | "proposing" | "testing" | "error"; detail: string };
 
 export type ShowcaseVersion = {
@@ -175,5 +186,6 @@ export const api = {
   runAudit: () => req<AuditStatus>("/audit", { method: "POST" }),
   showcase: () => req<ShowcaseTable>("/showcase"),
   renderShowcase: () => req<{ queued: number[] }>("/showcase", { method: "POST" }),
+  transcript: (id: number) => req<TranscriptView>(`/videos/${id}/transcript`),
   videoUrl: async (id: number) => `${await getEngineUrl()}/videos/${id}/file`,
 };

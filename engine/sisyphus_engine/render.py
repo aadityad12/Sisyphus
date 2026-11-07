@@ -118,6 +118,11 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return header + "\n".join(lines) + "\n"
 
 
+def plays(word: dict, seg: Segment) -> bool:
+    """Whether a segment plays a word: only a word wholly inside it is shown and captioned."""
+    return word["start"] >= seg.start and word["end"] <= seg.end
+
+
 def _fit(texts: list[str], size: int, caps: bool) -> str:
     """A smaller font for a line whose longest word would run off the frame, else nothing.
 
@@ -143,7 +148,7 @@ def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dic
     out, offset, speed = [], 0.0, plan.speed
     for seg in segs:
         for w in words:
-            if w["start"] >= seg.start and w["end"] <= seg.end:
+            if plays(w, seg):
                 out.append({
                     "word": w["word"],
                     "start": offset + (w["start"] - seg.start) / speed,

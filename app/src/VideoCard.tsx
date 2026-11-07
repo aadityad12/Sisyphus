@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./VideoCard.css";
 import { api, type Video } from "./api";
 import { StyleTags } from "./Styles";
+import { Transcript } from "./Transcript";
 
 const STATUS_LABEL: Record<Video["status"], string> = {
   queued: "Queued",
@@ -240,6 +241,8 @@ export function VideoCard({
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(video.comments.length > 0);
+  // Mounted only while open, so a feed of cards doesn't fetch every clip's transcript.
+  const [showTranscript, setShowTranscript] = useState(false);
 
   useEffect(() => {
     if (video.plan) api.videoUrl(video.id).then(setSrc);
@@ -384,7 +387,12 @@ export function VideoCard({
                 </div>
               </details>
 
-              {/* More disclosures (the Transcript from #8) go here, as further <details>. */}
+              <details onToggle={(e) => setShowTranscript(e.currentTarget.open)}>
+                <summary>
+                  Transcript <span className="dim">· what was kept and cut</span>
+                </summary>
+                {showTranscript && <Transcript videoId={video.id} />}
+              </details>
 
               <details open={showComments} onToggle={(e) => setShowComments(e.currentTarget.open)}>
                 <summary>
