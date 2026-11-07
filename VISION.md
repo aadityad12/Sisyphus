@@ -38,7 +38,7 @@ Failures can come from the Creator, the Reviewer, or both:
 | What happened | Whose failure |
 |---|---|
 | The Reviewer sends a video back. | The Creator's. This will be the most common failure. |
-| The Reviewer sends back a video that humans liked. | The Reviewer's. |
+| The Reviewer sends back a video that humans liked. | The Reviewer's only. This overrides the row above. |
 | The Reviewer pushes forward a video that humans dislike. | Both agents'. |
 
 ### Improving
@@ -49,7 +49,10 @@ There will be many failures, so the Auditor **must not overreact** to any single
 
 ## Demo
 
-_TBD_
+The demo shows two things:
+
+- **Before and after:** the Creator and Reviewer working in their initial versions, then in later versions, so the improvement is visible.
+- **Verification:** the versioned changes being verified before they become the new standard.
 
 ## Hackathon constraints
 
