@@ -1,38 +1,20 @@
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import type { Video } from "./api";
 import { VideoCard } from "./VideoCard";
 import "./Feed.css";
 
-type SortMode = "unvoted" | "newest" | "creator";
+type SortMode = "unvoted" | "newest";
 
 function newestFirst(a: Video, b: Video) {
   return b.created_at - a.created_at || b.id - a.id;
 }
 
-/** Keep the ordering stable as polling refreshes the cards, and group Creator versions by their latest clip. */
 function sortVideos(videos: Video[], sort: SortMode) {
-  const latestForVersion = new Map<string, number>();
-  if (sort === "creator") {
-    for (const video of videos) {
-      const version = video.creator_version ?? "unversioned";
-      latestForVersion.set(version, Math.max(latestForVersion.get(version) ?? 0, video.created_at));
-    }
-  }
-
   return [...videos].sort((a, b) => {
     if (sort === "unvoted") {
       const voted = Number(a.human_liked !== null) - Number(b.human_liked !== null);
       if (voted !== 0) return voted;
     }
-
-    if (sort === "creator") {
-      const aVersion = a.creator_version ?? "unversioned";
-      const bVersion = b.creator_version ?? "unversioned";
-      if (aVersion !== bVersion) {
-        return (latestForVersion.get(bVersion) ?? 0) - (latestForVersion.get(aVersion) ?? 0);
-      }
-    }
-
     return newestFirst(a, b);
   });
 }
@@ -49,16 +31,23 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
       video.human_liked !== null && video.review_approved !== null && video.human_liked !== video.review_approved,
   ).length;
   const unvoted = videos.filter((video) => video.human_liked === null).length;
-  const clipSet = videos
-    .map((video) => video.id)
-    .sort((a, b) => a - b)
-    .join(",");
-
-  // A vote must not move a card out from under the human. Re-sort only for a new clip set or sort mode,
-  // then map the frozen id order to the latest polled objects so the cards still show fresh votes and comments.
-  const orderedIds = useMemo(() => sortVideos(videos, sort).map((video) => video.id), [clipSet, sort]);
+  const order = useRef<{ sort: SortMode; ids: number[] }>({ sort, ids: [] });
   const videosById = new Map(videos.map((video) => [video.id, video]));
-  const sorted = orderedIds
+
+  // Only a deliberate sort change may move existing cards. Newly finished clips join at the top;
+  // polling still supplies fresh video objects, so votes and comments update without moving anything.
+  if (order.current.sort !== sort) {
+    order.current = { sort, ids: sortVideos(videos, sort).map((video) => video.id) };
+  } else {
+    const known = new Set(order.current.ids);
+    const added = sortVideos(
+      videos.filter((video) => !known.has(video.id)),
+      sort,
+    ).map((video) => video.id);
+    order.current.ids = [...added, ...order.current.ids.filter((id) => videosById.has(id))];
+  }
+
+  const sorted = order.current.ids
     .map((id) => videosById.get(id))
     .filter((video): video is Video => video !== undefined);
 
@@ -78,7 +67,6 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
           <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)} disabled={!videos.length}>
             <option value="unvoted">Unvoted first</option>
             <option value="newest">Newest first</option>
-            <option value="creator">Creator version</option>
           </select>
         </label>
       </div>
