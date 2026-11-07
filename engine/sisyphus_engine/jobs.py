@@ -8,6 +8,7 @@ from pathlib import Path
 
 from . import FOOTAGE_DIR, RUNS_DIR, store, versioning
 from .agents import creator, reviewer
+from .transcribe import transcribe
 
 log = logging.getLogger(__name__)
 executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="job")
@@ -53,27 +54,47 @@ def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None) -> No
     run_review(video_id)
 
 
-def run_review(video_id: int) -> None:
-    """Ask the Reviewer. Until the Reviewer is built, the video waits in 'reviewing' for POST /videos/{id}/review."""
+def run_review(video_id: int, reviewer_ref: str | None = None) -> None:
+    """Ask the Reviewer. A failed review leaves the video in 'reviewing' for POST /videos/{id}/review.
+
+    `reviewer_ref` (or the video row's `reviewer_ref`, set at the start of a shadow A/B) freezes the
+    Reviewer's skills at that Git ref, so a Creator change is judged by the Reviewer it started with.
+    """
     v = store.get_video(video_id)
+    ref = reviewer_ref or v.get("reviewer_ref")
     try:
-        verdict = reviewer.review(Path(v["video_path"]), v["brief"])
+        verdict = reviewer.review(
+            Path(v["video_path"]),
+            v["brief"],
+            plan=v["plan"],
+            transcript=transcribe(FOOTAGE_DIR / v["footage"]),
+            ref=ref,
+        )
     except NotImplementedError:
         return
     except Exception as exc:
         log.exception("reviewer failed for video %s", video_id)
         store.update_video(video_id, error=f"reviewer: {exc}")
         return
-    record_review(video_id, verdict.approved, verdict.reason)
+    record_review(video_id, verdict.approved, verdict.reason, tags=verdict.tags, reviewer_version=ref)
 
 
-def record_review(video_id: int, approved: bool, reason: str) -> None:
+def record_review(
+    video_id: int, approved: bool, reason: str, tags: list[str] | None = None, reviewer_version: str | None = None
+) -> None:
+    fields = {}
+    if tags:
+        if "review_tags" in (store.get_video(video_id) or {}):
+            fields["review_tags"] = json.dumps(tags)
+        else:  # no column yet: keep the tags in the reason, which the Auditor clusters on
+            reason = f"[{', '.join(tags)}] {reason}"
     store.update_video(
         video_id,
         review_approved=int(approved),
         review_reason=reason,
-        reviewer_version=versioning.agent_version("reviewer"),
+        reviewer_version=(reviewer_version or versioning.agent_version("reviewer"))[:12],
         status="approved" if approved else "rejected",
+        **fields,
     )
     _settle(video_id)
 
