@@ -59,9 +59,13 @@ CONTROLS = {
     "1 bottom) places a zoomed crop vertically, which frames a small speaker inset; track_face (true/false) has "
     "the renderer find the speaker's face in each segment and centre and size the crop on it, overriding crop_x, "
     "crop_y and zoom wherever a face is found), caption_style "
-    "(karaoke, plain, none) and caption_words (words on screen at once). Its skills are shared files, which "
-    "apply to every clip, and one file per editing style in styles/, which applies only to clips in that style "
-    "and takes precedence over the shared files where they disagree.",
+    "(karaoke, plain, none) and caption_words (words on screen at once); the look: caption_size (small, medium, "
+    "large, huge), caption_color (white, yellow, green, cyan, pink), caption_position (lower, middle, upper), "
+    "caption_caps (true upper-cases every caption, false keeps the speaker's case), color_filter (none, warm, "
+    "cool, bw, film, vivid), speed (0.75-1.5, the whole clip, sound included) and a per-segment punch (1-2, an "
+    "extra centred zoom on that segment, so cutting between punch 1 and 1.3 reads as a punch-in). "
+    "Its skills are shared files, which apply to every clip, and one file per editing style in styles/, which "
+    "applies only to clips in that style and takes precedence over the shared files where they disagree.",
     "reviewer": "The Reviewer's skills are its standards: what makes a clip good enough to approve. A Reviewer "
     "change is judged by how often its verdicts agree with human votes, so fix where it disagreed with people, "
     "in either direction: approving clips people disliked, or sending back clips people liked. Its shared "

@@ -100,7 +100,7 @@ def _spoken(plan: EditPlan, transcript: dict) -> str:
     cut_times, t = [], 0.0
     for s in segs:
         cut_times.append(t)
-        t += s.end - s.start
+        t += (s.end - s.start) / plan.speed  # clip seconds, as the words are
     lines: list[str] = []
     cur: list[dict] = []
     next_cut = 1
@@ -126,6 +126,9 @@ def _plan_text(plan: EditPlan) -> str:
         f"Layout: {plan.layout}, crop_x {plan.crop_x:.2f}; captions: {plan.caption_style}, "
         f"{plan.caption_words} words at a time\n"
         f"Editing styles: {', '.join(plan.styles) or '(none named)'}\n"
+        f"Look: captions {plan.caption_size}, {plan.caption_color}, {plan.caption_position}"
+        f"{', all caps' if plan.caption_caps else ''}; colour filter {plan.color_filter}; speed {plan.speed:g}x; "
+        f"punch per segment: {', '.join(f'{x.punch:g}' for x in plan.segments)}\n"
         f"Creator's rationale: {plan.rationale or '(none)'}"
     )
 

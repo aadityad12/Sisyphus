@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 class Segment(BaseModel):
     start: float = Field(description="Source time in seconds where this cut starts")
     end: float = Field(description="Source time in seconds where this cut ends")
+    punch: float = Field(1.0, ge=1, le=2, description="Extra zoom for this segment on top of zoom, for punch-ins: 1 none")
 
 
 class EditPlan(BaseModel):
@@ -29,13 +30,21 @@ class EditPlan(BaseModel):
     crop_y: float = Field(0.5, ge=0, le=1, description="Vertical position of a zoomed crop: 0 top, 1 bottom")
     caption_style: Literal["karaoke", "plain", "none"] = "karaoke"
     caption_words: int = Field(3, ge=1, le=8, description="Max words on screen at once")
+    caption_size: Literal["small", "medium", "large", "huge"] = "medium"
+    caption_color: Literal["white", "yellow", "green", "cyan", "pink"] = "white"
+    caption_position: Literal["lower", "middle", "upper"] = "lower"
+    # True is today's look (every caption upper-cased); false keeps the transcript's own case.
+    caption_caps: bool = True
+    color_filter: Literal["none", "warm", "cool", "bw", "film", "vivid"] = "none"
+    speed: float = Field(1.0, ge=0.75, le=1.5, description="Playback speed of the whole clip, sound included")
     styles: list[str] = Field(
         default_factory=list, description="The editing styles applied (names from skills/creator/styles/), the video's tags"
     )
     rationale: str = Field("", description="Why these cuts answer the brief")
 
     def duration(self) -> float:
-        return sum(max(0.0, s.end - s.start) for s in self.segments)
+        """How long the clip plays: source length kept, divided by speed."""
+        return sum(max(0.0, s.end - s.start) for s in self.segments) / self.speed
 
 
 def json_schema() -> dict:
@@ -44,7 +53,11 @@ def json_schema() -> dict:
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["title", "hook", "segments", "layout", "track_face", "crop_x", "zoom", "crop_y", "caption_style", "caption_words", "styles", "rationale"],
+        "required": [
+            "title", "hook", "segments", "layout", "track_face", "crop_x", "zoom", "crop_y", "caption_style",
+            "caption_words", "caption_size", "caption_color", "caption_position", "caption_caps", "color_filter",
+            "speed", "styles", "rationale",
+        ],
         "properties": {
             "title": {"type": "string"},
             "hook": {"type": "string"},
@@ -53,8 +66,8 @@ def json_schema() -> dict:
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
-                    "required": ["start", "end"],
-                    "properties": {"start": num, "end": num},
+                    "required": ["start", "end", "punch"],
+                    "properties": {"start": num, "end": num, "punch": num},
                 },
             },
             "layout": {"type": "string", "enum": ["crop", "fit", "split"]},
@@ -64,6 +77,12 @@ def json_schema() -> dict:
             "crop_y": num,
             "caption_style": {"type": "string", "enum": ["karaoke", "plain", "none"]},
             "caption_words": {"type": "integer"},
+            "caption_size": {"type": "string", "enum": ["small", "medium", "large", "huge"]},
+            "caption_color": {"type": "string", "enum": ["white", "yellow", "green", "cyan", "pink"]},
+            "caption_position": {"type": "string", "enum": ["lower", "middle", "upper"]},
+            "caption_caps": {"type": "boolean"},
+            "color_filter": {"type": "string", "enum": ["none", "warm", "cool", "bw", "film", "vivid"]},
+            "speed": num,
             "styles": {"type": "array", "items": {"type": "string"}},
             "rationale": {"type": "string"},
         },
@@ -86,6 +105,14 @@ def clamp_raw(raw: dict) -> dict:
         raw["crop_y"] = min(1.0, max(0.0, float(raw["crop_y"])))
     if isinstance(raw.get("crop_x"), (int, float)):
         raw["crop_x"] = min(1.0, max(0.0, float(raw["crop_x"])))
+    if isinstance(raw.get("speed"), (int, float)):
+        raw["speed"] = min(1.5, max(0.75, float(raw["speed"])))
+    if isinstance(raw.get("segments"), list):
+        raw["segments"] = [
+            {**s, "punch": min(2.0, max(1.0, float(s["punch"])))}
+            if isinstance(s, dict) and isinstance(s.get("punch"), (int, float)) else s
+            for s in raw["segments"]
+        ]
     return raw
 
 
@@ -96,7 +123,7 @@ def sanitize(plan: EditPlan, source_duration: float) -> EditPlan:
         start = max(0.0, min(s.start, source_duration))
         end = max(0.0, min(s.end, source_duration))
         if end - start >= 0.3:
-            segs.append(Segment(start=start, end=end))
+            segs.append(s.model_copy(update={"start": start, "end": end}))  # keeps punch
     if not segs:
         raise ValueError("edit plan has no usable segments")
     return plan.model_copy(update={"segments": segs, "crop_x": min(1.0, max(0.0, plan.crop_x))})
