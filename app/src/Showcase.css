@@ -145,17 +145,22 @@
 .sc-table thead th.sc-pending-column {
   border-top-style: dashed;
 }
-.sc-archived > :is(th, td) {
+.sc-unscored > :is(th, td) {
   opacity: 0.65;
 }
-.sc-archived:hover > :is(th, td), .sc-archived:focus-within > :is(th, td) {
+.sc-unscored:hover > :is(th, td), .sc-unscored:focus-within > :is(th, td) {
   opacity: 1;
 }
-.sc-archived-label {
+.sc-unscored-label {
   display: inline-block;
   margin-bottom: 8px;
   color: var(--dim);
   font-size: 11px;
+}
+.sc-score-scope {
+  color: var(--dim);
+  font-size: 12px;
+  line-height: 1.6;
 }
 .sc-version-label {
   display: flex;

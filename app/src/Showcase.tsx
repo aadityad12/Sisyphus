@@ -105,8 +105,8 @@ function score(version: ShowcaseVersion, rows: ShowcaseRow[]) {
   };
 }
 
-function VersionHead({ version, rows, current, first, latest }: {
-  version: ShowcaseVersion; rows: ShowcaseRow[]; current: boolean; first: boolean; latest: boolean;
+function VersionHead({ version, rows, current, first, latest, shared }: {
+  version: ShowcaseVersion; rows: ShowcaseRow[]; current: boolean; first: boolean; latest: boolean; shared: boolean;
 }) {
   const result = score(version, rows);
   const title = version.change?.title ?? "";
@@ -124,7 +124,7 @@ function VersionHead({ version, rows, current, first, latest }: {
       </div>
       <div className="sc-score-label">Reviewer approved</div>
       <div className="sc-completion">
-        {result.total > 0 ? `${result.reviewed} of ${result.total} reviewed` : "No active briefs to score"}{result.failed > 0 ? ` · ${result.failed} need attention` : ""}
+        {result.total > 0 ? `${result.reviewed} of ${result.total} reviewed` : shared ? "No shared briefs to score" : "No active briefs to score"}{result.failed > 0 ? ` · ${result.failed} need attention` : ""}
       </div>
       <div className="sc-change">
         <span className="sc-change-label">{version.change ? "What changed" : first ? "Baseline" : "Creator version"}</span>
@@ -178,6 +178,8 @@ export function Showcase() {
   const currentRendered = all.some((version) => sameVersion(version.version, t.current));
   const pendingAfter = all.length === 1;
   const hasComparison = all.length > 1;
+  const sharedScoring = compare && hasComparison;
+  const scoredRows = sharedScoring ? listed.filter((row) => shown.every((version) => !!row.cells[version.version])) : listed;
 
   return (
     <div className={`showcase ${compare ? "sc-compare" : "sc-history"}`}>
@@ -204,7 +206,7 @@ export function Showcase() {
       )}
 
       {listed.length === 0 && (
-        <div className="sc-empty-state"><h3>Set the starting point.</h3><p>Mark two or three entries in <code>footage/manifest.json</code> with <code>"showcase": true</code> to compare the same work across versions.</p></div>
+        <div className="sc-empty-state"><h3>{all.length ? "No active briefs." : "Set the starting point."}</h3><p>Mark two or three entries in <code>footage/manifest.json</code> with <code>"showcase": true</code> to compare the same work across versions.{all.length > 0 && " Historical renders remain below, outside the scores."}</p></div>
       )}
 
       {t.rows.length > 0 && all.length === 0 && (
@@ -217,12 +219,12 @@ export function Showcase() {
             <caption className="sc-sr-only">{hasComparison ? `The same briefs edited by ${compare ? "the first and latest available Creator versions" : "every rendered Creator version"}.` : "Fixed briefs edited by the baseline Creator. A second version is not available yet."}</caption>
             <thead>
               <tr>
-                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{listed.length} fixed brief{listed.length === 1 ? "" : "s"}</strong><span>Same footage.<br />Same goal.<br />{hasComparison ? "Different Creator." : "Baseline for comparison."}</span></div></th>
+                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{listed.length} fixed brief{listed.length === 1 ? "" : "s"}</strong>{sharedScoring && <span className="sc-score-scope">Scored on {scoredRows.length} shared brief{scoredRows.length === 1 ? "" : "s"}</span>}<span>Same footage.<br />Same goal.<br />{hasComparison ? "Different Creator." : "Baseline for comparison."}</span></div></th>
                 {shown.map((v) => {
                   const current = sameVersion(v.version, t.current);
                   return (
                     <th key={v.version} scope="col" className={current ? "sc-current-column" : ""}>
-                      <VersionHead version={v} rows={listed} current={current} first={v === all[0]} latest={v === all[all.length - 1]} />
+                      <VersionHead version={v} rows={scoredRows} current={current} first={v === all[0]} latest={v === all[all.length - 1]} shared={sharedScoring} />
                     </th>
                   );
                 })}
@@ -240,10 +242,10 @@ export function Showcase() {
             </thead>
             <tbody>
               {t.rows.map((r) => (
-                <tr key={`${r.footage}|${r.brief}`} className={r.listed ? "" : "sc-archived"}>
+                <tr key={`${r.footage}|${r.brief}`} className={!r.listed || (sharedScoring && !scoredRows.includes(r)) ? "sc-unscored" : ""}>
                   <th className="sc-brief sc-brief-content" scope="row">
                     <strong>{r.title}</strong>
-                    {!r.listed && <span className="sc-archived-label">Archived · not scored</span>}
+                    {!r.listed ? <span className="sc-unscored-label">Archived · not scored</span> : sharedScoring && !scoredRows.includes(r) && <span className="sc-unscored-label">Not shared · not scored</span>}
                     {r.speaker && <div className="dim small">{r.speaker}</div>}
                     <p>“{r.brief}”</p>
                   </th>
@@ -267,7 +269,7 @@ export function Showcase() {
           </table>
         </div>
       )}
-      {all.length > 0 && <p className="sc-footnote">Scores cover the active fixed briefs only. Archived briefs are kept for history, not scored. Verdicts are from render time, not the shadow A/B used to promote a change.</p>}
+      {all.length > 0 && <p className="sc-footnote">{sharedScoring ? "Comparison scores cover active briefs with a clip in both shown versions only." : "Scores cover the active fixed briefs only."} Archived briefs are kept for history, not scored. Verdicts are from render time, not the shadow A/B used to promote a change.</p>}
     </div>
   );
 }
