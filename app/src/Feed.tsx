@@ -3,6 +3,8 @@ import type { Video } from "./api";
 import { VideoCard } from "./VideoCard";
 import { stylesIn, stylesOf } from "./Styles";
 import "./Feed.css";
+import { CircleCheck, Undo2 } from "lucide-react";
+import { Empty } from "./ui";
 
 type SortMode = "unvoted" | "newest";
 
@@ -68,60 +70,57 @@ export function Feed({
     .filter((video): video is Video => video !== undefined)
     .filter(inStyle);
 
+  const total = videos.length;
+  const pct = (n: number) => (total ? `${(100 * n) / total}%` : "0%");
+
   return (
     <div className="feed-view">
-      <div className="feed-toolbar">
+      <div className="page-title">
         <div>
-          <h2 className="feed-heading">{mode === "feed" ? "Approved clips" : "Sent-back clips"}</h2>
-          <p className="feed-description">
+          <h1>{mode === "feed" ? "Approved clips" : "Sent-back clips"}</h1>
+          <p>
             {mode === "feed"
               ? "The Reviewer approved these. Your vote checks its decision."
               : "The Reviewer sent these back. Like a good one to flag a Reviewer mistake."}
           </p>
         </div>
-        <label className="feed-sort">
-          Sort by
-          <select value={sort} onChange={(event) => setSort(event.target.value as SortMode)} disabled={!videos.length}>
-            <option value="unvoted">Unvoted first</option>
-            <option value="newest">Newest first</option>
-          </select>
-        </label>
       </div>
 
-      {styleOptions.length > 0 && (
-        <div className="style-filter" role="group" aria-label="Filter by editing style">
-          Style
-          <button className={style === null ? "on" : ""} aria-pressed={style === null} onClick={() => setStyleFilter(null)}>
-            All
-          </button>
-          {styleOptions.map((s) => (
-            <button key={s} className={style === s ? "on" : ""} aria-pressed={style === s} onClick={() => setStyleFilter(s)}>
-              {s}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {videos.length > 0 && (
+      {total > 0 && (
         <section className="feed-summary" aria-label="Human feedback summary">
           <div className="feed-total">
-            <strong>{videos.length}</strong>
+            <strong>{total}</strong>
             <span>{mode === "feed" ? "approved" : "sent back"}</span>
+          </div>
+          <div className="feed-meter" aria-hidden>
+            <span className="agree" style={{ width: pct(agreed) }} />
+            <span className="disagree" style={{ width: pct(disagreed) }} />
           </div>
           <dl className="feed-stats">
             <div className="feed-stat agree" title="Your vote matches the Reviewer's verdict">
-              <dt>You agreed</dt>
+              <dt>
+                <span className="swatch" />
+                You agreed
+              </dt>
               <dd>{agreed}</dd>
             </div>
             <div
               className="feed-stat disagree"
-              title={mode === "rejected" ? "You liked a clip the Reviewer sent back" : "Your vote contradicts the Reviewer's verdict"}
+              title={
+                mode === "rejected" ? "You liked a clip the Reviewer sent back" : "Your vote contradicts the Reviewer's verdict"
+              }
             >
-              <dt>{mode === "rejected" ? "Reviewer wrong" : "You disagreed"}</dt>
+              <dt>
+                <span className="swatch" />
+                {mode === "rejected" ? "Reviewer wrong" : "You disagreed"}
+              </dt>
               <dd>{disagreed}</dd>
             </div>
             <div className="feed-stat unvoted" title="These clips still need your vote">
-              <dt>Unvoted</dt>
+              <dt>
+                <span className="swatch" />
+                Unvoted
+              </dt>
               <dd>{unvoted}</dd>
             </div>
           </dl>
@@ -133,18 +132,65 @@ export function Feed({
         </section>
       )}
 
-      {videos.length === 0 ? (
-        <section className="feed-empty">
-          <span className="feed-empty-mark" aria-hidden="true">
-            {mode === "feed" ? "✓" : "↩"}
-          </span>
-          <h3>{mode === "feed" ? "No approved clips yet" : "Nothing sent back"}</h3>
-          <p>
-            {mode === "feed"
-              ? "Start a clip in Studio. It will appear here after the Reviewer approves it, ready for your vote."
-              : "Start a clip in Studio. If the Reviewer sends it back, it will appear here for a second opinion."}
-          </p>
-        </section>
+      <div className="feed-toolbar">
+        {styleOptions.length > 0 ? (
+          <div className="style-filter" role="group" aria-label="Filter by editing style">
+            <span className="feed-tool-label">Style</span>
+            <div className="seg">
+              <button
+                className={style === null ? "on" : ""}
+                aria-pressed={style === null}
+                onClick={() => setStyleFilter(null)}
+              >
+                All
+              </button>
+              {styleOptions.map((s) => (
+                <button
+                  key={s}
+                  className={style === s ? "on" : ""}
+                  aria-pressed={style === s}
+                  onClick={() => setStyleFilter(s)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <span />
+        )}
+        <div className="feed-sort" role="group" aria-label="Sort">
+          <span className="feed-tool-label">Sort</span>
+          <div className="seg">
+            <button
+              className={sort === "unvoted" ? "on" : ""}
+              aria-pressed={sort === "unvoted"}
+              disabled={!videos.length}
+              onClick={() => setSort("unvoted")}
+            >
+              Unvoted first
+            </button>
+            <button
+              className={sort === "newest" ? "on" : ""}
+              aria-pressed={sort === "newest"}
+              disabled={!videos.length}
+              onClick={() => setSort("newest")}
+            >
+              Newest
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {total === 0 ? (
+        <Empty
+          icon={mode === "feed" ? <CircleCheck size={18} /> : <Undo2 size={18} />}
+          title={mode === "feed" ? "No approved clips yet" : "Nothing sent back"}
+        >
+          {mode === "feed"
+            ? "Start a clip in the Studio. It appears here once the Reviewer approves it, ready for your vote."
+            : "Start a clip in the Studio. If the Reviewer sends it back, it appears here for a second opinion."}
+        </Empty>
       ) : (
         <div className="grid feed-grid">
           {sorted.map((video) => (

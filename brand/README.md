@@ -51,34 +51,32 @@ Contrast of the orange (WCAG 2): 4.03:1 on white, which meets AA for graphics an
 (3:1) but not body text (4.5:1); 5.21:1 on black and 4.85:1 on the app background `#0c0c0f`,
 which meet AA for body text.
 
-The app's colors are CSS variables in `:root` in `app/src/App.css` (as of 2026-11-07, after the UI
-polish in #12); that file is the source of truth, and the main ones are:
+The app's colors are CSS variables in `:root` in `app/src/App.css` (as of 2026-11-07, after the redesign in
+#31); that file is the source of truth, and the main ones are:
 
-| Variable | Hex | In the app |
+| Variable | Value | In the app |
 |---|---|---|
-| `--bg` | `#0c0c0f` | Page background |
-| `--panel` | `#141418` | Panels |
-| `--card`, `--card-hover` | `#1b1b21`, `#22222a` | Cards |
-| `--line`, `--line-strong` | `#2a2a32`, `#3d3d48` | Borders |
-| `--text`, `--dim`, `--faint` | `#ececef`, `#8d8d99`, `#5f5f6b` | Text, from primary to faint |
-| `--gold` | `#f5b942` | Highlight; also `--auditor` |
-| `--green`, `--red` | `#5fd38d`, `#f07a7a` | Success and danger |
-| `--creator`, `--reviewer` | `#7aa7f0`, `#c39af5` | One color per agent |
-| `--style` | `#6fd3c7` | Editing styles (#13) |
+| `--bg-0` … `--bg-4` | `#08090a`, `#0e0f11`, `#141517`, `#1a1b1e`, `#232428` | Surfaces, darkest to lightest: window, main panel, cards, raised, highest |
+| `--border-1` … `--border-3` | white at 6%, 10%, 16% | Borders, on any surface |
+| `--text-1` … `--text-4` | `#f4f5f6`, `#c2c5cc`, `#8b8f98`, `#5d6169` | Text, from titles to placeholders |
+| `--accent`, `--accent-text` | `#e8450e`, `#ff7a45` | Brand orange: the primary action, selection and focus; the lighter tone for text on dark |
+| `--ok`, `--err`, `--warn`, `--info` | `#46c48a`, `#f0595d`, `#f0b429`, `#5aa9fa` | Status, each with a `-tint` fill |
+| `--creator`, `--reviewer`, `--auditor` | `#5aa9fa`, `#a98bfa`, `#f0b429` | One color per agent |
+| `--style` | `#2fc9b4` | Editing styles (#13) |
 
-The Figma Design System page's color variables (`color/bg/canvas` and so on) were made from the
-app's colors before the polish and still hold those older values as of 2026-11-07; update them
-from `App.css` when the Figma file is next touched.
+The Figma Design System page's color variables (`color/bg/canvas` and so on) still hold the colors from before
+#12 as of 2026-11-07; update them from `App.css` when the Figma file is next touched.
 
-The app highlights in amber `#f5b942` while the brand accent is orange `#EA3F00`. They are kept
-apart until one is chosen.
+The redesign settled the amber-or-orange question for the interface: the brand orange is the app's accent, and
+amber is kept only as the Auditor's color.
 
 ## Type
 
 | Font | Used for | License |
 |---|---|---|
 | Caesar Dressing (Regular, its only weight) | The wordmark and display headlines | SIL Open Font License, via Google Fonts |
-| Inter | Interface and body text, as in `App.css` | SIL Open Font License |
+| Inter | Interface and body text, bundled with the app (`@fontsource-variable/inter`) | SIL Open Font License |
+| JetBrains Mono | Versions, ids, timecodes, bundled (`@fontsource-variable/jetbrains-mono`) | SIL Open Font License |
 
 Figma text styles:
 
