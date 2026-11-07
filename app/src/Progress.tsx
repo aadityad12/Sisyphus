@@ -17,16 +17,19 @@ const samePrefix = (a: string, b: string) => {
 };
 
 /**
- * The promoted change that produced a Creator version, if one did. Our own commits to the Creator's
- * code also make new versions, so a version with no matching change gets no Auditor credit: there is
- * deliberately no fallback by position.
+ * The promoted change that produced a Creator version, if one is found. Our own commits to the
+ * Creator's code also make new versions, so an unmatched version gets no Auditor credit: there is
+ * deliberately no fallback by position. "No linked change" is all the UI can say about it.
  */
 function changeFor(version: string, promoted: Change[], known: Record<string, number>): Change | undefined {
   const id = Object.entries(known).find(([v]) => samePrefix(v, version))?.[1];
-  return (
-    promoted.find((c) => c.id === id) ??
-    promoted.find((c) => typeof c.results?.merged === "string" && samePrefix(c.results.merged, version))
-  );
+  // The candidate's own commit is the version the agent reports; results.candidate holds it until the
+  // A/B overwrites it with arm counts (experiments.py, 2026-11-07), and results.candidate_commit after a fix.
+  const refs = (c: Change) =>
+    [c.results?.candidate_commit, c.results?.candidate, c.results?.merged].filter(
+      (r): r is string => typeof r === "string",
+    );
+  return promoted.find((c) => c.id === id) ?? promoted.find((c) => refs(c).some((r) => samePrefix(r, version)));
 }
 
 /** Pass rate per Creator version on regular work (A/B clips excluded): is the system getting better? */
@@ -94,7 +97,7 @@ export function Progress({
                   <code>{r.version.slice(0, 7)}</code>
                 </div>
                 <div className="barnote" title={change ? changeTitle(change) : undefined}>
-                  {i === 0 ? "starting skills" : change ? changeTitle(change) : "not an Auditor change"}
+                  {i === 0 ? "starting skills" : change ? changeTitle(change) : "no linked change"}
                 </div>
                 <div className="dim small">
                   {r.passed}/{r.total} clips
