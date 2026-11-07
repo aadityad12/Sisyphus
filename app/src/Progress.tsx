@@ -20,15 +20,33 @@ const samePrefix = (a: string, b: string) => {
  * The promoted change that produced Creator version `index`. The merge hash the engine records is
  * not always the version the agent reports, so this falls back to order: the nth promotion made vn.
  */
-function changeFor(version: string, index: number, promoted: Change[]): Change | undefined {
+function changeFor(
+  version: string,
+  index: number,
+  promoted: Change[],
+  known: Record<string, number>,
+): Change | undefined {
+  const id = Object.entries(known).find(([v]) => samePrefix(v, version))?.[1];
   return (
+    promoted.find((c) => c.id === id) ??
     promoted.find((c) => typeof c.results?.merged === "string" && samePrefix(c.results.merged, version)) ??
     promoted[index - 1]
   );
 }
 
 /** Pass rate per Creator version on regular work (A/B clips excluded): is the system getting better? */
-export function Progress({ videos, changes, current }: { videos: Video[]; changes: Change[]; current?: string }) {
+export function Progress({
+  videos,
+  changes,
+  current,
+  known = {},
+}: {
+  videos: Video[];
+  changes: Change[];
+  current?: string;
+  /** Creator version → change id, from GET /showcase, which matches on the change branch's own commit too. */
+  known?: Record<string, number>;
+}) {
   const promoted = changes
     .filter((c) => c.agent === "creator" && c.status === "promoted")
     .sort((a, b) => a.created_at - b.created_at);
@@ -60,7 +78,7 @@ export function Progress({ videos, changes, current }: { videos: Video[]; change
           {ordered.map((r, i) => {
             const pct = Math.round((100 * r.passed) / r.total);
             const prev = i > 0 ? Math.round((100 * ordered[i - 1].passed) / ordered[i - 1].total) : null;
-            const change = i > 0 ? changeFor(r.version, i, promoted) : undefined;
+            const change = i > 0 ? changeFor(r.version, i, promoted, known) : undefined;
             const latest = i === ordered.length - 1 && !awaiting;
             return (
               <div key={r.version} className={`barcol ${latest ? "latest" : ""}`}>
@@ -101,7 +119,7 @@ export function Progress({ videos, changes, current }: { videos: Video[]; change
               </div>
               <div className="barnote">
                 {(() => {
-                  const c = changeFor(awaiting, ordered.length, promoted);
+                  const c = changeFor(awaiting, ordered.length, promoted, known);
                   return c ? changeTitle(c) : "current version";
                 })()}
               </div>

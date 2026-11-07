@@ -290,14 +290,17 @@ function ChangeCard({ change }: { change: Change }) {
 
 export function Versions({ videos }: { videos: Video[] }) {
   const { data } = usePoll(api.versions, 3000);
+  const showcase = usePoll(api.showcase, 6000);
   if (!data) return <p className="dim">Loading…</p>;
+  const known: Record<string, number> = {};
+  for (const v of showcase.data?.versions ?? []) if (v.change) known[v.version] = v.change.id;
   const changes = [...data.changes].sort((a, b) => b.created_at - a.created_at);
   const promoted = changes.filter((c) => c.status === "promoted").length;
   const rolledBack = changes.filter((c) => c.status === "rolled_back").length;
   return (
     <div className="versions">
       <div className="evo">
-        <Progress videos={videos} changes={data.changes} current={data.current.creator} />
+        <Progress videos={videos} changes={data.changes} current={data.current.creator} known={known} />
         <AuditorPanel />
       </div>
 
