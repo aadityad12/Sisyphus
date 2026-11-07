@@ -18,7 +18,7 @@ from openai import BadRequestError
 
 from .. import llm
 from ..media import frame_at, probe
-from ..plan import EditPlan
+from ..plan import EditPlan, load as load_plan
 from .. import styles as style_lib
 from ..render import timeline
 from ..transcribe import words as all_words
@@ -58,7 +58,7 @@ Tags name what is wrong, and only that: an approved clip may have none.
 - ending: the clip stops mid-thought or without a payoff.
 - off_style: the clip doesn't look or feel like the editing style it was made in.
 
-Each clip was edited in one or more editing styles (brain rot, polished, artsy, ...), named in the edit plan. Judge it as a clip in those styles: frantic cuts are the point of one style and a flaw in another. Your standards for each style follow your general standards and take precedence over them where they disagree. The general standards that don't depend on style (a hook, a finished ending, the subject in frame, readable captions) still apply to every clip.
+Each clip was edited in one or more editing styles (brain rot jump cuts, broadcast polish, cinematic long takes, ...), named in the edit plan. Judge it as a clip in those styles: frantic cuts are the point of one style and a flaw in another. Your standards for each style follow your general standards and take precedence over them where they disagree. The general standards that don't depend on style (a hook, a finished ending, the subject in frame, readable captions) still apply to every clip.
 
 Your standards follow. Apply them.
 
@@ -148,7 +148,7 @@ def review(
 
     text = [f"Brief: {brief}", f"Clip: {duration:.1f}s, {info['width']}x{info['height']}"]
     if plan is not None:
-        plan = plan if isinstance(plan, EditPlan) else EditPlan.model_validate(plan)
+        plan = plan if isinstance(plan, EditPlan) else load_plan(plan)
         if plan.styles:
             # The Reviewer's own standards for these styles, at its own (possibly frozen) ref.
             skills += "\n\n# Your standards for this clip's styles\n\n" + style_lib.for_agent("reviewer", plan.styles, ref)

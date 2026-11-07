@@ -9,7 +9,7 @@ marked kept are the words the video plays.
 import json
 
 from . import FOOTAGE_DIR
-from .plan import EditPlan, Segment
+from .plan import EditPlan, Segment, load as load_plan, load_segments
 from .render import plays, timeline
 from .transcribe import _cache_path
 from .transcribe import words as all_words
@@ -57,9 +57,9 @@ def for_video(video: dict, context: float = CONTEXT_S) -> dict:
     transcribe's lock, stalling the Creator's jobs. Raises FileNotFoundError if the footage is
     gone and NotCached if it has no transcript.
     """
-    plan = EditPlan.model_validate(video["plan"])
+    plan = load_plan(video["plan"])
     cache = _cache_path(FOOTAGE_DIR / video["footage"])  # stats the footage: FileNotFoundError if gone
     if not cache.exists():
         raise NotCached(video["footage"])
-    rendered = [Segment.model_validate(s) for s in video["plan"].get("rendered_segments") or []]
+    rendered = load_segments(video["plan"].get("rendered_segments") or [])
     return build(plan, json.loads(cache.read_text(encoding="utf-8")), context, rendered or None)

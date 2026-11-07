@@ -26,9 +26,12 @@ CAPTION_COLOR = {
     "cyan": ("FFFF00", "00E5FF"),
     "pink": ("B469FF", "FFFFFF"),
 }
-# (ASS alignment, vertical margin): lower third, centre, or high but clear of the hook, which sits at
-# MarginV 170 and reaches about 320 px when it wraps to two lines.
-CAPTION_POSITION = {"lower": (2, 330), "middle": (5, 0), "upper": (8, 350)}
+# (ASS alignment, vertical margin): low, centre, or high but clear of the hook, which sits at MarginV 200
+# and reaches about 350 px when it wraps to two lines. The margins keep text out of the bands the
+# platforms' own buttons and description cover: about the top 15% and bottom 35% of a 9:16 frame on
+# TikTok, Reels and Shorts (#26). "lower" puts the caption's baseline at that 35% line.
+CAPTION_POSITION = {"lower": (2, 450), "middle": (5, 0), "upper": (8, 400)}
+SIDE_MARGIN = 90  # px each side: TikTok's buttons cover about 11% of the width on the right
 # Applied to the cut before captions are burned in, so caption colours stay true.
 COLOR_FILTERS = {
     "none": "",
@@ -91,8 +94,8 @@ WrapStyle: 0
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Cap,Arial,{size},&H00{text_c},&H00{text_c},&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,{round(5 * size / 62)},2,{align},50,50,{margin_v},1
-Style: Hook,Arial,54,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,1,0,0,0,100,100,0,0,3,14,0,8,60,60,170,1
+Style: Cap,Arial,{size},&H00{text_c},&H00{text_c},&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,{round(5 * size / 62)},2,{align},{SIDE_MARGIN},{SIDE_MARGIN},{margin_v},1
+Style: Hook,Arial,54,&H00000000,&H00000000,&H00FFFFFF,&H00FFFFFF,1,0,0,0,100,100,0,0,3,14,0,8,{SIDE_MARGIN},{SIDE_MARGIN},200,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -129,7 +132,7 @@ def _fit(texts: list[str], size: int, caps: bool) -> str:
     A word can't wrap, so at caption_size huge a 14-letter word in capitals was cut off at both edges
     (OVERPREDICTION, the first brain-rot render, 2026-11-07). Widths are estimated for Arial Bold.
     """
-    room = WIDTH - 100  # the Cap style's 50 px side margins
+    room = WIDTH - 2 * SIDE_MARGIN  # the Cap style's side margins
     per_char = 0.72 if caps else 0.6  # average advance, in font sizes
     longest = max((len(t) for t in texts), default=0) * per_char * size
     if longest <= room:

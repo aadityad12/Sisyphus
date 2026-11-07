@@ -23,7 +23,7 @@ into clusters of failures that share one root cause the Creator could fix. A clu
 cause (for example "hook comes too late" or "speaker cropped out of frame"), not the topic of the clip. \
 Reviewer tags, when present, are a strong hint: failures sharing a tag usually share a cause. Put each failure in at most one cluster. Leave out failures that share a cause with no other failure.
 
-Every clip is edited in one or more editing styles (brain rot, polished, artsy, ...), each with its own \
+Every clip is edited in one or more editing styles (brain rot jump cuts, broadcast polish, cinematic long takes, ...), each with its own \
 skill file. Say where each cluster's fix belongs:
 - kind "style", with style set to that style's name: the cause is in how one style is done (the brain-rot \
 clips keep losing the speaker in their punch-ins). Every failure in the cluster used that style.
@@ -166,7 +166,7 @@ def cluster(failures: list[dict]) -> list[dict]:
         ids = sorted({i for i in c["video_ids"] if i in known})
         if len(ids) < MIN_CLUSTER:
             continue
-        kind, style = c.get("kind", "shared"), styles.slug(c.get("style") or "")
+        kind, style = c.get("kind", "shared"), styles.current(styles.slug(c.get("style") or ""))
         if kind == "style" and style not in library:
             kind, style = "shared", ""
         elif kind == "new_style" and style in library:

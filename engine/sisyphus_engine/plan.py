@@ -12,7 +12,8 @@ from pydantic import BaseModel, Field
 class Segment(BaseModel):
     start: float = Field(description="Source time in seconds where this cut starts")
     end: float = Field(description="Source time in seconds where this cut ends")
-    punch: float = Field(1.0, ge=1, le=2, description="Extra zoom for this segment on top of zoom, for punch-ins: 1 none")
+    # Capped at 1.3: editors punch in 8-20%, and more upscales the face until it goes soft (#26).
+    punch: float = Field(1.0, ge=1, le=1.3, description="Extra zoom for this segment on top of zoom, for punch-ins: 1 none")
 
 
 class EditPlan(BaseModel):
@@ -109,11 +110,22 @@ def clamp_raw(raw: dict) -> dict:
         raw["speed"] = min(1.5, max(0.75, float(raw["speed"])))
     if isinstance(raw.get("segments"), list):
         raw["segments"] = [
-            {**s, "punch": min(2.0, max(1.0, float(s["punch"])))}
+            {**s, "punch": min(1.3, max(1.0, float(s["punch"])))}
             if isinstance(s, dict) and isinstance(s.get("punch"), (int, float)) else s
             for s in raw["segments"]
         ]
     return raw
+
+
+def load(raw: dict) -> EditPlan:
+    """A stored plan, clamped first: plans saved before a range narrowed (punch went from 2.0 to 1.3 in
+    #26) must still load."""
+    return EditPlan.model_validate(clamp_raw(dict(raw)))
+
+
+def load_segments(raw: list) -> list[Segment]:
+    """Stored segments outside a plan (a video's rendered_segments), clamped like load()."""
+    return [Segment.model_validate(s) for s in clamp_raw({"segments": list(raw)})["segments"]]
 
 
 def sanitize(plan: EditPlan, source_duration: float) -> EditPlan:
