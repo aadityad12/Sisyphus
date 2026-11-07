@@ -125,13 +125,29 @@ export type ShowcaseRow = {
 };
 export type ShowcaseTable = { versions: ShowcaseVersion[]; rows: ShowcaseRow[]; current: string };
 
+/**
+ * FastAPI errors are {"detail": "..."} (409 for a style name clash, 422 for a bad name, empty text or an unknown
+ * style), or for validation errors a list of {msg}. Show the message, not the JSON.
+ */
+function errorDetail(body: string): string {
+  try {
+    const d = (JSON.parse(body) as { detail?: unknown }).detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d))
+      return d.map((e) => (e && typeof e === "object" && "msg" in e ? String(e.msg) : "")).join("; ");
+  } catch {
+    // not JSON: show it as it came
+  }
+  return body;
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getEngineUrl();
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  if (!res.ok) throw new Error(`${res.status} ${errorDetail(await res.text())}`);
   return res.json() as Promise<T>;
 }
 
