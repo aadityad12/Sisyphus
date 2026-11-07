@@ -67,6 +67,7 @@
 
 .sc-table {
   width: calc(var(--sc-brief-width) + var(--sc-columns) * (var(--sc-player-width) + 32px) + (var(--sc-columns) + 2) * 12px);
+  margin-inline: auto;
   border-collapse: separate;
   border-spacing: 12px 0;
   table-layout: fixed;

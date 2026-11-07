@@ -109,6 +109,9 @@ function VersionHead({ version, rows, current, first, latest }: {
   version: ShowcaseVersion; rows: ShowcaseRow[]; current: boolean; first: boolean; latest: boolean;
 }) {
   const result = score(version, rows);
+  const title = version.change?.title ?? "";
+  const cluster = version.change?.rationale?.split(": ")[0]?.trim();
+  const changeTitle = /^[\w./-]+\.md$/.test(title) && cluster ? `Fix: ${cluster}` : title;
   return (
     <div className="sc-head">
       <div className="sc-version-label">
@@ -125,7 +128,7 @@ function VersionHead({ version, rows, current, first, latest }: {
       </div>
       <div className="sc-change">
         <span className="sc-change-label">{version.change ? "What changed" : first ? "Baseline" : "Creator version"}</span>
-        <strong>{version.change?.title || (first ? "First rendered version" : "No linked change")}</strong>
+        <strong>{changeTitle || (first ? "First rendered version" : "No linked change")}</strong>
         <code>{version.version.slice(0, 8)}</code>
       </div>
     </div>
