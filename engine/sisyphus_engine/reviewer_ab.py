@@ -24,6 +24,7 @@ log = logging.getLogger(__name__)
 MIN_VIDEOS = int(os.environ.get("SISYPHUS_REVIEWER_AB_MIN", "4"))
 MAX_VIDEOS = int(os.environ.get("SISYPHUS_REVIEWER_AB_MAX", "8"))
 _running: set[int] = set()
+_rerun: set[int] = set()  # asked to run while running: new votes may have arrived since its snapshot
 _lock = threading.Lock()
 
 
@@ -73,8 +74,25 @@ def run(change_id: int) -> None:
     """Score a Reviewer change and promote or roll it back. Waits if too few clips have human votes."""
     with _lock:
         if change_id in _running:
+            _rerun.add(change_id)
             return
         _running.add(change_id)
+    try:
+        while True:
+            _run_once(change_id)
+            with _lock:
+                if change_id not in _rerun:
+                    _running.discard(change_id)
+                    return
+                _rerun.discard(change_id)
+    except BaseException:
+        with _lock:
+            _running.discard(change_id)
+            _rerun.discard(change_id)
+        raise
+
+
+def _run_once(change_id: int) -> None:
     change = None
     try:
         change = next((c for c in store.list_changes() if c["id"] == change_id), None)
@@ -90,19 +108,19 @@ def run(change_id: int) -> None:
 
         results.update(score(videos, base, change["branch"]))
         won = results["candidate"]["agree"] > results["control"]["agree"]
-        if won:
-            results["merged"] = versioning.promote(change["branch"])[:8]
-            store.update_change(change_id, status="promoted", results=results)
-        else:
-            versioning.roll_back(change["branch"])
-            store.update_change(change_id, status="rolled_back", results=results)
+        from .experiments import _decide_lock  # experiments imports this module
+
+        with _decide_lock:  # one git merge at a time, whichever agent's change it is
+            if won:
+                results["merged"] = versioning.promote(change["branch"])[:8]
+                store.update_change(change_id, status="promoted", results=results)
+            else:
+                versioning.roll_back(change["branch"])
+                store.update_change(change_id, status="rolled_back", results=results)
         log.info("reviewer change %s %s", change_id, "promoted" if won else "rolled back")
     except Exception as exc:
         log.exception("reviewer A/B %s failed", change_id)
         store.update_change(change_id, results={**((change or {}).get("results") or {}), "error": str(exc)})
-    finally:
-        with _lock:
-            _running.discard(change_id)
 
 
 def submit(change_id: int) -> None:
@@ -114,6 +132,11 @@ def submit(change_id: int) -> None:
 
 def on_vote() -> None:
     """A human vote may give a waiting Reviewer change enough held-out clips to be decided."""
+    with _lock:
+        running = set(_running)
     for c in store.list_changes():
-        if c["agent"] == "reviewer" and c["status"] == "testing" and (c["results"] or {}).get("waiting_for_votes"):
+        if c["agent"] != "reviewer" or c["status"] != "testing":
+            continue
+        # A run in progress may have taken its snapshot before this vote: run() queues one more pass.
+        if c["id"] in running or (c["results"] or {}).get("waiting_for_votes"):
             submit(c["id"])

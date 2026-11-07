@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./Transcript.css";
 import { api, type TranscriptSegment, type TranscriptView, type TranscriptWord } from "./api";
 
 // Cut words shown on each side of a kept segment until "Show all context" is on.

@@ -118,3 +118,18 @@ def test_a_bare_tag_as_the_reason_is_asked_again(clip, monkeypatch):
     r = reviewer.review(clip, "brief")
     assert r.reason.startswith("At 0:08") and len(seen) == 2
     assert "A tag name alone is not a reason" in seen[1][-1]["text"]
+
+
+def test_a_failed_re_ask_keeps_the_first_verdict(clip, monkeypatch):
+    monkeypatch.setattr(reviewer, "load_skills", lambda agent, ref=None: "")
+    answers = [{"approved": True, "tags": [], "reason": "good"}, TimeoutError("hung")]
+
+    def fake(s, u, sc, n, model=None):
+        a = answers.pop(0)
+        if isinstance(a, Exception):
+            raise a
+        return a
+
+    monkeypatch.setattr(reviewer.llm, "complete_json", fake)
+    r = reviewer.review(clip, "brief")
+    assert r.approved and r.reason == "good" and not answers
