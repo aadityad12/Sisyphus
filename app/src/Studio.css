@@ -1,24 +1,179 @@
-.newjob {
-  display: flex;
-  gap: 12px;
-  align-items: end;
-}
+/* Studio: where the demo starts. A new clip (footage, then brief), then the clips moving through the loop. */
 
-.newjob label {
+.st-new {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px 18px;
+  box-shadow: var(--shadow);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+}
+
+.st-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.st-head h2 {
+  margin: 0;
+}
+
+.st-head p {
+  margin: 0;
+}
+
+.st-creator {
+  font-family: var(--mono);
+  color: var(--creator);
+  background: color-mix(in srgb, var(--creator) 14%, transparent);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.st-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.st-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--gold);
+}
+
+.st-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Footage as cards: speaker first, then the talk, then its length. */
+.st-footage {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.st-source {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto;
+  gap: 2px 10px;
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.st-source:hover {
+  background: var(--card-hover);
+}
+
+.st-source.on {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.st-speaker {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.st-title {
+  grid-column: 1;
   font-size: 12px;
   color: var(--dim);
-  min-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.newjob .grow {
-  flex: 1;
+.st-dur {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
 }
 
-.newjob button {
-  height: 40px;
+.st-source.on .st-dur {
+  color: var(--gold);
 }
 
-/* Video cards */
+.st-brief {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  padding: 10px 12px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+
+.st-brief:focus {
+  outline: none;
+  border-color: var(--line-strong);
+}
+
+.st-go {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.st-go button {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.st-go .error {
+  margin: 0;
+}
+
+.st-count {
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--dim);
+}
+
+.st-none {
+  margin: 0;
+}
+
+.st-hint {
+  margin: -6px 0 12px;
+}
+
+.st-errors {
+  margin-top: 24px;
+}
+
+.st-errors summary {
+  cursor: pointer;
+  color: var(--dim);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
