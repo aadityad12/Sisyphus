@@ -91,13 +91,18 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     return header + "\n".join(lines) + "\n"
 
 
+def plays(word: dict, seg: Segment) -> bool:
+    """Whether a segment plays a word: only a word wholly inside it is shown and captioned."""
+    return word["start"] >= seg.start and word["end"] <= seg.end
+
+
 def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dict]]:
     """Snap the cuts, then map transcript words from source time onto the output timeline."""
     segs = [snap_to_words(s, words) for s in plan.segments]
     out, offset = [], 0.0
     for seg in segs:
         for w in words:
-            if w["start"] >= seg.start and w["end"] <= seg.end:
+            if plays(w, seg):
                 out.append({"word": w["word"], "start": offset + w["start"] - seg.start, "end": offset + w["end"] - seg.start})
         offset += seg.end - seg.start
     return segs, out
