@@ -65,17 +65,20 @@ function ABResult({ change }: { change: Change }) {
 
   let decision: string;
   if (change.status === "promoted")
-    decision = `Promoted: the candidate won${typeof results.merged === "string" ? ` and was merged as ${results.merged.slice(0, 7)}` : ""}.`;
-  else if (change.status === "rolled_back") decision = "Rolled back: the candidate did not beat the current version.";
+    decision = `Promoted: the change won${typeof results.merged === "string" ? ` and was merged as ${results.merged.slice(0, 7)}` : ""}.`;
+  else if (change.status === "rolled_back") decision = "Rolled back: it did not beat the version without it.";
   else if (typeof results.waiting_for_votes === "string") decision = `Waiting for human votes: ${results.waiting_for_votes}.`;
   else if (pending) decision = `Testing: ${pending} held-out clip${pending > 1 ? "s" : ""} still to be judged.`;
-  else if (!control.total && !candidate.total) decision = "Testing: rendering held-out clips with both versions.";
+  else if (!control.total && !candidate.total)
+    decision = reviewerChange
+      ? "Testing: re-reviewing clips humans voted on, with both versions of the Reviewer."
+      : "Testing: rendering held-out clips with both versions.";
   else decision = "Testing.";
 
   return (
     <div className={`abresult ${change.status}`}>
       <div className="abarm">
-        <span className="ablabel">Current</span>
+        <span className="ablabel">Without the change</span>
         <strong>{pct(a)}</strong>
         <span className="dim small">
           {count(control)}/{control.total ?? 0} {metric}
@@ -83,7 +86,7 @@ function ABResult({ change }: { change: Change }) {
       </div>
       <div className="abvs">vs</div>
       <div className="abarm candidate">
-        <span className="ablabel">Candidate</span>
+        <span className="ablabel">With the change</span>
         <strong>{pct(b)}</strong>
         <span className="dim small">
           {count(candidate)}/{candidate.total ?? 0} {metric}
@@ -153,8 +156,8 @@ function ABClips({ changeId }: { changeId: number }) {
   return (
     <div className="abgrid">
       <div className="abhead dim small">Held-out brief</div>
-      <div className="abhead dim small">Current</div>
-      <div className="abhead dim small">Candidate</div>
+      <div className="abhead dim small">Without the change</div>
+      <div className="abhead dim small">With the change</div>
       {[...rows.entries()].map(([key, row]) => (
         <div key={key} className="abrow">
           <p className="small">“{row.brief}”</p>

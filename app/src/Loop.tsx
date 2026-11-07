@@ -20,7 +20,7 @@ export function passRates(videos: Video[]) {
   if (ordered.length === 0) return null;
   const first = ordered[0];
   const last = ordered[ordered.length - 1];
-  return { first: pct(first), last: pct(last), versions: ordered.length, clips: last.total };
+  return { first: pct(first), last: pct(last), versions: ordered.length, passed: last.passed, clips: last.total };
 }
 
 const AUDIT_LABEL: Record<AuditStatus["state"], string> = {
@@ -36,16 +36,18 @@ function Node({
   version,
   activity,
   active,
+  warn = false,
   onClick,
 }: {
   agent: "creator" | "reviewer" | "auditor";
   version?: string;
   activity: string;
   active: boolean;
+  warn?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button className={`loop-node ${agent} ${active ? "active" : ""}`} onClick={onClick} title={`Go to ${agent}`}>
+    <button className={`loop-node ${agent} ${active ? "active" : ""} ${warn ? "warn" : ""}`} onClick={onClick} title={`Go to ${agent}`}>
       <span className="loop-dot" />
       <span className="loop-text">
         <span className="loop-name">
@@ -56,6 +58,29 @@ function Node({
       </span>
     </button>
   );
+}
+
+type Tab = "Studio" | "Feed" | "Versions" | "Showcase";
+type Pool = "regular" | "ab" | "showcase";
+
+const poolOf = (v: Video): Pool => (v.experiment_id !== null ? "ab" : v.showcase ? "showcase" : "regular");
+const POOL_TAB: Record<Pool, Tab> = { regular: "Studio", ab: "Versions", showcase: "Showcase" };
+const POOL_WORD: Record<Pool, string> = { regular: "", ab: "A/B ", showcase: "showcase " };
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+/** Where most of the work in `videos` lives, so clicking an agent opens the tab that shows it. */
+function busiest(videos: Video[]): Pool | null {
+  const n: Record<Pool, number> = { regular: 0, ab: 0, showcase: 0 };
+  for (const v of videos) n[poolOf(v)] += 1;
+  const top = (Object.keys(n) as Pool[]).sort((a, b) => n[b] - n[a])[0];
+  return n[top] ? top : null;
+}
+
+/** "editing 3 clips" when all regular work, else names the kind: "editing 2 A/B clips". */
+function describe(verb: string, videos: Video[]): string {
+  const pool = busiest(videos);
+  const mixed = new Set(videos.map(poolOf)).size > 1;
+  return `${verb} ${plural(videos.length, `${mixed || !pool ? "" : POOL_WORD[pool]}clip`)}`;
 }
 
 /**
@@ -71,25 +96,31 @@ export function Loop({
   videos: Video[];
   versions: Record<string, string> | undefined;
   audit: AuditStatus | null;
-  go: (tab: "Studio" | "Feed" | "Versions") => void;
+  go: (tab: Tab) => void;
 }) {
   // Every clip counts here, A/B and showcase included: the agents are busy with those too.
-  const creating = videos.filter((v) => v.status === "creating").length;
-  const queued = videos.filter((v) => v.status === "queued").length;
-  const reviewing = videos.filter((v) => v.status === "reviewing").length;
+  const creating = videos.filter((v) => v.status === "creating");
+  const queued = videos.filter((v) => v.status === "queued");
+  // A Reviewer error leaves a clip in "reviewing" with an error set: stuck, not being watched.
+  const reviewing = videos.filter((v) => v.status === "reviewing" && !v.error);
+  const stuck = videos.filter((v) => v.status === "reviewing" && v.error);
   const judged = videos.filter((v) => v.status === "approved" || v.status === "rejected").length;
   const state = audit?.state ?? "idle";
 
-  const creatorActivity = creating
-    ? `editing ${creating} clip${creating > 1 ? "s" : ""}${queued ? `, ${queued} queued` : ""}`
-    : queued
-      ? `${queued} queued`
+  const creatorActivity = creating.length
+    ? `${describe("editing", creating)}${queued.length ? `, ${queued.length} queued` : ""}`
+    : queued.length
+      ? `${queued.length} queued`
       : "idle";
-  const reviewerActivity = reviewing
-    ? `watching ${reviewing} clip${reviewing > 1 ? "s" : ""}`
-    : judged
-      ? `${judged} verdict${judged > 1 ? "s" : ""} given`
-      : "idle";
+  const reviewerActivity = reviewing.length
+    ? describe("watching", reviewing)
+    : stuck.length
+      ? `${plural(stuck.length, "clip")} need${stuck.length === 1 ? "s" : ""} a verdict`
+      : judged
+        ? `${plural(judged, "verdict")} given`
+        : "idle";
+  const creatorPool = busiest([...creating, ...queued]);
+  const reviewerPool = busiest(reviewing.length ? reviewing : stuck);
 
   return (
     <div className="loop" aria-label="The agents">
@@ -97,8 +128,8 @@ export function Loop({
         agent="creator"
         version={versions?.creator}
         activity={creatorActivity}
-        active={creating + queued > 0}
-        onClick={() => go("Studio")}
+        active={creating.length + queued.length > 0}
+        onClick={() => go(creatorPool ? POOL_TAB[creatorPool] : "Studio")}
       />
       <span className="loop-arrow" aria-hidden>
         →
@@ -107,8 +138,9 @@ export function Loop({
         agent="reviewer"
         version={versions?.reviewer}
         activity={reviewerActivity}
-        active={reviewing > 0}
-        onClick={() => go("Feed")}
+        active={reviewing.length > 0}
+        warn={!reviewing.length && stuck.length > 0}
+        onClick={() => go(reviewerPool ? POOL_TAB[reviewerPool] : "Feed")}
       />
       <span className="loop-arrow" aria-hidden>
         →
@@ -118,6 +150,7 @@ export function Loop({
         version={versions?.auditor}
         activity={state === "error" ? `error: ${audit?.detail ?? ""}` : AUDIT_LABEL[state]}
         active={state !== "idle" && state !== "error"}
+        warn={state === "error"}
         onClick={() => go("Versions")}
       />
       <span className="loop-back" aria-hidden title="The Auditor rewrites the Creator's and the Reviewer's skills">

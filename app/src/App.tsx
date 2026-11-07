@@ -85,7 +85,9 @@ function App() {
             <span className="headline-value dim">no verdicts yet</span>
           )}
           <span className="headline-sub">
-            {rates ? `${rates.versions} version${rates.versions > 1 ? "s" : ""}` : "\u00a0"}
+            {rates
+              ? `${rates.passed}/${rates.clips} clips passed${rates.versions > 1 ? ` · ${rates.versions} versions` : ""}`
+              : "\u00a0"}
           </span>
         </div>
         <span className={`engine ${engine}`} title={`Engine ${engine}`}>

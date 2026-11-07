@@ -242,6 +242,15 @@ h3 {
   max-width: 190px;
 }
 
+.loop-node.warn .loop-dot {
+  background: var(--red);
+  opacity: 1;
+}
+
+.loop-node.warn .loop-activity {
+  color: var(--red);
+}
+
 .loop-node.active .loop-activity {
   color: var(--text);
 }
