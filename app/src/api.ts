@@ -15,7 +15,7 @@ export type Footage = {
   brief?: string;
 };
 
-export type Segment = { start: number; end: number };
+export type Segment = { start: number; end: number; punch?: number };
 export type EditPlan = {
   title: string;
   hook: string;
@@ -24,7 +24,16 @@ export type EditPlan = {
   crop_x: number;
   caption_style: "karaoke" | "plain" | "none";
   caption_words: number;
+  // The look (#13); absent on plans from before the render knobs.
+  layout?: "crop" | "fit" | "split";
+  caption_size?: "small" | "medium" | "large" | "huge";
+  caption_color?: string;
+  caption_position?: "lower" | "middle" | "upper";
+  caption_caps?: boolean;
+  color_filter?: "none" | "warm" | "cool" | "bw" | "film" | "vivid";
+  speed?: number;
   rationale: string;
+  styles?: string[]; // the editing styles the Creator applied (#13)
 };
 
 export type Comment = { id: number; text: string; created_at: number };
@@ -49,10 +58,25 @@ export type Video = {
   review_tags?: string | string[] | null;
   showcase?: number | null;
   failed_agents: string[];
+  // Editing styles (#13): `styles` is what the Creator used (the video's tags), `styles_requested` what the
+  // Studio asked for; empty means Auto, so the Creator picked. Absent on an engine without styles.
+  styles?: string[];
+  styles_requested?: string[];
   comments: Comment[];
   created_at: number;
   updated_at: number;
 };
+
+/** An editing style: two skill files, one telling the Creator how to edit, one telling the Reviewer what good looks like. */
+export type Style = {
+  name: string; // slug, [a-z0-9-]+
+  title: string;
+  summary: string;
+  creator: string; // skills/creator/styles/<name>.md
+  reviewer: string | null; // skills/reviewer/styles/<name>.md
+};
+
+export type NewStyle = { name: string; how_to_edit: string; what_good_looks_like: string };
 
 export type Change = {
   id: number;
@@ -112,13 +136,29 @@ export type ShowcaseRow = {
 };
 export type ShowcaseTable = { versions: ShowcaseVersion[]; rows: ShowcaseRow[]; current: string };
 
+/**
+ * FastAPI errors are {"detail": "..."} (409 for a style name clash, 422 for a bad name, empty text or an unknown
+ * style), or for validation errors a list of {msg}. Show the message, not the JSON.
+ */
+function errorDetail(body: string): string {
+  try {
+    const d = (JSON.parse(body) as { detail?: unknown }).detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d))
+      return d.map((e) => (e && typeof e === "object" && "msg" in e ? String(e.msg) : "")).join("; ");
+  } catch {
+    // not JSON: show it as it came
+  }
+  return body;
+}
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getEngineUrl();
   const res = await fetch(`${base}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
   });
-  if (!res.ok) throw new Error(`${res.status} ${await res.text()}`);
+  if (!res.ok) throw new Error(`${res.status} ${errorDetail(await res.text())}`);
   return res.json() as Promise<T>;
 }
 
@@ -126,8 +166,15 @@ export const api = {
   health: () => req<{ status: string; versions: Record<string, string> }>("/health"),
   footage: () => req<Footage[]>("/footage"),
   videos: (status?: string) => req<Video[]>(`/videos${status ? `?status=${status}` : ""}`),
-  createJob: (footage: string, brief: string) =>
-    req<{ id: number }>("/jobs", { method: "POST", body: JSON.stringify({ footage, brief }) }),
+  // No styles (or none picked) means Auto: the Creator picks from the library.
+  createJob: (footage: string, brief: string, styles: string[] = []) =>
+    req<{ id: number }>("/jobs", {
+      method: "POST",
+      body: JSON.stringify(styles.length ? { footage, brief, styles } : { footage, brief }),
+    }),
+  styles: () => req<Style[]>("/styles"),
+  // Answers with the new style, shaped like a GET /styles item.
+  createStyle: (body: NewStyle) => req<Style>("/styles", { method: "POST", body: JSON.stringify(body) }),
   feedback: (id: number, body: { liked?: boolean | null; comment?: string }) =>
     req<Video>(`/videos/${id}/feedback`, { method: "POST", body: JSON.stringify(body) }),
   review: (id: number, approved: boolean, reason: string) =>

@@ -13,7 +13,7 @@ AGENTS = ("creator", "reviewer", "auditor")
 # What counts as each agent's "version": its skills plus the code and tools it runs.
 AGENT_PATHS = {
     "creator": ["skills/creator", "engine/sisyphus_engine/agents/creator.py", "engine/sisyphus_engine/render.py",
-                "engine/sisyphus_engine/plan.py"],
+                "engine/sisyphus_engine/plan.py", "engine/sisyphus_engine/styles.py"],
     "reviewer": ["skills/reviewer", "engine/sisyphus_engine/agents/reviewer.py"],
     "auditor": ["skills/auditor", "engine/sisyphus_engine/agents/auditor.py"],
 }
@@ -97,10 +97,10 @@ def diff(base: str, ref: str, paths: list[str] | None = None) -> str:
     return _git_env("diff", base, ref, "--", *(paths or []))
 
 
-def promote(branch: str) -> str:
+def promote(branch: str, message: str | None = None) -> str:
     """Adopt a change: merge its branch into the checked-out branch. Returns the merge commit."""
     try:
-        _git_env("merge", "--no-ff", "-m", f"Promote {branch}: it won its shadow A/B", branch)
+        _git_env("merge", "--no-ff", "-m", message or f"Promote {branch}: it won its shadow A/B", branch)
     except subprocess.CalledProcessError as exc:
         subprocess.run(["git", "merge", "--abort"], cwd=REPO_ROOT, capture_output=True)
         raise RuntimeError(f"merge of {branch} failed: {exc.stderr.decode('utf-8', 'replace')[-500:]}") from exc
@@ -111,6 +111,11 @@ def roll_back(branch: str) -> None:
     """Discard a change. A tag keeps its commit so the history of what was tried is never lost."""
     _git_env("tag", "-f", f"rolled-back/{branch}", branch)
     _git_env("branch", "-D", branch)
+
+
+def delete_branch(branch: str) -> None:
+    """Remove a branch whose commits are already merged."""
+    _git_env("branch", "-d", branch)
 
 
 def full_ref(ref: str) -> str:

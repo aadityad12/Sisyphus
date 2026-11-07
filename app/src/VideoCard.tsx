@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./VideoCard.css";
 import { api, type Video } from "./api";
+import { StyleTags } from "./Styles";
 import { Transcript } from "./Transcript";
 
 const STATUS_LABEL: Record<Video["status"], string> = {
@@ -200,6 +201,9 @@ function InFlightRow({ video }: { video: Video }) {
               {" · "}Creator <code>{shortVersion(video.creator_version)}</code>
             </span>
           )}
+          {/* No plan yet, so no styles used yet: say what was asked for. */}
+          {video.styles_requested !== undefined &&
+            (video.styles_requested.length ? ` · in ${video.styles_requested.join(" + ")}` : " · style: Auto")}
         </p>
         {video.error && <pre className="vc-error">{video.error.split("\n")[0]}</pre>}
       </div>
@@ -271,7 +275,8 @@ export function VideoCard({
     if (await feedback({ comment: text })) setComment((draft) => (draft.trim() === text ? "" : draft));
   }
 
-  const duration = video.plan?.segments.reduce((t, s) => t + (s.end - s.start), 0) ?? 0;
+  // Source seconds kept, played at the plan's speed.
+  const duration = (video.plan?.segments.reduce((t, s) => t + (s.end - s.start), 0) ?? 0) / (video.plan?.speed ?? 1);
   const busy = video.status === "queued" || video.status === "creating";
   const agree = agreement(video);
 
@@ -305,6 +310,7 @@ export function VideoCard({
                 </span>
               )}
               {video.arm && <span className={`chip arm-${video.arm}`}>A/B {video.arm}</span>}
+              <StyleTags video={video} />
               <span className="dim">
                 {video.footage}
                 {video.plan && ` · ${fmt(duration)} · ${cuts(video.plan.segments.length)}`}
@@ -364,12 +370,18 @@ export function VideoCard({
                     {video.plan.segments.map((s, i) => (
                       <li key={i}>
                         {fmt(s.start)} → {fmt(s.end)} <span className="dim">({fmt(s.end - s.start)})</span>
+                        {s.punch && s.punch > 1 ? <span className="dim"> · punch {s.punch.toFixed(2)}×</span> : null}
                       </li>
                     ))}
                   </ol>
                   <p className="dim small">
                     crop {video.plan.crop_x.toFixed(2)} · captions {video.plan.caption_style} ×
                     {video.plan.caption_words}
+                    {video.plan.caption_size &&
+                      ` · ${video.plan.caption_size} ${video.plan.caption_color ?? ""} ${video.plan.caption_position ?? ""}` +
+                        `${video.plan.caption_caps ? " caps" : ""}`}
+                    {video.plan.color_filter && video.plan.color_filter !== "none" && ` · ${video.plan.color_filter}`}
+                    {video.plan.speed && video.plan.speed !== 1 && ` · ${video.plan.speed}× speed`}
                   </p>
                   {video.plan.rationale && <p className="small">{video.plan.rationale}</p>}
                 </div>

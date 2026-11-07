@@ -228,7 +228,7 @@ def audit(db, tmp_path, monkeypatch):
 def _judge_by_arm(monkeypatch):
     """Skip the Creator: every control clip is sent back and every candidate clip approved."""
 
-    def run(video_id, footage, brief, skills_ref):
+    def run(video_id, footage, brief, skills_ref, styles=None):
         candidate = store.get_video(video_id)["arm"] == "candidate"
         store.update_video(video_id, status="approved" if candidate else "rejected", review_approved=int(candidate))
         jobs._settle(video_id)

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import FOOTAGE_DIR, cuts, experiments, jobs, reviewer_ab, showcase, store, versioning
+from . import FOOTAGE_DIR, cuts, experiments, jobs, reviewer_ab, showcase, store, styles, versioning
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="SIsyphus engine")
@@ -51,19 +51,49 @@ def footage_file(name: str):
 class JobIn(BaseModel):
     footage: str
     brief: str
+    styles: list[str] = []  # editing styles to apply; empty = Auto
 
 
 @app.post("/jobs")
 def create_job(job: JobIn) -> dict:
+    known = set(styles.names())
+    unknown = [s for s in job.styles if s not in known]
+    if unknown:
+        raise HTTPException(422, f"no style named {', '.join(unknown)}")
     try:
-        return {"id": jobs.submit(job.footage, job.brief)}
+        return {"id": jobs.submit(job.footage, job.brief, styles=job.styles)}
     except FileNotFoundError:
         raise HTTPException(404, f"no footage named {job.footage}")
 
 
+@app.get("/styles")
+def style_library() -> list[dict]:
+    """The editing styles: name, title, summary, and both files (the Reviewer's may be null)."""
+    return styles.library()
+
+
+class StyleIn(BaseModel):
+    name: str
+    how_to_edit: str
+    what_good_looks_like: str
+
+
+@app.post("/styles")
+def add_style(body: StyleIn) -> dict:
+    """A person adds a style. It is committed straight in, with no A/B (issue #13)."""
+    try:
+        return styles.create(body.name, body.how_to_edit, body.what_good_looks_like)
+    except FileExistsError:
+        raise HTTPException(409, f"a style named {styles.slug(body.name)} already exists")
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    except RuntimeError as exc:  # the commit or merge failed
+        raise HTTPException(500, str(exc))
+
+
 @app.get("/videos")
-def videos(status: str | None = None, experiment_id: int | None = None) -> list[dict]:
-    return store.list_videos(status, experiment_id)
+def videos(status: str | None = None, experiment_id: int | None = None, style: str | None = None) -> list[dict]:
+    return store.list_videos(status, experiment_id, style)
 
 
 @app.get("/videos/{video_id}")

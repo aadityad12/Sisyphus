@@ -4,6 +4,7 @@ import { api, type AuditStatus, type Change, type Video } from "./api";
 import { Progress, changeTitle } from "./Progress";
 import { usePoll } from "./usePoll";
 import { plural } from "./Loop";
+import { StyleTags } from "./Styles";
 
 const STAMP: Record<Change["status"], string> = {
   proposed: "PROPOSED",
@@ -145,6 +146,7 @@ function Clip({ video, onVoted }: { video: Video | undefined; onVoted: () => voi
         <span className={`verdict ${v}`}>{v === "pass" ? "✓ pass" : v === "fail" ? "✗ fail" : "…"}</span>
         {video.human_liked !== null && <span className="chip">human</span>}
       </div>
+      <StyleTags video={video} />
       {video.review_reason && <p className="dim small">{video.review_reason}</p>}
       {video.plan && (
         <div className="row">
@@ -297,6 +299,34 @@ function diffStat(diff: string) {
   return { add, del };
 }
 
+/**
+ * What a change targets (#13): the shared skills, one style's file, or a new style. Engines without styles
+ * record neither field, and the card shows nothing extra.
+ */
+function ChangeScope({ change }: { change: Change }) {
+  const kind = change.results?.kind;
+  const style = typeof change.results?.style === "string" ? change.results.style : null;
+  if (kind === "style" && style)
+    return (
+      <span className="change-scope">
+        style: <span className="style-tag">{style}</span>
+      </span>
+    );
+  if (kind === "new_style")
+    return (
+      <span className="change-scope">
+        new style
+        {style && (
+          <>
+            : <span className="style-tag">{style}</span>
+          </>
+        )}
+      </span>
+    );
+  if (kind === "shared") return <span className="change-scope dim">shared skills</span>;
+  return null;
+}
+
 function ChangeCard({ change }: { change: Change }) {
   const [showDiff, setShowDiff] = useState(false);
   const [showClips, setShowClips] = useState(change.status === "testing");
@@ -312,6 +342,7 @@ function ChangeCard({ change }: { change: Change }) {
       <header className="change-head">
         <span className={`agentname ${change.agent}`}>{change.agent}</span>
         <span className={`stamp ${change.status}`}>{STAMP[change.status]}</span>
+        <ChangeScope change={change} />
         <span className="dim small change-time">{new Date(change.created_at * 1000).toLocaleTimeString()}</span>
       </header>
       <h3 title={change.title}>{changeTitle(change)}</h3>

@@ -27,6 +27,9 @@
   --creator: #7aa7f0;
   --reviewer: #c39af5;
   --auditor: #f5b942;
+  /* Editing styles (#13): their own hue, apart from the agents. */
+  --style: #6fd3c7;
+  --style-soft: rgba(111, 211, 199, 0.12);
 
   --radius: 12px;
   --radius-sm: 8px;

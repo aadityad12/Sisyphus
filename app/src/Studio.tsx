@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import "./Studio.css";
-import { api, type Footage, type Video } from "./api";
+import { api, type Footage, type Style, type Video } from "./api";
 import { shortVersion, VideoCard } from "./VideoCard";
+import { NewStyleForm, StylePicker, withCreated } from "./Styles";
+import { usePoll } from "./usePoll";
 
 /** A finished clip stays in the Studio this long, so the verdict landing is visible where the job started. */
 const RECENT_S = 15 * 60;
@@ -79,6 +81,12 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   const [creator, setCreator] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  // Editing styles (#13). An engine without GET /styles answers 404: then there is no picker and jobs run as before.
+  const library = usePoll(api.styles, 15000);
+  const [created, setCreated] = useState<Style[]>([]);
+  const styles = withCreated(library.data ?? [], created);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
   // A held Ctrl+Enter fires before the re-render that disables the button; each repeat would be a paid job.
   const startingRef = useRef(false);
 
@@ -120,7 +128,9 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
     setError(null);
     setStarting(true);
     try {
-      await api.createJob(file, brief);
+      // Picks go as chosen, never dropped silently: a job quietly switched to Auto would be a paid clip in a mode
+      // nobody asked for. The engine rejects a style it doesn't know (422), and that error is shown.
+      await api.createJob(file, brief, picked);
       refresh();
     } catch (e) {
       setError(String(e));
@@ -221,12 +231,46 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
           placeholder="A 30-second clip on …"
         />
 
+        {library.data && (
+          <>
+            <div className="st-step">
+              <span className="st-num">3</span>
+              <span className="st-label">Pick a style</span>
+              {!adding && (
+                <button className="link st-add-style" onClick={() => setAdding(true)}>
+                  + New style
+                </button>
+              )}
+            </div>
+            {adding ? (
+              <NewStyleForm
+                onCancel={() => setAdding(false)}
+                onCreated={(style) => {
+                  setAdding(false);
+                  setCreated((c) => [...c, style]);
+                  setPicked([style.name]);
+                  library.refresh();
+                }}
+              />
+            ) : (
+              <StylePicker styles={styles} value={picked} onChange={setPicked} />
+            )}
+          </>
+        )}
+
         <div className="st-go">
           <button className="primary" disabled={!file || !brief.trim() || starting} onClick={start}>
             {starting ? "Starting…" : "Make clip →"}
           </button>
           {error && <p className="error">{error}</p>}
         </div>
+
+        {styles.length > 0 && (
+          <p className="dim small st-library">
+            <a href="#styles">Style library →</a> what the Creator and the Reviewer are told for each style, and how its
+            clips are doing.
+          </p>
+        )}
       </section>
 
       <section>
