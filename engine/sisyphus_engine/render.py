@@ -102,6 +102,13 @@ def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dic
     return segs, out
 
 
+def _crop(plan: EditPlan, out_w: int, out_h: int) -> str:
+    """An ffmpeg crop with the output's aspect ratio: height = source height / zoom, placed at crop_x, crop_y."""
+    h = f"ih/{plan.zoom:.3f}"
+    w = f"min(iw\\,{h}*{out_w}/{out_h})"  # escaped comma: a bare one would end the filter
+    return f"crop={w}:{h}:(iw-{w})*{plan.crop_x:.3f}:(ih-{h})*{plan.crop_y:.3f}"
+
+
 def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width: int, src_height: int) -> Path:
     workdir = out.parent
     workdir.mkdir(parents=True, exist_ok=True)
@@ -128,7 +135,15 @@ def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width
     concat_in = "".join(f"[v{i}][a{i}]" for i in range(len(segs)))
     crop_w = f"ih*{WIDTH}/{HEIGHT}"
     parts.append(f"{concat_in}concat=n={len(segs)}:v=1:a=1[cv][ca]")
-    if plan.layout == "fit":
+    if plan.layout == "split":
+        # Whole frame across the top (slides stay readable), a tall crop at crop_x below (the speaker).
+        top_h = 404
+        bottom_h = HEIGHT - top_h
+        parts.append("[cv]split[topsrc][botsrc]")
+        parts.append(f"[topsrc]scale={WIDTH}:{top_h}[top]")
+        parts.append(f"[botsrc]{_crop(plan, WIDTH, bottom_h)},scale={WIDTH}:{bottom_h}[bot]")
+        parts.append("[top][bot]vstack,setsar=1,subtitles=captions.ass:fontsdir=fonts[vout]")
+    elif plan.layout == "fit":
         # Whole frame, full width, centered over a blurred, zoomed copy of itself.
         parts.append("[cv]split[bgsrc][fgsrc]")
         parts.append(
@@ -139,7 +154,7 @@ def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width
         parts.append("[bg][fg]overlay=0:(H-h)/2,setsar=1,subtitles=captions.ass:fontsdir=fonts[vout]")
     else:
         parts.append(
-            f"[cv]crop={crop_w}:ih:(iw-{crop_w})*{plan.crop_x:.3f}:0,scale={WIDTH}:{HEIGHT},setsar=1,"
+            f"[cv]{_crop(plan, WIDTH, HEIGHT)},scale={WIDTH}:{HEIGHT},setsar=1,"
             f"subtitles=captions.ass:fontsdir=fonts[vout]"
         )
     args += [

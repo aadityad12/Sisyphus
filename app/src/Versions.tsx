@@ -64,9 +64,12 @@ function ABResult({ change }: { change: Change }) {
       : null;
 
   let decision: string;
+  const h2h = results.head_to_head !== undefined ? " on the head-to-head tiebreak" : "";
   if (change.status === "promoted")
-    decision = `Promoted: the change won${typeof results.merged === "string" ? ` and was merged as ${results.merged.slice(0, 7)}` : ""}.`;
-  else if (change.status === "rolled_back") decision = "Rolled back: it did not beat the version without it.";
+    decision = `Promoted: the change won${h2h}${typeof results.merged === "string" ? ` and was merged as ${results.merged.slice(0, 7)}` : ""}.`;
+  else if (change.status === "rolled_back") decision = h2h
+      ? "Rolled back: tied on passes, and it did not win head to head."
+      : "Rolled back: it did not beat the version without it.";
   else if (typeof results.waiting_for_votes === "string") decision = `Waiting for human votes: ${results.waiting_for_votes}.`;
   else if (pending) decision = `Testing: ${pending} held-out clip${pending > 1 ? "s" : ""} still to be judged.`;
   else if (!control.total && !candidate.total)
@@ -248,6 +251,36 @@ function AuditorPanel() {
   );
 }
 
+type Pair = { footage: string; brief: string; winner: "control" | "candidate" | "same"; reason: string };
+
+/** When pass counts tie, the frozen Reviewer compares each pair head to head (engine/compare.py). */
+function HeadToHead({ results }: { results: Record<string, unknown> }) {
+  const score = results.head_to_head as { candidate: number; control: number; same: number } | undefined;
+  const pairs = (results.pairs ?? []) as Pair[];
+  if (!score) return null;
+  const label = { candidate: "with the change", control: "without", same: "same" } as const;
+  return (
+    <div className="h2h">
+      <p className="small">
+        <strong>Pass counts tied</strong>, so the frozen Reviewer compared each pair head to head:{" "}
+        <span className="up">with the change {score.candidate}</span> ·{" "}
+        <span className="down">without {score.control}</span>
+        {score.same > 0 && <span className="dim"> · same {score.same}</span>}
+      </p>
+      <ul>
+        {pairs.map((p) => (
+          <li key={p.footage + p.brief} className="small">
+            <span className={`chip ${p.winner === "candidate" ? "arm-candidate" : p.winner === "control" ? "fail" : ""}`}>
+              {label[p.winner]}
+            </span>{" "}
+            {p.reason}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function diffStat(diff: string) {
   let add = 0;
   let del = 0;
@@ -288,6 +321,7 @@ function ChangeCard({ change }: { change: Change }) {
       {rationale && <p className="rationale">{rationale}</p>}
       {typeof change.results?.error === "string" && <p className="error">{change.results.error}</p>}
       {change.results && <ABResult change={change} />}
+      {change.results && <HeadToHead results={change.results} />}
       <div className="change-more">
         {change.diff && stat && (
           <button className="link" onClick={() => setShowDiff(!showDiff)}>

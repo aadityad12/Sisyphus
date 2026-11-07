@@ -20,6 +20,7 @@ export type EditPlan = {
   title: string;
   hook: string;
   segments: Segment[];
+  rendered_segments?: Segment[]; // the cut points the renderer used, after snapping
   crop_x: number;
   caption_style: "karaoke" | "plain" | "none";
   caption_words: number;

@@ -392,6 +392,33 @@
   color: var(--dim);
 }
 
+.h2h {
+  margin: 4px 0 6px;
+}
+
+.h2h p {
+  margin: 0;
+}
+
+.h2h ul {
+  margin: 6px 0 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.h2h .up {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.h2h .down {
+  color: var(--red);
+  font-weight: 600;
+}
+
 .change-more {
   display: flex;
   gap: 14px;

@@ -12,8 +12,10 @@ import os
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
-from . import FOOTAGE_DIR, jobs, reviewer_ab, showcase, store, versioning
+from . import FOOTAGE_DIR, compare, jobs, reviewer_ab, showcase, store, versioning
 from .agents import auditor
 
 log = logging.getLogger(__name__)
@@ -135,6 +137,29 @@ def maybe_decide(change_id: int) -> None:
         _decide(change_id)
 
 
+def _compare_pairs(videos: list[dict], reviewer_ref: str | None) -> list[dict]:
+    """Head-to-head per held-out (footage, brief) where both arms rendered. A failed comparison counts as same."""
+    by_work: dict[tuple, dict] = {}
+    for v in videos:
+        if v["video_path"] and v["status"] != "failed":
+            by_work.setdefault((v["footage"], v["brief"]), {})[v["arm"]] = v
+    work = [(k, arms) for k, arms in by_work.items() if "control" in arms and "candidate" in arms]
+    full_ref = versioning.full_ref(reviewer_ref) if reviewer_ref else None
+
+    def one(item):
+        (footage, brief), arms = item
+        try:
+            r = compare.prefer(Path(arms["control"]["video_path"]), Path(arms["candidate"]["video_path"]), brief, full_ref)
+        except Exception as exc:
+            log.exception("head-to-head failed for %s", footage)
+            r = {"winner": "same", "reason": f"comparison failed: {exc}"}
+        return {"footage": footage, "brief": brief, "control_id": arms["control"]["id"],
+                "candidate_id": arms["candidate"]["id"], **r}
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return list(pool.map(one, work))
+
+
 def _decide(change_id: int) -> None:
     change = next((c for c in store.list_changes() if c["id"] == change_id), None)
     if change is None or change["status"] != "testing" or change["agent"] != "creator":
@@ -162,7 +187,16 @@ def _decide(change_id: int) -> None:
     if pending:
         store.update_change(change_id, results=results)
         return
-    won = arms["candidate"]["approved"] > arms["control"]["approved"]
+    c_pass, k_pass = arms["candidate"]["approved"], arms["control"]["approved"]
+    won = c_pass > k_pass
+    if c_pass == k_pass:
+        # Pass/fail can't separate them: the frozen Reviewer compares each pair head to head.
+        pairs = _compare_pairs(videos, results.get("reviewer_ref"))
+        wins = sum(p["winner"] == "candidate" for p in pairs)
+        losses = sum(p["winner"] == "control" for p in pairs)
+        results["pairs"] = pairs
+        results["head_to_head"] = {"candidate": wins, "control": losses, "same": len(pairs) - wins - losses}
+        won = wins > losses
     try:
         if won:
             results["merged"] = versioning.promote(change["branch"])[:8]
