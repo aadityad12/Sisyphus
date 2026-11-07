@@ -5,6 +5,7 @@ off by ~150 px on a talk's speaker inset, and on the empty chair in a two-shot. 
 is crude but finds both a full-frame face and a ~60 px inset on 1280x720 frames.
 """
 
+import re
 import subprocess
 from functools import lru_cache
 from pathlib import Path
@@ -59,3 +60,21 @@ def crop_on_face(face: tuple[float, float, float], src_w: int, src_h: int, out_w
     y = min(max(cy * src_h - 0.4 * crop_h, 0), src_h - crop_h)
     even = lambda v: int(v) // 2 * 2  # noqa: E731 - x264 wants even sizes
     return even(crop_w), even(crop_h), even(x), even(y)
+
+
+@lru_cache(maxsize=512)
+def shots(footage: Path, start: float, end: float, threshold: float = 0.2, min_len: float = 0.5) -> list[tuple[float, float]]:
+    """Camera shots in [start, end] as (from, to) seconds relative to start, split at scene changes.
+    Shots shorter than min_len are merged into the one before."""
+    out = subprocess.run(
+        [ffmpeg(), "-hide_banner", "-ss", f"{start:.2f}", "-t", f"{end - start:.2f}", "-i", str(footage), "-an",
+         "-vf", f"scale=320:-2,select=gt(scene\\,{threshold}),showinfo", "-f", "null", "-"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+    ).stderr
+    cuts = [float(t) for t in re.findall(r"pts_time:([\d.]+)", out)]
+    bounds = [0.0]
+    for c in cuts:
+        if c - bounds[-1] >= min_len and (end - start) - c >= min_len:
+            bounds.append(c)
+    bounds.append(end - start)
+    return list(zip(bounds[:-1], bounds[1:]))

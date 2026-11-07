@@ -79,6 +79,9 @@ Tyler's rules:
 - Issues a model files on its own initiative get `(from <model>)` in the title and the matching
   `from: <Model>` label. An issue a person asks for is `from: <that person>`, even though a model
   typed it.
+- On Murmur, send each request or result once. Before asking again, `lookup` the other session:
+  the answer is usually already in its recent messages. On 2026-11-07 two sessions spent ten
+  minutes re-sending one review queue to each other because their messages kept crossing.
 
 <!-- murmur:start -->
 ## Murmur
