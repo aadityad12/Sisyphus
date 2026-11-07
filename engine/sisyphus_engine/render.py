@@ -26,8 +26,9 @@ CAPTION_COLOR = {
     "cyan": ("FFFF00", "00E5FF"),
     "pink": ("B469FF", "FFFFFF"),
 }
-# (ASS alignment, vertical margin): lower third, centre, or high but below the hook (MarginV 170).
-CAPTION_POSITION = {"lower": (2, 330), "middle": (5, 0), "upper": (8, 300)}
+# (ASS alignment, vertical margin): lower third, centre, or high but clear of the hook, which sits at
+# MarginV 170 and reaches about 320 px when it wraps to two lines.
+CAPTION_POSITION = {"lower": (2, 330), "middle": (5, 0), "upper": (8, 350)}
 # Applied to the cut before captions are burned in, so caption colours stay true.
 COLOR_FILTERS = {
     "none": "",
@@ -136,9 +137,10 @@ def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dic
     return segs, out
 
 
-def _punch(p: float, w: int, h: int) -> str:
-    """A centred zoom by p on a w x h picture, scaled back to w x h, for a punch-in; nothing at 1."""
-    return "" if p <= 1 else f",crop=iw/{p:.3f}:ih/{p:.3f},scale={w}:{h}"
+def _punch(p: float) -> str:
+    """A centred crop by p, put before a pane's scale: a punch-in that keeps the crop's framing and costs
+    no second resize. Nothing at 1."""
+    return "" if p <= 1 else f"crop=iw/{p:.3f}:ih/{p:.3f},"
 
 
 def _crop(plan: EditPlan, out_w: int, out_h: int) -> str:
@@ -170,7 +172,7 @@ def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src
         return [
             f"[raw{i}]split[ts{i}][bs{i}]",
             f"[ts{i}]scale={WIDTH}:{top_h}[top{i}]",
-            f"[bs{i}]{crop},scale={WIDTH}:{bottom_h}{_punch(seg.punch, WIDTH, bottom_h)}[bot{i}]",  # slide stays whole
+            f"[bs{i}]{crop},{_punch(seg.punch)}scale={WIDTH}:{bottom_h}[bot{i}]",  # only the speaker zooms
             f"[top{i}][bot{i}]vstack,setsar=1[v{i}]",
         ]
     if plan.layout == "fit":
@@ -181,10 +183,12 @@ def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src
             f"[bgs{i}]crop={crop_w}:ih:(iw-{crop_w})/2:0,scale={WIDTH // 4}:{HEIGHT // 4},boxblur=8:2,"
             f"scale={WIDTH}:{HEIGHT},eq=brightness=-0.12[bg{i}]",
             f"[fgs{i}]scale={WIDTH}:-2[fg{i}]",
-            f"[bg{i}][fg{i}]overlay=0:(H-h)/2{_punch(seg.punch, WIDTH, HEIGHT)},setsar=1[v{i}]",
+            # The composite is already at output size, so a punch here crops and scales it back.
+            f"[bg{i}][fg{i}]overlay=0:(H-h)/2"
+            f"{',' + _punch(seg.punch) + f'scale={WIDTH}:{HEIGHT}' if seg.punch > 1 else ''},setsar=1[v{i}]",
         ]
     crop = _pane_crop(plan, footage, seg, src_w, src_h, WIDTH, HEIGHT, face_share=0.2)
-    return [f"[raw{i}]{crop},scale={WIDTH}:{HEIGHT}{_punch(seg.punch, WIDTH, HEIGHT)},setsar=1[v{i}]"]
+    return [f"[raw{i}]{crop},{_punch(seg.punch)}scale={WIDTH}:{HEIGHT},setsar=1[v{i}]"]
 
 
 def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width: int, src_height: int) -> Path:
