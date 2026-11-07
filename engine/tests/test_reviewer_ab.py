@@ -95,3 +95,28 @@ def test_a_crash_counts_against_its_arm(env, monkeypatch):
     c = _get(cid)
     assert c["status"] == "rolled_back" and c["results"]["candidate"]["agree"] == 0
     assert len(ids) == len(c["results"]["per_video"])
+
+
+def test_a_vote_during_a_run_triggers_one_more_pass(env, monkeypatch):
+    """The final vote can land after a run took its snapshot: the change must not stay stuck waiting."""
+    ids = _setup(env, monkeypatch, [True] * 3, control=lambda i: True, candidate=lambda i: True)
+    cid = _change()
+    real_held_out = reviewer_ab.held_out
+    passes = []
+
+    def held_out_then_vote(exclude):
+        snapshot = real_held_out(exclude)
+        if not passes:  # first pass: a human votes on a 4th clip right after the snapshot
+            new = _voted(env, True)
+            store.update_video(new, brief=f"b{new}")
+            reviewer_ab.reviewer.review.ids[f"b{new}"] = new
+            reviewer_ab.run(cid)  # what on_vote's submit does while this run is in flight
+        passes.append(len(snapshot))
+        return snapshot
+
+    monkeypatch.setattr(reviewer_ab, "held_out", held_out_then_vote)
+    reviewer_ab.run(cid)
+    assert passes == [3, 4]
+    assert _get(cid)["status"] == "rolled_back"  # decided (a tie), not stuck at "3 of 4"
+    assert not reviewer_ab._running and not reviewer_ab._rerun
+    assert len(ids) == 3
