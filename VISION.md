@@ -92,6 +92,17 @@ Each proposed change runs **side by side with the current version on new work**.
 
 The winner becomes the new standard, and the loser is rolled back.
 
+## Stack
+
+| Layer | Choice | Why |
+|---|---|---|
+| Desktop app | **Tauri**, with a **thin Rust** layer | A Rust desktop app. Rust only opens the window and starts the engine, so it rarely needs rebuilding during development. |
+| UI | **React + TypeScript** (Vite) | Reloads instantly. It shows the feed, the rejected-videos tab, and version history with A/B results. |
+| Agents | **Python** engine, over a local HTTP API | Video tooling (transcripts, ffmpeg, audio analysis) is strongest in Python. The scripts and skill files the Auditor changes can be rerun with no build. |
+| Skills | **Markdown** files in `skills/`, loaded at runtime | Versioned in Git, one branch per change. |
+
+**Dev workflow:** develop in the browser all day (Vite UI and the Python engine, no Rust compiles). Build the Tauri desktop window once at the end, if there's time.
+
 ## Demo
 
 The demo shows two things:

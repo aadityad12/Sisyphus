@@ -1,0 +1,22 @@
+# Rust / Tauri
+target/
+app/src-tauri/gen/
+
+# Node
+node_modules/
+dist/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Media and run output
+runs/
+*.mp4
+*.mov
+*.wav
+
+# Local agent settings
+.claude/settings.local.json

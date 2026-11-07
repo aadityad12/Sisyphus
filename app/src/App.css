@@ -1,0 +1,71 @@
+:root {
+  font-family: Inter, system-ui, sans-serif;
+  color: #e8e8ea;
+  background: #111114;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  padding: 16px 24px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.top h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.si {
+  color: #f5b942;
+}
+
+.pill {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.pill.ok {
+  background: #1f3d2a;
+  color: #7ee2a0;
+}
+
+.pill.down {
+  background: #3d1f1f;
+  color: #f08a8a;
+}
+
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.tabs button {
+  background: #1d1d22;
+  color: inherit;
+  border: 1px solid #2c2c33;
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.tabs button.active {
+  border-color: #f5b942;
+}
+
+.panel {
+  background: #18181c;
+  border: 1px solid #2c2c33;
+  border-radius: 12px;
+  padding: 16px;
+  min-height: 300px;
+}
