@@ -15,7 +15,7 @@ export type Footage = {
   brief?: string;
 };
 
-export type Segment = { start: number; end: number };
+export type Segment = { start: number; end: number; punch?: number };
 export type EditPlan = {
   title: string;
   hook: string;
@@ -24,6 +24,14 @@ export type EditPlan = {
   crop_x: number;
   caption_style: "karaoke" | "plain" | "none";
   caption_words: number;
+  // The look (#13); absent on plans from before the render knobs.
+  layout?: "crop" | "fit" | "split";
+  caption_size?: "small" | "medium" | "large" | "huge";
+  caption_color?: string;
+  caption_position?: "lower" | "middle" | "upper";
+  caption_caps?: boolean;
+  color_filter?: "none" | "warm" | "cool" | "bw" | "film" | "vivid";
+  speed?: number;
   rationale: string;
   styles?: string[]; // the editing styles the Creator applied (#13)
 };
