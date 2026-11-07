@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./VideoCard.css";
 import { api, type Video } from "./api";
 
@@ -76,15 +76,23 @@ const MANUAL_REASON = "Manual verdict after a Reviewer error";
 function StuckReview({ video, onChange }: { video: Video; onChange: () => void }) {
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  // POST /review overwrites any verdict, so after one is saved the buttons stay locked until the refreshed clip
+  // (no longer stuck) replaces this component. Unlocking on success would let a click on the stale card undo it.
+  // A ref, so a second click in the same tick is refused too.
+  const [saved, setSaved] = useState<boolean | null>(null);
+  const busy = useRef(false);
 
   async function decide(approved: boolean) {
-    if (pending) return;
+    if (busy.current) return;
+    busy.current = true;
     setPending(true);
     setFailed(null);
     try {
       await api.review(video.id, approved, MANUAL_REASON);
+      setSaved(approved);
       onChange();
     } catch (e) {
+      busy.current = false; // only a failed save may be retried
       setFailed(`Couldn't save the verdict: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setPending(false);
@@ -95,13 +103,14 @@ function StuckReview({ video, onChange }: { video: Video; onChange: () => void }
     <div className="vc-stuck">
       <p className="vc-stuck-head">The Reviewer failed on this clip. Watch it and give the verdict yourself:</p>
       <div className="vc-votes">
-        <button className="vote" disabled={pending} onClick={() => decide(true)}>
+        <button className="vote" disabled={pending || saved !== null} onClick={() => decide(true)}>
           ✓ Approve
         </button>
-        <button className="vote" disabled={pending} onClick={() => decide(false)}>
+        <button className="vote" disabled={pending || saved !== null} onClick={() => decide(false)}>
           ↩ Send back
         </button>
       </div>
+      {saved !== null && <p className="dim small">Saved: {saved ? "approved" : "sent back"}. Updating…</p>}
       {failed && <p className="vc-failed">{failed}</p>}
     </div>
   );
