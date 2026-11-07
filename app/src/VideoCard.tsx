@@ -12,14 +12,14 @@ const STATUS_LABEL: Record<Video["status"], string> = {
 };
 
 /** The loop every clip goes through, in order. A finished clip has passed all of them. */
-const STEPS = ["Queued", "Creator editing", "Reviewer watching", "Verdict"] as const;
+const STEPS = ["Queued", "Editing", "Reviewing", "Verdict"] as const;
 const STEP_OF: Record<Video["status"], number> = {
   queued: 0,
   creating: 1,
   reviewing: 2,
   approved: 3,
   rejected: 3,
-  failed: 3,
+  failed: 1, // only the Creator sets "failed"
 };
 
 /** About four lines of a card's reason quote; longer reasons are clamped until expanded. */
@@ -38,13 +38,13 @@ export function shortVersion(v: string) {
 export function Steps({ video }: { video: Video }) {
   const at = STEP_OF[video.status];
   // A Reviewer error leaves the clip in "reviewing" with an error set: the step is stuck, not running.
-  const stuck = video.status === "reviewing" && !!video.error;
+  const stuck = video.status === "failed" || (video.status === "reviewing" && !!video.error);
   return (
     <ol className="vc-steps">
       {STEPS.map((label, i) => {
         const state = i < at ? "done" : i === at ? (stuck ? "stuck" : "active") : "todo";
         return (
-          <li key={label} className={state}>
+          <li key={label} className={`${state} step-${i}`}>
             <span className="dot" />
             {label}
           </li>
@@ -101,6 +101,41 @@ function Verdict({ video }: { video: Video }) {
   );
 }
 
+function elapsed(s: number) {
+  const t = Math.max(0, Math.round(s));
+  return t < 60 ? `${t}s` : `${Math.floor(t / 60)}m ${String(t % 60).padStart(2, "0")}s`;
+}
+
+/** A clip with no plan yet has nothing to watch, so it takes one row, not a 9:16 frame. */
+function InFlightRow({ video }: { video: Video }) {
+  const [now, setNow] = useState(() => Date.now() / 1000);
+  useEffect(() => {
+    if (video.status === "failed") return;
+    const id = setInterval(() => setNow(Date.now() / 1000), 1000);
+    return () => clearInterval(id);
+  }, [video.status]);
+  return (
+    <article className={`vrow v-${video.status}`}>
+      <div className="vrow-what">
+        <p className="vrow-brief" title={video.brief}>
+          {video.brief}
+        </p>
+        <p className="vrow-facts">
+          {video.footage}
+          {video.creator_version && (
+            <span className="vc-maker">
+              {" · "}Creator <code>{shortVersion(video.creator_version)}</code>
+            </span>
+          )}
+        </p>
+        {video.error && <pre className="vc-error">{video.error.split("\n")[0]}</pre>}
+      </div>
+      <Steps video={video} />
+      {video.status !== "failed" && <span className="vrow-time">{elapsed(now - video.created_at)}</span>}
+    </article>
+  );
+}
+
 /** One line on how the human's vote sits against the Reviewer's verdict: disagreements are what the Auditor learns from. */
 function agreement(video: Video): { text: string; cls: string } | null {
   if (video.human_liked === null || video.review_approved === null) return null;
@@ -145,6 +180,8 @@ export function VideoCard({
   const busy = video.status === "queued" || video.status === "creating";
   const agree = agreement(video);
 
+  if (!video.plan) return <InFlightRow video={video} />;
+
   return (
     <article className={`vcard v-${video.status}`}>
       <div className="vc-frame">
@@ -159,8 +196,8 @@ export function VideoCard({
         <Verdict video={video} />
 
         <div className="vc-what">
-          <h3>{video.plan?.title ?? video.brief}</h3>
-          {video.plan?.title && <p className="vc-brief">Brief: “{video.brief}”</p>}
+          <h3 title={video.plan?.title ?? video.brief}>{video.plan?.title ?? video.brief}</h3>
+          {video.plan?.title && <p className="vc-brief" title={video.brief}>Brief: “{video.brief}”</p>}
           <p className="vc-facts">
             {video.creator_version && (
               <span className="vc-maker">
