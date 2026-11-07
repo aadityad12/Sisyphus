@@ -23,7 +23,29 @@ Applied to video editing, the track asks for the following:
 
 ## How it works
 
-_TBD_
+SIsyphus is a **desktop app** with three agents.
+
+| Agent | Role |
+|---|---|
+| **Creator** | Makes and edits short-form videos. It handles editing, music, transcripts, audio, assets, and anything else high-quality content needs. |
+| **Reviewer** | Reviews what the Creator makes and decides whether it is good enough. It either sends the video back or pushes it forward. |
+| **Auditor** | Audits failures and writes updates to the agents' skills, tools, software and so on. |
+
+### Failures
+
+Failures can come from the Creator, the Reviewer, or both:
+
+| What happened | Whose failure |
+|---|---|
+| The Reviewer sends a video back. | The Creator's. This will be the most common failure. |
+| The Reviewer sends back a video that humans liked. | The Reviewer's. |
+| The Reviewer pushes forward a video that humans dislike. | Both agents'. |
+
+### Improving
+
+The Auditor turns identified failures into changes. Every change is **versioned** and **verified** before it becomes the new standard.
+
+There will be many failures, so the Auditor **must not overreact** to any single one.
 
 ## Demo
 
