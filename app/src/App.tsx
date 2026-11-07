@@ -6,14 +6,25 @@ import { VideoCard } from "./VideoCard";
 import { Versions } from "./Versions";
 import { Showcase } from "./Showcase";
 import { usePoll } from "./usePoll";
+import { Loop, passRates } from "./Loop";
 
 const TABS = ["Studio", "Feed", "Rejected", "Versions", "Showcase"] as const;
 type Tab = (typeof TABS)[number];
 
+const TAB_HINT: Record<Tab, string> = {
+  Studio: "Start a clip and watch it move through the agents",
+  Feed: "Clips the Reviewer approved",
+  Rejected: "Clips the Reviewer sent back",
+  Versions: "The Auditor's changes and their A/B tests",
+  Showcase: "The same briefs, re-edited by every Creator version",
+};
+
 function App() {
   const [tab, setTab] = useState<Tab>("Studio");
+  const [openedAt] = useState(Date.now);
   const health = usePoll(api.health, 3000);
   const videos = usePoll(() => api.videos(), 2000);
+  const audit = usePoll(api.auditStatus, 2000);
   // A/B clips and showcase renders are not regular work: they stay out of Studio, Feed, Rejected and the pass rate.
   const all = (videos.data ?? []).filter((v) => v.experiment_id === null && !v.showcase);
 
@@ -27,28 +38,66 @@ function App() {
     Showcase: null,
   };
 
+  const rates = passRates(all);
+  // Before the first answer the engine may still be starting (the desktop app launches it).
+  const engine = health.data
+    ? health.error
+      ? "lost"
+      : "online"
+    : health.error && Date.now() - openedAt > 20_000
+      ? "down"
+      : "starting";
+
   return (
     <main className="app">
       <header className="top">
-        <h1>
-          <span>
+        <div className="brand">
+          <h1>
             <span className="si">SI</span>syphus
-          </span>
+          </h1>
           <span className="tagline">One must imagine SIsyphus editing.</span>
-        </h1>
-        <span className={health.data ? "pill ok" : "pill down"}>
-          {health.data ? "engine online" : "engine not reachable"}
+        </div>
+        <Loop videos={videos.data ?? []} versions={health.data?.versions} audit={audit.data} go={setTab} />
+        <div className="headline" title="Share of the Creator's clips that passed (a human vote, else the Reviewer), first version against the latest">
+          <span className="headline-label">Creator pass rate</span>
+          {rates ? (
+            <span className="headline-value">
+              {rates.versions > 1 && (
+                <>
+                  <span className="was">{rates.first}%</span>
+                  <span className="dim"> → </span>
+                </>
+              )}
+              <strong className={rates.versions > 1 && rates.last > rates.first ? "up" : ""}>{rates.last}%</strong>
+            </span>
+          ) : (
+            <span className="headline-value dim">no verdicts yet</span>
+          )}
+          <span className="headline-sub">
+            {rates ? `${rates.versions} version${rates.versions > 1 ? "s" : ""}` : "\u00a0"}
+          </span>
+        </div>
+        <span className={`engine ${engine}`} title={`Engine ${engine}`}>
+          <span className="engine-dot" />
+          {engine === "online" ? "engine" : engine === "starting" ? "starting engine…" : "engine offline"}
         </span>
       </header>
 
       <nav className="tabs">
         {TABS.map((t) => (
-          <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>
+          <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)} title={TAB_HINT[t]}>
             {t}
             {counts[t] !== null && <span className="count">{counts[t]}</span>}
           </button>
         ))}
       </nav>
+
+      {(engine === "down" || engine === "lost") && (
+        <div className="banner">
+          <strong>The engine isn't answering.</strong> The app shows the last data it had. In development, start it
+          with <code>cd engine && uv run python -m sisyphus_engine</code>; the desktop app starts it by itself.
+        </div>
+      )}
 
       <section className="panel">
         {tab === "Studio" && <Studio videos={all} refresh={videos.refresh} />}
