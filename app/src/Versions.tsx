@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import "./Versions.css";
-import { api, type Change, type Video } from "./api";
+import { api, type AuditStatus, type Change, type Video } from "./api";
 import { Progress } from "./Progress";
 import { usePoll } from "./usePoll";
 
@@ -43,55 +43,61 @@ type ArmResult = {
   human_total?: number;
 };
 
-function ABTable({ results }: { results: Record<string, unknown> }) {
+/** The A/B as two numbers and a delta, with what the Auditor decided, so the outcome reads first. */
+function ABResult({ change }: { change: Change }) {
+  const results = change.results ?? {};
   const control = (results.control ?? {}) as ArmResult;
   const candidate = (results.candidate ?? {}) as ArmResult;
-  const reviewerChange = control.agree !== undefined || candidate.agree !== undefined;
+  const reviewerChange = change.agent === "reviewer";
   const rate = (a: ArmResult) =>
     a.total ? (reviewerChange ? (a.agree ?? 0) : (a.approved ?? 0)) / a.total : null;
-  const rows: [string, number | null, number | null][] = [
-    [reviewerChange ? "Agrees with humans" : "Passed (Reviewer, or human vote)", rate(control), rate(candidate)],
-  ];
-  if (!reviewerChange && (control.human_total || candidate.human_total)) {
-    rows.push([
-      "Agreement with humans",
-      control.human_total ? control.human_agree! / control.human_total : null,
-      candidate.human_total ? candidate.human_agree! / candidate.human_total : null,
-    ]);
-  }
+  const count = (a: ArmResult) => (reviewerChange ? a.agree : a.approved) ?? 0;
+  const a = rate(control);
+  const b = rate(candidate);
+  const d = a !== null && b !== null ? Math.round((b - a) * 100) : null;
   const pct = (x: number | null) => (x === null ? "–" : `${Math.round(x * 100)}%`);
+  const pending = typeof results.pending === "number" ? results.pending : 0;
+  const metric = reviewerChange ? "agree with the human vote" : "pass";
+  const humans =
+    !reviewerChange && (control.human_total || candidate.human_total)
+      ? `Humans voted on ${(control.human_total ?? 0) + (candidate.human_total ?? 0)} of these clips; their votes override the Reviewer.`
+      : null;
+
+  let decision: string;
+  if (change.status === "promoted")
+    decision = `Promoted: the candidate won${typeof results.merged === "string" ? ` and was merged as ${results.merged.slice(0, 7)}` : ""}.`;
+  else if (change.status === "rolled_back") decision = "Rolled back: the candidate did not beat the current version.";
+  else if (typeof results.waiting_for_votes === "string") decision = `Waiting for human votes: ${results.waiting_for_votes}.`;
+  else if (pending) decision = `Testing: ${pending} held-out clip${pending > 1 ? "s" : ""} still to be judged.`;
+  else if (!control.total && !candidate.total) decision = "Testing: rendering held-out clips with both versions.";
+  else decision = "Testing.";
+
   return (
-    <table className="ab">
-      <thead>
-        <tr>
-          <th />
-          <th>Current</th>
-          <th>Candidate</th>
-          <th>Δ</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map(([label, a, b]) => {
-          const d = a !== null && b !== null ? b - a : null;
-          return (
-            <tr key={label}>
-              <td>{label}</td>
-              <td>{pct(a)}</td>
-              <td>{pct(b)}</td>
-              <td className={d === null ? "" : d > 0 ? "up" : d < 0 ? "down" : ""}>
-                {d === null ? "–" : `${d > 0 ? "+" : ""}${Math.round(d * 100)}`}
-              </td>
-            </tr>
-          );
-        })}
-        <tr>
-          <td className="dim">Held-out clips</td>
-          <td className="dim">{control.total ?? 0}</td>
-          <td className="dim">{candidate.total ?? 0}</td>
-          <td />
-        </tr>
-      </tbody>
-    </table>
+    <div className={`abresult ${change.status}`}>
+      <div className="abarm">
+        <span className="ablabel">Current</span>
+        <strong>{pct(a)}</strong>
+        <span className="dim small">
+          {count(control)}/{control.total ?? 0} {metric}
+        </span>
+      </div>
+      <div className="abvs">vs</div>
+      <div className="abarm candidate">
+        <span className="ablabel">Candidate</span>
+        <strong>{pct(b)}</strong>
+        <span className="dim small">
+          {count(candidate)}/{candidate.total ?? 0} {metric}
+        </span>
+      </div>
+      <div className={`abdelta ${d === null ? "" : d > 0 ? "up" : d < 0 ? "down" : ""}`}>
+        {d === null ? "–" : `${d > 0 ? "+" : ""}${d}`}
+        <span className="small">pts</span>
+      </div>
+      <p className="abdecision">
+        {decision}
+        {humans && <span className="dim"> {humans}</span>}
+      </p>
+    </div>
   );
 }
 
@@ -146,7 +152,7 @@ function ABClips({ changeId }: { changeId: number }) {
   }
   return (
     <div className="abgrid">
-      <div className="abhead dim small">Held-out work</div>
+      <div className="abhead dim small">Held-out brief</div>
       <div className="abhead dim small">Current</div>
       <div className="abhead dim small">Candidate</div>
       {[...rows.entries()].map(([key, row]) => (
@@ -160,13 +166,22 @@ function ABClips({ changeId }: { changeId: number }) {
   );
 }
 
+const AUDIT_STATE: Record<AuditStatus["state"], string> = {
+  idle: "Idle",
+  clustering: "Grouping failures",
+  proposing: "Writing a change",
+  testing: "A/B testing",
+  error: "Error",
+};
+
 function AuditorPanel() {
   const status = usePoll(api.auditStatus, 2000);
   const failures = usePoll(api.failures, 4000);
   const [error, setError] = useState<string | null>(null);
   const creator = (failures.data ?? []).filter((f) => f.agents.includes("creator"));
   const reviewer = (failures.data ?? []).filter((f) => f.agents.includes("reviewer"));
-  const busy = status.data && ["clustering", "proposing"].includes(status.data.state);
+  const state = status.data?.state ?? "idle";
+  const busy = state === "clustering" || state === "proposing";
   async function run() {
     setError(null);
     try {
@@ -177,56 +192,95 @@ function AuditorPanel() {
     }
   }
   return (
-    <section className="auditor">
-      <div className="row">
-        <div className="agentver">
-          <span className="dim small">Creator failures</span>
-          <strong className="big">{creator.length}</strong>
-        </div>
-        <div className="agentver">
-          <span className="dim small">Reviewer failures</span>
-          <strong className="big">{reviewer.length}</strong>
-        </div>
-        <div className="auditstate">
-          <span className="dim small">Auditor</span>
-          <div>
-            <span className={`badge ${status.data?.state === "error" ? "failed" : status.data?.state === "idle" ? "" : "creating"}`}>
-              {status.data?.state ?? "…"}
-            </span>{" "}
-            <span className="small">{status.data?.detail}</span>
-          </div>
-        </div>
-        <button className="primary" disabled={!!busy} onClick={run}>
-          Run Auditor
-        </button>
+    <section className={`auditor-panel state-${state}`}>
+      <div className="auditor-head">
+        <span className="agentname auditor">Auditor</span>
+        <span className="auditor-state">
+          <span className="state-dot" />
+          {AUDIT_STATE[state]}
+        </span>
       </div>
+      {status.data?.detail && <p className="auditor-detail">{status.data.detail}</p>}
+      <div className="failcounts">
+        <div>
+          <strong>{creator.length}</strong>
+          <span className="agentname creator">Creator</span>
+          <span className="dim small">failures</span>
+        </div>
+        <div>
+          <strong>{reviewer.length}</strong>
+          <span className="agentname reviewer">Reviewer</span>
+          <span className="dim small">failures</span>
+        </div>
+      </div>
+      <p className="dim small">
+        A failure is a clip a human disagreed with, or one the Reviewer sent back. The Auditor groups them, writes one
+        change to the skills, and A/B tests it on held-out work before adopting it.
+      </p>
+      <button className="primary" disabled={busy} onClick={run}>
+        {busy ? `${AUDIT_STATE[state]}…` : "Run Auditor"}
+      </button>
       {error && <p className="error">{error}</p>}
     </section>
   );
 }
 
+function diffStat(diff: string) {
+  let add = 0;
+  let del = 0;
+  for (const l of diff.split("\n")) {
+    if (l.startsWith("+") && !l.startsWith("+++")) add++;
+    else if (l.startsWith("-") && !l.startsWith("---")) del++;
+  }
+  return { add, del };
+}
+
 function ChangeCard({ change }: { change: Change }) {
+  const [showDiff, setShowDiff] = useState(false);
+  const [showClips, setShowClips] = useState(change.status === "testing");
+  const cluster = typeof change.results?.cluster === "string" ? change.results.cluster : null;
+  // The engine stores the rationale as "<cluster>: <why>"; the cluster is shown on its own line.
+  const rationale =
+    cluster && change.rationale?.startsWith(`${cluster}: `) ? change.rationale.slice(cluster.length + 2) : change.rationale;
+  const stat = change.diff ? diffStat(change.diff) : null;
   return (
     <article className={`change ${change.status}`}>
-      <header className="row">
-        <span className="chip">{change.agent}</span>
-        <code className="chip">{change.branch}</code>
+      <header className="change-head">
+        <span className={`agentname ${change.agent}`}>{change.agent}</span>
         <span className={`stamp ${change.status}`}>{STAMP[change.status]}</span>
+        <span className="dim small change-time">{new Date(change.created_at * 1000).toLocaleTimeString()}</span>
       </header>
       <h3>{change.title}</h3>
-      {change.rationale && <p>{change.rationale}</p>}
-      {change.failure_ids.length > 0 && (
-        <p className="dim small">
-          Motivated by {change.failure_ids.length} failures: {change.failure_ids.map((id) => `#${id}`).join(", ")}
+      {cluster && (
+        <p className="cluster">
+          <span className="dim">Pattern:</span> {cluster}
+          {change.failure_ids.length > 0 && (
+            <span className="dim">
+              {" "}
+              · from {change.failure_ids.length} failure{change.failure_ids.length > 1 ? "s" : ""}
+            </span>
+          )}
         </p>
       )}
-      {change.diff && <DiffView diff={change.diff} />}
-      {typeof change.results?.waiting_for_votes === "string" && (
-        <p className="waiting">Waiting for human votes: {change.results.waiting_for_votes}</p>
-      )}
+      {rationale && <p className="rationale">{rationale}</p>}
       {typeof change.results?.error === "string" && <p className="error">{change.results.error}</p>}
-      {change.results && <ABTable results={change.results} />}
-      <ABClips changeId={change.id} />
+      {change.results && <ABResult change={change} />}
+      <div className="change-more">
+        {change.diff && stat && (
+          <button className="link" onClick={() => setShowDiff(!showDiff)}>
+            {showDiff ? "Hide" : "Show"} skill diff <span className="add">+{stat.add}</span>{" "}
+            <span className="del">−{stat.del}</span>
+          </button>
+        )}
+        {change.agent === "creator" && (
+          <button className="link" onClick={() => setShowClips(!showClips)}>
+            {showClips ? "Hide" : "Show"} held-out clips
+          </button>
+        )}
+        <code className="dim small">{change.branch}</code>
+      </div>
+      {showDiff && change.diff && <DiffView diff={change.diff} />}
+      {showClips && <ABClips changeId={change.id} />}
     </article>
   );
 }
@@ -234,47 +288,60 @@ function ChangeCard({ change }: { change: Change }) {
 export function Versions({ videos }: { videos: Video[] }) {
   const { data } = usePoll(api.versions, 3000);
   if (!data) return <p className="dim">Loading…</p>;
+  const changes = [...data.changes].sort((a, b) => b.created_at - a.created_at);
+  const promoted = changes.filter((c) => c.status === "promoted").length;
+  const rolledBack = changes.filter((c) => c.status === "rolled_back").length;
   return (
     <div className="versions">
-      <AuditorPanel />
-      <Progress videos={videos} />
-      <section>
-        <h2>Current agents</h2>
-        <div className="row">
-          {Object.entries(data.current).map(([agent, v]) => (
-            <div key={agent} className="agentver">
-              <span className="dim small">{agent}</span>
-              <code>{v}</code>
-            </div>
-          ))}
-        </div>
-      </section>
+      <div className="evo">
+        <Progress videos={videos} changes={data.changes} />
+        <AuditorPanel />
+      </div>
 
       <section>
-        <h2>Changes</h2>
-        {data.changes.length === 0 ? (
-          <p className="dim">The Auditor hasn't proposed any changes yet.</p>
+        <div className="evo-title">
+          <h2>What the Auditor changed</h2>
+          {changes.length > 0 && (
+            <span className="dim small">
+              {changes.length} proposed · {promoted} promoted · {rolledBack} rolled back
+            </span>
+          )}
+        </div>
+        {changes.length === 0 ? (
+          <div className="empty">
+            No changes yet. When clips fail, run the Auditor: it proposes a change to an agent's skills and tests it
+            here before adopting it.
+          </div>
         ) : (
-          data.changes.map((c) => <ChangeCard key={c.id} change={c} />)
+          <div className="changes">
+            {changes.map((c) => (
+              <ChangeCard key={c.id} change={c} />
+            ))}
+          </div>
         )}
       </section>
 
-      <section>
-        <h2>History</h2>
-        {Object.entries(data.history).map(([agent, commits]) => (
-          <div key={agent} className="timeline">
-            <h3>{agent}</h3>
-            <ol>
-              {commits.map((c) => (
-                <li key={c.version}>
-                  <code>{c.version}</code> {c.subject}{" "}
-                  <span className="dim small">{new Date(c.time * 1000).toLocaleTimeString()}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ))}
-      </section>
+      <details className="history">
+        <summary>
+          <h2>Version history</h2>
+          <span className="dim small">every commit to each agent's skills</span>
+        </summary>
+        <div className="timelines">
+          {Object.entries(data.history).map(([agent, commits]) => (
+            <div key={agent} className="timeline">
+              <h3 className={`agentname ${agent}`}>{agent}</h3>
+              <ol>
+                {commits.map((c) => (
+                  <li key={c.version}>
+                    <code>{c.version.slice(0, 7)}</code> <span>{c.subject}</span>{" "}
+                    <span className="dim small">{new Date(c.time * 1000).toLocaleTimeString()}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }

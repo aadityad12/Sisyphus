@@ -515,6 +515,24 @@ code {
   color: var(--blue);
 }
 
+/* An agent named in text: <span className="agentname creator">Creator</span>. */
+.agentname {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.agentname.creator {
+  color: var(--creator);
+}
+
+.agentname.reviewer {
+  color: var(--reviewer);
+}
+
+.agentname.auditor {
+  color: var(--auditor);
+}
+
 .vote.on.up {
   border-color: var(--green);
   color: var(--green);
