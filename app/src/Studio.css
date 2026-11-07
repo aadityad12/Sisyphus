@@ -199,3 +199,14 @@
 .st-rows.after {
   margin-top: 12px;
 }
+
+.st-hint a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.st-hint a:hover {
+  text-decoration-color: currentColor;
+}

@@ -143,6 +143,17 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   const recentVerdicts = recent.filter((v) => v.status !== "failed");
   const recentErrors = recent.filter((v) => v.status === "failed");
   const oldErrors = finished.filter((v) => v.status === "failed" && now - v.updated_at >= RECENT_S);
+  // With nothing finished lately, the Studio still shows the last verdicts, so the loop's outcome is on the first
+  // screen and not only behind the Feed and Rejected tabs.
+  const verdicts = finished.filter((v) => v.status !== "failed").sort((a, b) => b.updated_at - a.updated_at);
+  // Idle: the newest approved clip and the newest sent-back one, so both outcomes of the loop show.
+  const idleShown = [
+    verdicts.find((v) => v.status === "approved"),
+    verdicts.find((v) => v.status === "rejected"),
+  ].filter((v): v is Video => !!v);
+  const shownVerdicts = recentVerdicts.length ? recentVerdicts.slice(0, RECENT_MAX) : idleShown;
+  const approvedCount = verdicts.filter((v) => v.status === "approved").length;
+  const rejectedCount = verdicts.length - approvedCount;
 
   return (
     <div className="studio">
@@ -229,15 +240,17 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
         )}
       </section>
 
-      {recent.length > 0 && (
+      {(shownVerdicts.length > 0 || recentErrors.length > 0) && (
         <section>
-          <h2>Just finished</h2>
-          <p className="dim small st-hint">
-            {recentVerdicts.length > RECENT_MAX
-              ? `The ${RECENT_MAX} newest of ${recentVerdicts.length} verdicts. The rest are in the Feed (approved) and Rejected (sent back).`
-              : "Approved clips also go to the Feed; sent-back clips go to Rejected."}
-          </p>
-          <Clips videos={[...recentVerdicts.slice(0, RECENT_MAX), ...recentErrors]} refresh={refresh} />
+          <h2>{recentVerdicts.length ? "Just finished" : "Latest verdicts"}</h2>
+          {verdicts.length > 0 && (
+            <p className="dim small st-hint">
+              {/* The tab follows the URL hash, so plain links switch tabs. */}
+              All verdicts: <a href="#feed">{approvedCount} approved, in the Feed</a> ·{" "}
+              <a href="#rejected">{rejectedCount} sent back, in Rejected</a>
+            </p>
+          )}
+          <Clips videos={[...shownVerdicts, ...recentErrors]} refresh={refresh} />
         </section>
       )}
 
