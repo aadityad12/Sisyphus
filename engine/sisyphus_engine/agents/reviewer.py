@@ -165,9 +165,13 @@ def review(
             "Your reason must be one to three full sentences: what is wrong or what works, where "
             "(clip timestamps like 0:07), and what would fix it. A tag name alone is not a reason."
         )}
-        again = _ask(SYSTEM + skills, [*content, nudge], model)
-        if not _thin(again["reason"]):
-            out = again
+        try:
+            again = _ask(SYSTEM + skills, [*content, nudge], model)
+        except Exception:  # the first verdict is still usable: never lose it to an optional retry
+            log.exception("reviewer: re-asking for a fuller reason failed; keeping the first verdict")
+        else:
+            if not _thin(again["reason"]):
+                out = again
 
     tags = [t for t in dict.fromkeys(out.get("tags", [])) if t in TAGS]
     return Review(approved=bool(out["approved"]), reason=out["reason"].strip(), tags=tags)

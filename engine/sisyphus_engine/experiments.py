@@ -109,7 +109,12 @@ def run_audit(agent: str = "creator") -> int | None:
         # A Creator change is judged by a frozen copy of the current Reviewer (VISION.md).
         reviewer_ref = versioning.full_ref(versioning.agent_version("reviewer"))
         change = next(c for c in store.list_changes() if c["id"] == change_id)
-        store.update_change(change_id, results={**(change["results"] or {}), "reviewer_ref": reviewer_ref[:8]})
+        # "expected" lets a decision tell "every clip has a verdict" from "not every clip exists yet": the
+        # first clip can finish before the last one is submitted (exotic-dragonfly's repro, 2026-11-07).
+        store.update_change(
+            change_id,
+            results={**(change["results"] or {}), "reviewer_ref": reviewer_ref[:8], "expected": 2 * len(work)},
+        )
         _set("testing", f"{branch}: {len(work)} held-out clips × 2 arms")
         for w in work:
             for arm, ref in (("control", base[:12]), ("candidate", branch)):
@@ -183,6 +188,8 @@ def _decide(change_id: int) -> None:
         if v["human_liked"] is not None:
             a["human_total"] += 1
             a["human_agree"] += int(v["human_liked"])
+    missing = (change["results"] or {}).get("expected", 0) - len(videos)
+    pending += max(0, missing)
     results = {**(change["results"] or {}), **arms, "pending": pending}
     if pending:
         store.update_change(change_id, results=results)
