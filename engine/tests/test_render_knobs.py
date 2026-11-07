@@ -49,6 +49,8 @@ def ffmpeg_call(monkeypatch, tmp_path):
 
     monkeypatch.setattr(render.subprocess, "run", run)
     monkeypatch.setattr(render.faces, "locate", lambda footage, a, b: (520.0, 260.0, 120.0))
+    # One camera shot per segment, as the golden (captured before shot splitting) assumed.
+    monkeypatch.setattr(render.faces, "shots", lambda footage, a, b: [(0.0, b - a)])
     monkeypatch.setattr(render, "ffmpeg", lambda: "ffmpeg")
 
     def call(plan: EditPlan) -> tuple[list[str], str]:

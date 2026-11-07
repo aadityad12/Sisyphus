@@ -1,0 +1,212 @@
+/* Studio: where the demo starts. A new clip (footage, then brief), then the clips moving through the loop. */
+
+.st-new {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px 18px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.st-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.st-head h2 {
+  margin: 0;
+}
+
+.st-head p {
+  margin: 0;
+}
+
+.st-creator {
+  font-family: var(--mono);
+  color: var(--creator);
+  background: color-mix(in srgb, var(--creator) 14%, transparent);
+  padding: 1px 6px;
+  border-radius: 6px;
+}
+
+.st-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.st-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--bg);
+  background: var(--gold);
+}
+
+.st-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Footage as cards: speaker first, then the talk, then its length. About two and a half rows show,
+   so a long list scrolls instead of pushing "In progress" below the fold. */
+.st-footage {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 8px;
+  max-height: 172px;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.st-source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  align-items: baseline;
+  text-align: left;
+  padding: 9px 12px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.st-source:hover {
+  background: var(--card-hover);
+}
+
+.st-source.on {
+  border-color: var(--gold);
+  background: var(--gold-soft);
+}
+
+.st-speaker,
+.st-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.st-speaker {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.st-title {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.st-dur {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.st-unlisted summary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 0 8px;
+}
+
+.st-source.on .st-dur {
+  color: var(--gold);
+}
+
+.st-brief {
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  padding: 10px 12px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+
+.st-brief:focus {
+  outline: none;
+  border-color: var(--line-strong);
+}
+
+.st-go {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.st-go button {
+  padding: 10px 20px;
+  font-size: 14px;
+}
+
+.st-go .error {
+  margin: 0;
+}
+
+.st-count {
+  margin-left: 6px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  font-size: 12px;
+  letter-spacing: 0;
+  color: var(--dim);
+}
+
+.st-none {
+  margin: 0;
+}
+
+.st-hint {
+  margin: -6px 0 12px;
+}
+
+.st-errors {
+  margin-top: 24px;
+}
+
+.st-errors summary {
+  cursor: pointer;
+  color: var(--dim);
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+/* Clips still waiting for a plan: compact rows under the full cards. */
+.st-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.st-rows.after {
+  margin-top: 12px;
+}
+
+.st-hint a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 3px;
+}
+
+.st-hint a:hover {
+  text-decoration-color: currentColor;
+}

@@ -148,43 +148,65 @@ def _crop(plan: EditPlan, out_w: int, out_h: int) -> str:
     return f"crop={w}:{h}:(iw-{w})*{plan.crop_x:.3f}:(ih-{h})*{plan.crop_y:.3f}"
 
 
-def _pane_crop(plan: EditPlan, footage: Path, seg: Segment, src_w: int, src_h: int, out_w: int, out_h: int,
-               face_share: float) -> str:
-    """The crop for one pane: centred on the speaker's face when track_face is on and a face is found,
-    otherwise placed by crop_x, crop_y and zoom."""
-    if plan.track_face and src_w and src_h:
-        face = faces.locate(footage, round(seg.start, 2), round(seg.end, 2))
-        if face:
+def _chain(
+    plan: EditPlan, layout: str, src: str, out: str, tag: str, face, src_w: int, src_h: int, punch: float = 1.0
+) -> list[str]:
+    """Filters that turn [src] into a 720x1280 [out] in `layout`. `face` (or None) centres the crop; `punch`
+    zooms the result for a punch-in (in split, only the bottom pane, so the slide stays whole)."""
+    def pane_crop(out_w: int, out_h: int, face_share: float) -> str:
+        if face and src_w and src_h:
             w, h, x, y = faces.crop_on_face(face, src_w, src_h, out_w, out_h, face_share)
             return f"crop={w}:{h}:{x}:{y}"
-    return _crop(plan, out_w, out_h)
+        return _crop(plan, out_w, out_h)
 
-
-def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src_h: int) -> list[str]:
-    """Filter chains that turn segment i's [raw{i}] into a 720x1280 [v{i}]."""
-    if plan.layout == "split":
+    if layout == "split":
         # Whole frame across the top (slides stay readable), a tall crop on the speaker below.
         top_h = 404
         bottom_h = HEIGHT - top_h
-        crop = _pane_crop(plan, footage, seg, src_w, src_h, WIDTH, bottom_h, face_share=0.32)
         return [
-            f"[raw{i}]split[ts{i}][bs{i}]",
-            f"[ts{i}]scale={WIDTH}:{top_h}[top{i}]",
-            f"[bs{i}]{crop},scale={WIDTH}:{bottom_h}{_punch(seg.punch, WIDTH, bottom_h)}[bot{i}]",  # slide stays whole
-            f"[top{i}][bot{i}]vstack,setsar=1[v{i}]",
+            f"[{src}]split[ts{tag}][bs{tag}]",
+            f"[ts{tag}]scale={WIDTH}:{top_h}[top{tag}]",
+            f"[bs{tag}]{pane_crop(WIDTH, bottom_h, 0.32)},scale={WIDTH}:{bottom_h}{_punch(punch, WIDTH, bottom_h)}[bot{tag}]",
+            f"[top{tag}][bot{tag}]vstack,setsar=1[{out}]",
         ]
-    if plan.layout == "fit":
+    if layout == "fit":
         # Whole frame, full width, centred over a blurred, zoomed copy of itself.
         crop_w = f"ih*{WIDTH}/{HEIGHT}"
         return [
-            f"[raw{i}]split[bgs{i}][fgs{i}]",
-            f"[bgs{i}]crop={crop_w}:ih:(iw-{crop_w})/2:0,scale={WIDTH // 4}:{HEIGHT // 4},boxblur=8:2,"
-            f"scale={WIDTH}:{HEIGHT},eq=brightness=-0.12[bg{i}]",
-            f"[fgs{i}]scale={WIDTH}:-2[fg{i}]",
-            f"[bg{i}][fg{i}]overlay=0:(H-h)/2{_punch(seg.punch, WIDTH, HEIGHT)},setsar=1[v{i}]",
+            f"[{src}]split[bgs{tag}][fgs{tag}]",
+            f"[bgs{tag}]crop={crop_w}:ih:(iw-{crop_w})/2:0,scale={WIDTH // 4}:{HEIGHT // 4},boxblur=8:2,"
+            f"scale={WIDTH}:{HEIGHT},eq=brightness=-0.12[bg{tag}]",
+            f"[fgs{tag}]scale={WIDTH}:-2[fg{tag}]",
+            f"[bg{tag}][fg{tag}]overlay=0:(H-h)/2{_punch(punch, WIDTH, HEIGHT)},setsar=1[{out}]",
         ]
-    crop = _pane_crop(plan, footage, seg, src_w, src_h, WIDTH, HEIGHT, face_share=0.2)
-    return [f"[raw{i}]{crop},scale={WIDTH}:{HEIGHT}{_punch(seg.punch, WIDTH, HEIGHT)},setsar=1[v{i}]"]
+    return [f"[{src}]{pane_crop(WIDTH, HEIGHT, 0.2)},scale={WIDTH}:{HEIGHT}{_punch(punch, WIDTH, HEIGHT)},setsar=1[{out}]"]
+
+
+def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src_h: int) -> list[str]:
+    """Filter chains that turn segment i's [raw{i}] into a 720x1280 [v{i}].
+
+    With track_face, the segment is split at camera cuts and each shot is framed on its own: centred on
+    the face it shows, or, if it shows none (a slide, B-roll, a wide or empty shot), fitted whole. One crop
+    for a whole segment put an empty desk on screen whenever the edit cut away from the speaker.
+    """
+    if not (plan.track_face and src_w and src_h):
+        return _chain(plan, plan.layout, f"raw{i}", f"v{i}", str(i), None, src_w, src_h, seg.punch)
+    shots = faces.shots(footage, round(seg.start, 2), round(seg.end, 2))
+    framed = []
+    for a, b in shots:
+        face = faces.locate(footage, round(seg.start + a, 2), round(seg.start + b, 2))
+        framed.append((a, b, face, plan.layout if face else "fit"))
+    if len(framed) == 1:
+        _, _, face, layout = framed[0]
+        return _chain(plan, layout, f"raw{i}", f"v{i}", str(i), face, src_w, src_h, seg.punch)
+    labels = "".join(f"[sh{i}_{k}]" for k in range(len(framed)))
+    parts = [f"[raw{i}]split={len(framed)}{labels}"]
+    for k, (a, b, face, layout) in enumerate(framed):
+        tag = f"{i}_{k}"
+        parts.append(f"[sh{tag}]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[st{tag}]")
+        parts.extend(_chain(plan, layout, f"st{tag}", f"sv{tag}", tag, face, src_w, src_h, seg.punch))
+    parts.append("".join(f"[sv{i}_{k}]" for k in range(len(framed))) + f"concat=n={len(framed)}:v=1:a=0[v{i}]")
+    return parts
 
 
 def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width: int, src_height: int) -> Path:

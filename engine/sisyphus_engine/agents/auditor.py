@@ -57,8 +57,9 @@ CONTROLS = {
     "16:9 frame across the top 404 px, readable at full width, and a tall crop at crop_x filling the 876 px below, "
     "the usual choice for a slide with the speaker beside it); zoom (1-4) magnifies the crop, and crop_y (0 top, "
     "1 bottom) places a zoomed crop vertically, which frames a small speaker inset; track_face (true/false) has "
-    "the renderer find the speaker's face in each segment and centre and size the crop on it, overriding crop_x, "
-    "crop_y and zoom wherever a face is found), caption_style "
+    "the renderer split each segment at camera cuts, centre and size the crop on the face in each shot "
+    "(overriding crop_x, crop_y and zoom), and show any shot without a face, such as a slide or B-roll, whole "
+    "as in fit), caption_style "
     "(karaoke, plain, none) and caption_words (words on screen at once); the look: caption_size (small, medium, "
     "large, huge), caption_color (white, yellow, green, cyan, pink), caption_position (lower, middle, upper), "
     "caption_caps (true upper-cases every caption, false keeps the speaker's case), color_filter (none, warm, "
@@ -255,4 +256,8 @@ def propose(agent: str, cluster: dict, failures: list[dict], rolled_back: list[d
         changed[f"skills/reviewer/styles/{style}.md"] = (bar if bar.startswith("# ") else f"# {title}\n\n{bar or 'A good clip looks and feels like the ' + title + ' style.'}").rstrip() + "\n"
     if not changed:
         raise ValueError("Auditor proposed no effective change")
-    return {"title": out["title"].strip(), "rationale": out["rationale"].strip(), "files": changed}
+    title = out["title"].strip()
+    # The model sometimes names the file it edited ("editing.md"); the Versions and Showcase tabs show this title.
+    if title.lower().endswith(".md") or len(title.split()) < 3:
+        title = cluster["label"].strip()
+    return {"title": title, "rationale": out["rationale"].strip(), "files": changed}
