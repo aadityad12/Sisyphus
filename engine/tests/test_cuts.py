@@ -1,3 +1,7 @@
+import json
+
+import pytest
+
 from sisyphus_engine import cuts
 from sisyphus_engine.plan import EditPlan
 from sisyphus_engine.render import timeline
@@ -70,11 +74,25 @@ def test_hook_and_title_pass_through():
     assert (view["hook"], view["title"]) == ("Wait for it", "t")
 
 
-def test_for_video_reads_a_stored_plan(monkeypatch, tmp_path):
-    monkeypatch.setattr(cuts, "FOOTAGE_DIR", tmp_path)
+def test_whitespace_hook_reads_as_no_hook():
+    assert cuts.build(plan((10.0, 12.0), hook="  "), synthetic())["hook"] == ""
+
+
+STORED = {"footage": "talk.mp4", "plan": plan((10.0, 12.0)).model_dump() | {"layout": "fit"}}
+
+
+def test_for_video_reads_the_cached_transcript(monkeypatch, tmp_path):
+    cache = tmp_path / "cache.json"
+    cache.write_text(json.dumps(synthetic()))
     seen = []
-    monkeypatch.setattr(cuts, "transcribe", lambda path: seen.append(path) or synthetic())
-    stored = {"footage": "talk.mp4", "plan": plan((10.0, 12.0)).model_dump() | {"layout": "fit"}}
-    view = cuts.for_video(stored)
+    monkeypatch.setattr(cuts, "FOOTAGE_DIR", tmp_path)
+    monkeypatch.setattr(cuts, "_cache_path", lambda path: seen.append(path) or cache)
+    view = cuts.for_video(STORED)
     assert seen == [tmp_path / "talk.mp4"]
     assert kept_by(view["segments"][0]) == ["w20", "w21", "w22", "w23"]
+
+
+def test_for_video_never_transcribes(monkeypatch, tmp_path):
+    monkeypatch.setattr(cuts, "_cache_path", lambda path: tmp_path / "missing.json")
+    with pytest.raises(cuts.NotCached):
+        cuts.for_video(STORED)

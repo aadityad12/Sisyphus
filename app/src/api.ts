@@ -91,7 +91,7 @@ export type TranscriptView = {
   segments: TranscriptSegment[];
 };
 
-export type AuditStatus ={ state: "idle" | "clustering" | "proposing" | "testing" | "error"; detail: string };
+export type AuditStatus = { state: "idle" | "clustering" | "proposing" | "testing" | "error"; detail: string };
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getEngineUrl();

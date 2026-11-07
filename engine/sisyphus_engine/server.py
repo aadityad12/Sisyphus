@@ -92,6 +92,8 @@ def video_transcript(video_id: int) -> dict:
         return cuts.for_video(v)
     except FileNotFoundError:
         raise HTTPException(404, f"footage {v['footage']} is missing")
+    except cuts.NotCached:
+        raise HTTPException(404, f"no cached transcript for {v['footage']}")
 
 
 class ReviewIn(BaseModel):

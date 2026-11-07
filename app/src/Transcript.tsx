@@ -39,9 +39,14 @@ function Words({ words, index }: { words: TranscriptWord[]; index: number }) {
 }
 
 function Block({ seg, full }: { seg: TranscriptSegment; full: boolean }) {
-  const before = seg.words.filter((w) => w.end <= seg.start);
-  const after = seg.words.filter((w) => w.start >= seg.end);
-  const inside = seg.words.filter((w) => w.end > seg.start && w.start < seg.end);
+  // Split on the server's own kept marks, not on times, so a word the renderer drops at a boundary
+  // never lands inside the highlight. Words are in source order, so this segment's are contiguous.
+  const first = seg.words.findIndex((w) => w.segment === seg.index);
+  const last = first + seg.words.filter((w) => w.segment === seg.index).length - 1;
+  const split = first < 0 ? seg.words.filter((w) => w.start < seg.start).length : first;
+  const before = seg.words.slice(0, split);
+  const inside = first < 0 ? [] : seg.words.slice(first, last + 1);
+  const after = seg.words.slice(first < 0 ? split : last + 1);
   const shownBefore = full ? before : before.slice(-NEAR_WORDS);
   const shownAfter = full ? after : after.slice(0, NEAR_WORDS);
   return (

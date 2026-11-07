@@ -4,10 +4,12 @@ The view is built from the segments as `render.timeline` snaps them, not the raw
 words it marks as kept are the words the rendered video actually plays.
 """
 
+import json
+
 from . import FOOTAGE_DIR
 from .plan import EditPlan, Segment
 from .render import timeline
-from .transcribe import transcribe
+from .transcribe import _cache_path
 from .transcribe import words as all_words
 
 CONTEXT_S = 30.0  # seconds of source shown on each side of a kept segment
@@ -38,7 +40,7 @@ def build(plan: EditPlan, transcript: dict, context: float = CONTEXT_S) -> dict:
     starts = [s.start for s in segs]
     return {
         "title": plan.title,
-        "hook": plan.hook,
+        "hook": plan.hook.strip(),  # the renderer draws no hook when it is only whitespace
         "context_s": context,
         "kept_s": round(sum(s.end - s.start for s in segs), 2),
         "reordered": starts != sorted(starts),  # the Creator may play source out of order on purpose
@@ -46,7 +48,19 @@ def build(plan: EditPlan, transcript: dict, context: float = CONTEXT_S) -> dict:
     }
 
 
+class NotCached(LookupError):
+    """The footage has no cached transcript, so showing the view would mean running Whisper."""
+
+
 def for_video(video: dict, context: float = CONTEXT_S) -> dict:
-    """The view for a stored video (store.get_video). Raises FileNotFoundError if its footage is gone."""
+    """The view for a stored video (store.get_video), from the cached transcript only.
+
+    It never transcribes: a cache miss inside a GET would run Whisper for minutes while holding
+    transcribe's lock, stalling the Creator's jobs. Raises FileNotFoundError if the footage is
+    gone and NotCached if it has no transcript.
+    """
     plan = EditPlan.model_validate(video["plan"])
-    return build(plan, transcribe(FOOTAGE_DIR / video["footage"]), context)
+    cache = _cache_path(FOOTAGE_DIR / video["footage"])  # stats the footage: FileNotFoundError if gone
+    if not cache.exists():
+        raise NotCached(video["footage"])
+    return build(plan, json.loads(cache.read_text(encoding="utf-8")), context)
