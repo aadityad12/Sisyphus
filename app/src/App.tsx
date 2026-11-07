@@ -71,7 +71,7 @@ function App() {
             </div>
           </>
         )}
-        {tab === "Versions" && <Versions />}
+        {tab === "Versions" && <Versions videos={all} />}
       </section>
     </main>
   );

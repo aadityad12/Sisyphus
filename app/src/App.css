@@ -562,3 +562,31 @@ td.down {
   color: var(--gold);
   font-size: 13px;
 }
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 720px;
+}
+
+.progrow {
+  display: grid;
+  grid-template-columns: 80px 48px 1fr 48px 80px;
+  align-items: center;
+  gap: 10px;
+}
+
+.bar {
+  height: 14px;
+  background: #24242c;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 7px;
+  transition: width 0.6s ease;
+}

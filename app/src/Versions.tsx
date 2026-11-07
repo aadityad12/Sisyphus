@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Change, type Video } from "./api";
+import { Progress } from "./Progress";
 import { usePoll } from "./usePoll";
 
 const STAMP: Record<Change["status"], string> = {
@@ -229,12 +230,13 @@ function ChangeCard({ change }: { change: Change }) {
   );
 }
 
-export function Versions() {
+export function Versions({ videos }: { videos: Video[] }) {
   const { data } = usePoll(api.versions, 3000);
   if (!data) return <p className="dim">Loading…</p>;
   return (
     <div className="versions">
       <AuditorPanel />
+      <Progress videos={videos} />
       <section>
         <h2>Current agents</h2>
         <div className="row">
