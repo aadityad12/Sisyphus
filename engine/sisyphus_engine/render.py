@@ -26,8 +26,9 @@ CAPTION_COLOR = {
     "cyan": ("FFFF00", "00E5FF"),
     "pink": ("B469FF", "FFFFFF"),
 }
-# (ASS alignment, vertical margin): lower third, centre, or high but below the hook (MarginV 170).
-CAPTION_POSITION = {"lower": (2, 330), "middle": (5, 0), "upper": (8, 300)}
+# (ASS alignment, vertical margin): lower third, centre, or high but clear of the hook, which sits at
+# MarginV 170 and reaches about 320 px when it wraps to two lines.
+CAPTION_POSITION = {"lower": (2, 330), "middle": (5, 0), "upper": (8, 350)}
 # Applied to the cut before captions are burned in, so caption colours stay true.
 COLOR_FILTERS = {
     "none": "",
@@ -136,9 +137,10 @@ def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dic
     return segs, out
 
 
-def _punch(p: float, w: int, h: int) -> str:
-    """A centred zoom by p on a w x h picture, scaled back to w x h, for a punch-in; nothing at 1."""
-    return "" if p <= 1 else f",crop=iw/{p:.3f}:ih/{p:.3f},scale={w}:{h}"
+def _punch(p: float) -> str:
+    """A centred crop by p, put before a pane's scale: a punch-in that keeps the crop's framing and costs
+    no second resize. Nothing at 1."""
+    return "" if p <= 1 else f"crop=iw/{p:.3f}:ih/{p:.3f},"
 
 
 def _crop(plan: EditPlan, out_w: int, out_h: int) -> str:
@@ -166,7 +168,7 @@ def _chain(
         return [
             f"[{src}]split[ts{tag}][bs{tag}]",
             f"[ts{tag}]scale={WIDTH}:{top_h}[top{tag}]",
-            f"[bs{tag}]{pane_crop(WIDTH, bottom_h, 0.32)},scale={WIDTH}:{bottom_h}{_punch(punch, WIDTH, bottom_h)}[bot{tag}]",
+            f"[bs{tag}]{pane_crop(WIDTH, bottom_h, 0.32)},{_punch(punch)}scale={WIDTH}:{bottom_h}[bot{tag}]",
             f"[top{tag}][bot{tag}]vstack,setsar=1[{out}]",
         ]
     if layout == "fit":
@@ -177,9 +179,11 @@ def _chain(
             f"[bgs{tag}]crop={crop_w}:ih:(iw-{crop_w})/2:0,scale={WIDTH // 4}:{HEIGHT // 4},boxblur=8:2,"
             f"scale={WIDTH}:{HEIGHT},eq=brightness=-0.12[bg{tag}]",
             f"[fgs{tag}]scale={WIDTH}:-2[fg{tag}]",
-            f"[bg{tag}][fg{tag}]overlay=0:(H-h)/2{_punch(punch, WIDTH, HEIGHT)},setsar=1[{out}]",
+            # The composite is already at output size, so a punch here crops and scales it back.
+            f"[bg{tag}][fg{tag}]overlay=0:(H-h)/2"
+            f"{',' + _punch(punch) + f'scale={WIDTH}:{HEIGHT}' if punch > 1 else ''},setsar=1[{out}]",
         ]
-    return [f"[{src}]{pane_crop(WIDTH, HEIGHT, 0.2)},scale={WIDTH}:{HEIGHT}{_punch(punch, WIDTH, HEIGHT)},setsar=1[{out}]"]
+    return [f"[{src}]{pane_crop(WIDTH, HEIGHT, 0.2)},{_punch(punch)}scale={WIDTH}:{HEIGHT},setsar=1[{out}]"]
 
 
 def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src_h: int) -> list[str]:
