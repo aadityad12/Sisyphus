@@ -118,6 +118,8 @@ def create_job(job: JobIn) -> dict:
         return {"id": jobs.submit(job.footage, job.brief, styles=job.styles, project=job.project)}
     except FileNotFoundError:
         raise HTTPException(404, f"no footage named {job.footage} in project {job.project}")
+    except LookupError:
+        raise HTTPException(404, f"no project {job.project}")  # deleted while the job was being started
 
 
 @app.get("/styles")

@@ -178,3 +178,11 @@ def test_showcase_is_per_project(client):
     rows = client.get("/showcase", params={"project": "x"}).json()["rows"]
     assert [(r["footage"], r["title"]) for r in rows] == [("b.mp4", "B talk")]
     assert client.get("/showcase", params={"project": "nope"}).status_code == 404
+
+
+def test_a_clip_cannot_be_added_to_a_missing_project(client):
+    import pytest
+
+    with pytest.raises(LookupError):
+        store.add_video("b.mp4", "brief", project="gone")
+    assert client.get("/videos", params={"project": "*"}).json() == []

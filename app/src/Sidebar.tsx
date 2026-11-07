@@ -318,7 +318,7 @@ export function Sidebar({
 
       <div className="spacer" />
 
-      <Loop videos={videos} versions={versions} audit={audit} go={go} />
+      <Loop videos={videos} project={project.id} versions={versions} audit={audit} go={go} />
 
       <div className={`engine ${engine}`} title={`Engine ${engine}`}>
         <span className="engine-dot" />

@@ -117,10 +117,18 @@ def _video(row: sqlite3.Row, comments: list[dict] | None = None) -> dict:
 def add_video(footage: str, brief: str, **fields) -> int:
     now = time.time()
     cols = {"footage": footage, "brief": brief, "created_at": now, "updated_at": now, **fields}
+    names, marks = ",".join(cols), ",".join("?" * len(cols))
     with conn() as c:
+        if "project" not in cols:
+            return c.execute(f"INSERT INTO videos ({names}) VALUES ({marks})", list(cols.values())).lastrowid
+        # Only into a project that exists, in the same statement: a project deleted since the caller checked
+        # would otherwise get a clip no view can list.
         cur = c.execute(
-            f"INSERT INTO videos ({','.join(cols)}) VALUES ({','.join('?' * len(cols))})", list(cols.values())
+            f"INSERT INTO videos ({names}) SELECT {marks} WHERE EXISTS (SELECT 1 FROM projects WHERE id=?)",
+            [*cols.values(), cols["project"]],
         )
+        if not cur.rowcount:
+            raise LookupError(f"no project {cols['project']}")
         return cur.lastrowid
 
 

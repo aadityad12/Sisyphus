@@ -108,11 +108,14 @@ function describe(verb: string, videos: Video[]): string {
  */
 export function Loop({
   videos,
+  project = "default",
   versions,
   audit,
   go,
 }: {
   videos: Video[];
+  /** The project shown: verdict counts are its own, while activity counts every project's work. */
+  project?: string;
   versions: Record<string, string> | undefined;
   audit: AuditStatus | null;
   go: (tab: Tab) => void;
@@ -125,8 +128,9 @@ export function Loop({
   const stuck = videos.filter((v) => v.status === "reviewing" && v.error);
   // Verdicts on regular clips match what Feed + Rejected show; A/B and showcase verdicts are counted apart.
   const done = videos.filter((v) => v.status === "approved" || v.status === "rejected");
-  const judged = done.filter((v) => poolOf(v) === "regular").length;
-  const judgedElsewhere = done.length - judged;
+  // Verdicts on this project's regular clips, so the count matches its Feed + Rejected.
+  const judged = done.filter((v) => poolOf(v) === "regular" && (v.project ?? "default") === project).length;
+  const judgedElsewhere = done.filter((v) => poolOf(v) !== "regular").length;
   const state = audit?.state ?? "idle";
 
   const creatorActivity = creating.length

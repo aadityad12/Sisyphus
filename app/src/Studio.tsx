@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Check, Copy, Film, FolderOpen, Plus, Sparkles } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, Copy, Film, FolderOpen, Plus, Sparkles } from "lucide-react";
 import "./Studio.css";
-import { api, type Footage, type Project, type Style, type Video } from "./api";
+import { api, currentProject, type Footage, type Project, type Style, type Video } from "./api";
 import { shortVersion, VideoCard } from "./VideoCard";
 import { NewStyleForm, StylePicker, withCreated } from "./Styles";
 import { usePoll } from "./usePoll";
@@ -35,24 +35,29 @@ function splitSpeaker(speaker: string): [string, string | null] {
 
 /**
  * Stills from the footage. Each is one <video> that fetches the metadata and one frame (the file server answers
- * range requests), drawn to a JPEG, after which the video is unmounted so its connection closes. They load one at
+ * range requests), drawn to a JPEG, after which the video is unmounted so its connection closes. They load two at
  * a time: a dozen open video requests would take every connection the webview allows to the engine and stall the
  * app's polls. Stills are kept for the session, so coming back to the Studio shows them at once.
  */
 const stills = new Map<string, string>();
-let queue: Promise<void> = Promise.resolve();
+// Two at a time: quick enough on a cold start, and leaves the webview's other connections to the polls.
+const lanes: Promise<void>[] = [Promise.resolve(), Promise.resolve()];
+let nextLane = 0;
 function inTurn(job: () => Promise<void>) {
-  queue = queue.then(job, job);
+  const i = nextLane++ % lanes.length;
+  lanes[i] = lanes[i].then(job, job);
 }
 
 function Thumb({ f }: { f: Footage }) {
-  const [still, setStill] = useState(() => stills.get(f.file) ?? null);
+  // Two projects can each have an interview.mp4: the still belongs to this project's file.
+  const key = `${currentProject()}/${f.file}`;
+  const [still, setStill] = useState(() => stills.get(key) ?? null);
   const [src, setSrc] = useState<string | null>(null);
   const done = useRef<(() => void) | null>(null);
   const video = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    if (stills.has(f.file)) return;
+    if (stills.has(key)) return;
     let live = true;
     inTurn(
       () =>
@@ -77,7 +82,7 @@ function Thumb({ f }: { f: Footage }) {
       live = false;
       done.current?.();
     };
-  }, [f.file, f.duration_s]);
+  }, [f.file, f.duration_s, key]);
 
   function grab() {
     const v = video.current;
@@ -88,7 +93,7 @@ function Thumb({ f }: { f: Footage }) {
         c.height = Math.round((384 * v.videoHeight) / v.videoWidth);
         c.getContext("2d")?.drawImage(v, 0, 0, c.width, c.height);
         const url = c.toDataURL("image/jpeg", 0.8);
-        stills.set(f.file, url);
+        stills.set(key, url);
         setStill(url);
       } catch {
         // A cross-origin frame without CORS can't be read back; the tile keeps its placeholder.
@@ -210,6 +215,9 @@ export function Studio({ videos, refresh, project }: { videos: Video[]; refresh:
   // A held Ctrl+Enter fires before the re-render that disables the button; each repeat would be a paid job.
   const startingRef = useRef(false);
   const briefRef = useRef<HTMLTextAreaElement>(null);
+  // The footage re-poll runs in an effect that outlives renders; it reads the current pick from here.
+  const fileRef = useRef(file);
+  fileRef.current = file;
 
   useEffect(() => {
     let stop = false;
@@ -243,11 +251,12 @@ export function Studio({ videos, refresh, project }: { videos: Video[]; refresh:
           const f = await api.footage();
           if (stop) return;
           setFootage((old) => (old && JSON.stringify(old) === JSON.stringify(f) ? old : f));
-          setFile((cur) => {
-            if (cur || !f[0]) return cur;
-            setBrief(f[0].brief ?? "");
-            return f[0].file;
-          });
+          // Keep the pick while its file is there; if it's gone (or nothing was picked), take the first. A brief
+          // the user typed is kept: the new file's brief only fills an empty one.
+          if (!f.some((x) => x.file === fileRef.current)) {
+            setFile(f[0]?.file ?? "");
+            if (f[0]?.brief && !briefRef.current?.value.trim()) setBrief(f[0].brief);
+          }
         } catch {
           // the engine is busy or restarting; try again next time
         }
@@ -515,6 +524,7 @@ export function Studio({ videos, refresh, project }: { videos: Video[]; refresh:
       {oldErrors.length > 0 && (
         <details className="st-errors st-block">
           <summary>
+            <ChevronRight size={14} className="st-chev" />
             Older errors <span className="count">{oldErrors.length}</span>
           </summary>
           <Clips videos={oldErrors} refresh={refresh} />

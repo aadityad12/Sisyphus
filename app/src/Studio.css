@@ -320,3 +320,10 @@
   opacity: 1;
   transform: scale(1.03);
 }
+.st-chev {
+  color: var(--text-4);
+  transition: transform var(--fast) var(--ease);
+}
+.st-errors[open] .st-chev {
+  transform: rotate(90deg);
+}
