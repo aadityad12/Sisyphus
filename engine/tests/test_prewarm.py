@@ -85,8 +85,56 @@ def test_writes_to_the_engines_cache_path(monkeypatch, tmp_path):
     assert json.loads(path.read_text(encoding="utf-8")) == {"segments": []}
 
 
-def test_no_whisper_cli_exits_without_writing(monkeypatch, capsys):
+def tok(text: str, end_cs: int, start_ms: int = 0) -> dict:
+    return {"text": text, "offsets": {"from": start_ms, "to": end_cs * 10}, "t_dtw": end_cs}
+
+
+def seg(text: str, *tokens: dict) -> dict:
+    return {"offsets": {"from": 0, "to": 10_000}, "text": text, "tokens": list(tokens)}
+
+
+def test_punctuation_before_a_word_opens_it_instead_of_standing_alone():
+    out = prewarm.convert({"transcription": [seg(' he said - "well', tok(" he", 50), tok(" said", 90), tok(" -", 120),
+                                                tok(' "', 130), tok("well", 160))]})
+    assert [w["word"] for w in out["segments"][0]["words"]] == ["he", "said", '-"well']
+    assert out["segments"][0]["words"][-1] == {"start": 1.0, "end": 1.6, "word": '-"well'}  # 1.6 - 0.6, after "said" ends at 0.9
+
+
+def test_sound_tags_are_dropped_like_faster_whispers_vad_would():
+    tags = [seg(" [BLANK_AUDIO]", tok(" [BLANK_AUDIO]", 100)), seg(" (applause)", tok(" (applause)", 200)),
+            seg(" ♪ ♪", tok(" ♪", 300))]
+    speech = seg(" Thanks (laughs) all", tok(" Thanks", 350), tok(" (laughs)", 380), tok(" all", 400))
+    out = prewarm.convert({"transcription": tags + [speech]})
+    assert [s["text"] for s in out["segments"]] == ["Thanks (laughs) all"]
+
+
+def test_words_stay_ordered_when_timings_step_back():
+    # DTW for "two" lands before "one" ended; the next segment has no DTW and early offsets.
+    out = prewarm.convert({"transcription": [
+        seg(" one two", tok(" one", 200), tok(" two", 150)),
+        seg(" three", {"text": " three", "offsets": {"from": 1000, "to": 2600}, "t_dtw": -1}),
+    ]})
+    ws = words(out)
+    assert [(w["word"], w["start"], w["end"]) for w in ws] == [("one", 1.4, 2.0), ("two", 2.0, 2.0), ("three", 2.0, 2.6)]
+    assert all(a["end"] <= b["start"] for a, b in zip(ws, ws[1:]))
+
+
+def test_no_whisper_cli_exits_without_writing(monkeypatch, capsys, tmp_path):
     monkeypatch.setattr(prewarm.shutil, "which", lambda name: None)
+    monkeypatch.setattr(prewarm, "MODEL_PATH", tmp_path / "models" / "m.bin")
+    monkeypatch.setattr(prewarm, "_cache_path", lambda footage: tmp_path / "t" / f"{footage.stem}.json")
     monkeypatch.setattr("sys.argv", ["prewarm_transcripts.py"])
     assert prewarm.main() == 1
     assert "brew install whisper-cpp" in capsys.readouterr().err
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_a_truncated_model_is_downloaded_again(monkeypatch, tmp_path):
+    model = tmp_path / "ggml-small.en.bin"
+    model.write_bytes(b"<html>rate limited</html>")
+    monkeypatch.setattr(prewarm, "MODEL_PATH", model)
+    fetched = []
+    monkeypatch.setattr(prewarm.urllib.request, "urlretrieve", lambda url, dest: fetched.append(url) or Path(dest).write_bytes(b"x"))
+    with pytest.raises(OSError):
+        prewarm.ensure_model()
+    assert fetched == [prewarm.MODEL_URL]

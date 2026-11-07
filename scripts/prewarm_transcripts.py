@@ -18,6 +18,7 @@ engine still transcribes on demand as before.
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -35,6 +36,10 @@ MODEL_PATH = RUNS_DIR / "models" / f"ggml-{MODEL_SIZE}.bin"
 
 
 MAX_WORD_S = 0.6  # longest a word may reach back from its end, when the gap before it is a pause
+MIN_MODEL_BYTES = 400_000_000  # ggml-small.en.bin is 488 MB; anything far smaller is a failed download
+# A segment that is only a sound tag ("[BLANK_AUDIO]", "(applause)", "♪") is whisper describing
+# non-speech; faster-whisper's VAD drops those stretches, so drop them too.
+NON_SPEECH = re.compile(r"^(\s|\[[^\]]*\]|\([^)]*\)|[♪*])+$")
 
 
 def convert(whisper_json: dict) -> dict:
@@ -56,24 +61,36 @@ def convert(whisper_json: dict) -> dict:
     segments = []
     prev_end = 0.0
     for seg in whisper_json.get("transcription", []):
+        text = seg.get("text", "").strip()
+        if not text or NON_SPEECH.match(text):
+            continue
         words: list[dict] = []
+        prefix = ""  # punctuation with a space before it (" -", ' "') opens the next word, as in faster-whisper
         for tok in seg.get("tokens", []):
-            text = tok.get("text", "")
-            if not text.strip() or text.startswith("[_"):
+            piece = tok.get("text", "")
+            if not piece.strip() or piece.startswith("[_"):
+                continue
+            spoken = any(c.isalnum() for c in piece)
+            if not spoken and (piece.startswith(" ") or not words):
+                prefix += piece.strip()
                 continue
             dtw = tok.get("t_dtw", -1)
             end = dtw / 100 if dtw >= 0 else tok["offsets"]["to"] / 1000
-            if words and not text.startswith(" "):
-                words[-1]["word"] += text
-                if any(c.isalnum() for c in text):
+            if words and not piece.startswith(" ") and not prefix:
+                words[-1]["word"] += piece
+                if spoken:
                     words[-1]["end"] = max(words[-1]["end"], end)
             else:
                 start = max(prev_end, end - MAX_WORD_S) if dtw >= 0 else tok["offsets"]["from"] / 1000
-                words.append({"start": min(start, end), "end": end, "word": text.strip()})
+                # Keep words in order and non-overlapping whatever the timings say: the renderer's
+                # cut snapping and caption chunking assume it. A DTW time can step back, and an
+                # offset-timed token after DTW-timed ones can start before the last one ended.
+                start = max(start, prev_end)
+                words.append({"start": start, "end": max(end, start), "word": prefix + piece.strip()})
+                prefix = ""
             prev_end = words[-1]["end"]
-        text = seg.get("text", "").strip()
-        if not text:
-            continue
+        if prefix and words:
+            words[-1]["word"] += prefix
         rounded = [{"start": round(w["start"], 2), "end": round(w["end"], 2), "word": w["word"]} for w in words]
         segments.append(
             {
@@ -87,12 +104,16 @@ def convert(whisper_json: dict) -> dict:
 
 
 def ensure_model() -> Path:
-    if MODEL_PATH.exists():
+    """The ggml model, downloaded once. Raises OSError (urllib's errors included) if it can't be had."""
+    if MODEL_PATH.exists() and MODEL_PATH.stat().st_size >= MIN_MODEL_BYTES:
         return MODEL_PATH
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     part = MODEL_PATH.with_suffix(".part")
     print(f"downloading {MODEL_URL} -> {MODEL_PATH} ...", flush=True)
     urllib.request.urlretrieve(MODEL_URL, part)
+    if part.stat().st_size < MIN_MODEL_BYTES:  # an error page served as 200, say
+        part.unlink()
+        raise OSError(f"{MODEL_URL} sent {part.stat().st_size if part.exists() else 'too few'} bytes, not a model")
     part.replace(MODEL_PATH)
     return MODEL_PATH
 
@@ -107,6 +128,8 @@ def transcribe_file(footage: Path, whisper_cli: str, model: Path) -> dict:
         )
         # -dtw gives the word timings (see convert); it silently yields none with flash attention,
         # which is on by default, hence -nfa (42 s -> 48 s for a 15-minute talk on an M3).
+        # Not --suppress-nst: it also drops punctuation and capitals, which captions and the Creator's
+        # segments need (tried 2026-11-07). NON_SPEECH filters sound-tag segments instead.
         # --no-prints still leaves progress lines on stderr, so keep it and show it only on failure.
         subprocess.run(
             [whisper_cli, "-m", str(model), "-f", str(wav), "-l", "en", "-t", str(min(8, os.cpu_count() or 4)),
@@ -116,7 +139,9 @@ def transcribe_file(footage: Path, whisper_cli: str, model: Path) -> dict:
             stderr=subprocess.PIPE,
             text=True,
         )
-        return convert(json.loads(Path(f"{out}.json").read_text(encoding="utf-8")))
+        # Token texts are raw bytes, so a character BPE split across two tokens is invalid UTF-8.
+        raw = Path(f"{out}.json").read_bytes().decode("utf-8", errors="replace")
+        return convert(json.loads(raw))
 
 
 def write_cache(footage: Path, transcript: dict) -> Path:
@@ -132,7 +157,7 @@ def manifest_files() -> list[Path]:
     manifest = FOOTAGE_DIR / "manifest.json"
     if not manifest.exists():
         sys.exit(f"no {manifest}: run scripts/fetch_footage.py first, or pass footage paths")
-    return [FOOTAGE_DIR / m["file"] for m in json.loads(manifest.read_text(encoding="utf-8"))]
+    return [FOOTAGE_DIR / m["file"] for m in json.loads(manifest.read_text(encoding="utf-8")) if m.get("file")]
 
 
 def main() -> int:
@@ -159,7 +184,11 @@ def main() -> int:
     if not todo:
         return 1 if missing else 0
 
-    model = ensure_model()
+    try:
+        model = ensure_model()
+    except OSError as exc:
+        print(f"could not get the model: {exc}", file=sys.stderr)
+        return 1
     failed = 0
     for i, footage in enumerate(todo, 1):
         t0 = time.monotonic()
@@ -172,9 +201,15 @@ def main() -> int:
             if exc.stderr:
                 print(exc.stderr[-2000:], file=sys.stderr)
             continue
+        except Exception as exc:  # one bad file (unreadable JSON, ffmpeg missing) must not stop the batch
+            failed += 1
+            print(f"failed ({type(exc).__name__}: {exc})")
+            continue
         cache = write_cache(footage, transcript)
         n_words = sum(len(s["words"]) for s in transcript["segments"])
         print(f"{len(transcript['segments'])} segments, {n_words} words in {time.monotonic() - t0:.0f}s -> {cache.name}")
+    if failed:
+        print(f"{failed} of {len(todo)} failed; the engine will transcribe those itself", file=sys.stderr)
     return 1 if failed or missing else 0
 
 
