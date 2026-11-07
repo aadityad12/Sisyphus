@@ -66,6 +66,16 @@ def record_review(video_id: int, approved: bool, reason: str) -> None:
         reviewer_version=versioning.agent_version("reviewer"),
         status="approved" if approved else "rejected",
     )
+    _settle(video_id)
+
+
+def _settle(video_id: int) -> None:
+    """If the video belongs to a shadow A/B, see whether that experiment can be decided."""
+    v = store.get_video(video_id)
+    if v and v["experiment_id"] is not None:
+        from . import experiments  # experiments imports jobs
+
+        experiments.maybe_decide(v["experiment_id"])
 
 
 def plan_json(video_id: int) -> str:

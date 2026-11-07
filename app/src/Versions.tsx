@@ -1,4 +1,5 @@
-import { api, type Change } from "./api";
+import { useEffect, useState } from "react";
+import { api, type Change, type Video } from "./api";
 import { usePoll } from "./usePoll";
 
 const STAMP: Record<Change["status"], string> = {
@@ -84,6 +85,103 @@ function ABTable({ results }: { results: Record<string, unknown> }) {
   );
 }
 
+function verdict(v: Video): "pass" | "fail" | "pending" {
+  const ok = v.human_liked ?? v.review_approved;
+  if (v.status === "failed") return "fail";
+  return ok === null ? "pending" : ok ? "pass" : "fail";
+}
+
+function Clip({ video }: { video: Video | undefined }) {
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (video?.plan) api.videoUrl(video.id).then(setSrc);
+  }, [video?.id, video?.plan]);
+  if (!video) return <div className="abclip empty" />;
+  const v = verdict(video);
+  return (
+    <div className={`abclip ${v}`}>
+      {src ? <video src={src} controls preload="metadata" /> : <div className="placeholder busy">{video.status}</div>}
+      <div className="small">
+        <span className={`verdict ${v}`}>{v === "pass" ? "✓ pass" : v === "fail" ? "✗ fail" : "…"}</span>
+        {video.human_liked !== null && <span className="chip">human</span>}
+      </div>
+      {video.review_reason && <p className="dim small">{video.review_reason}</p>}
+    </div>
+  );
+}
+
+/** Held-out clips, current version beside the candidate, one row per (footage, brief). */
+function ABClips({ changeId }: { changeId: number }) {
+  const { data } = usePoll(() => api.experimentVideos(changeId), 3000);
+  if (!data || data.length === 0) return null;
+  const rows = new Map<string, { control?: Video; candidate?: Video; brief: string }>();
+  for (const v of [...data].reverse()) {
+    const key = `${v.footage}|${v.brief}`;
+    const row = rows.get(key) ?? { brief: v.brief };
+    if (v.arm) row[v.arm] = v;
+    rows.set(key, row);
+  }
+  return (
+    <div className="abgrid">
+      <div className="abhead dim small">Held-out work</div>
+      <div className="abhead dim small">Current</div>
+      <div className="abhead dim small">Candidate</div>
+      {[...rows.entries()].map(([key, row]) => (
+        <div key={key} className="abrow">
+          <p className="small">“{row.brief}”</p>
+          <Clip video={row.control} />
+          <Clip video={row.candidate} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AuditorPanel() {
+  const status = usePoll(api.auditStatus, 2000);
+  const failures = usePoll(api.failures, 4000);
+  const [error, setError] = useState<string | null>(null);
+  const creator = (failures.data ?? []).filter((f) => f.agents.includes("creator"));
+  const reviewer = (failures.data ?? []).filter((f) => f.agents.includes("reviewer"));
+  const busy = status.data && ["clustering", "proposing"].includes(status.data.state);
+  async function run() {
+    setError(null);
+    try {
+      await api.runAudit();
+      status.refresh();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+  return (
+    <section className="auditor">
+      <div className="row">
+        <div className="agentver">
+          <span className="dim small">Creator failures</span>
+          <strong className="big">{creator.length}</strong>
+        </div>
+        <div className="agentver">
+          <span className="dim small">Reviewer failures</span>
+          <strong className="big">{reviewer.length}</strong>
+        </div>
+        <div className="auditstate">
+          <span className="dim small">Auditor</span>
+          <div>
+            <span className={`badge ${status.data?.state === "error" ? "failed" : status.data?.state === "idle" ? "" : "creating"}`}>
+              {status.data?.state ?? "…"}
+            </span>{" "}
+            <span className="small">{status.data?.detail}</span>
+          </div>
+        </div>
+        <button className="primary" disabled={!!busy} onClick={run}>
+          Run Auditor
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+    </section>
+  );
+}
+
 function ChangeCard({ change }: { change: Change }) {
   return (
     <article className={`change ${change.status}`}>
@@ -101,6 +199,7 @@ function ChangeCard({ change }: { change: Change }) {
       )}
       {change.diff && <DiffView diff={change.diff} />}
       {change.results && <ABTable results={change.results} />}
+      <ABClips changeId={change.id} />
     </article>
   );
 }
@@ -110,6 +209,7 @@ export function Versions() {
   if (!data) return <p className="dim">Loading…</p>;
   return (
     <div className="versions">
+      <AuditorPanel />
       <section>
         <h2>Current agents</h2>
         <div className="row">

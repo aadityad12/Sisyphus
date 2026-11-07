@@ -2,13 +2,14 @@
 
 import json
 import logging
+import threading
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import FOOTAGE_DIR, jobs, store, versioning
+from . import FOOTAGE_DIR, experiments, jobs, store, versioning
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="SIsyphus engine")
@@ -106,6 +107,7 @@ def feedback(video_id: int, body: FeedbackIn) -> dict:
         store.update_video(video_id, human_liked=None if body.liked is None else int(body.liked))
     if body.comment:
         store.add_comment(video_id, body.comment)
+    jobs._settle(video_id)  # a human vote can decide a shadow A/B
     return store.get_video(video_id)
 
 
@@ -121,3 +123,24 @@ def versions() -> dict:
         "history": {a: versioning.history(a) for a in versioning.AGENTS},
         "changes": store.list_changes(),
     }
+
+
+@app.post("/audit")
+def audit(agent: str = "creator") -> dict:
+    """Start an Auditor pass in the background: cluster failures, propose a change, start its A/B."""
+    if experiments.status["state"] in ("clustering", "proposing"):
+        raise HTTPException(409, "an audit is already running")
+
+    def run():
+        try:
+            experiments.run_audit(agent)
+        except Exception:
+            logging.exception("audit failed")
+
+    threading.Thread(target=run, daemon=True).start()
+    return experiments.status
+
+
+@app.get("/audit")
+def audit_status() -> dict:
+    return experiments.status

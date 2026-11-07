@@ -70,6 +70,18 @@ export type Versions = {
   changes: Change[];
 };
 
+export type Failure = {
+  video_id: number;
+  agents: string[];
+  brief: string;
+  review_reason: string | null;
+  human_liked: boolean | null;
+  comments: string[];
+  creator_version: string | null;
+};
+
+export type AuditStatus = { state: "idle" | "clustering" | "proposing" | "testing" | "error"; detail: string };
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getEngineUrl();
   const res = await fetch(`${base}${path}`, {
@@ -91,5 +103,9 @@ export const api = {
   review: (id: number, approved: boolean, reason: string) =>
     req<Video>(`/videos/${id}/review`, { method: "POST", body: JSON.stringify({ approved, reason }) }),
   versions: () => req<Versions>("/versions"),
+  experimentVideos: (changeId: number) => req<Video[]>(`/videos?experiment_id=${changeId}`),
+  failures: () => req<Failure[]>("/failures"),
+  auditStatus: () => req<AuditStatus>("/audit"),
+  runAudit: () => req<AuditStatus>("/audit", { method: "POST" }),
   videoUrl: async (id: number) => `${await getEngineUrl()}/videos/${id}/file`,
 };

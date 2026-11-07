@@ -28,7 +28,9 @@ function App() {
     <main className="app">
       <header className="top">
         <h1>
-          <span className="si">SI</span>syphus
+          <span>
+            <span className="si">SI</span>syphus
+          </span>
           <span className="tagline">One must imagine SIsyphus editing.</span>
         </h1>
         <span className={health.data ? "pill ok" : "pill down"}>

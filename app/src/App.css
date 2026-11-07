@@ -491,3 +491,69 @@ td.down {
 .timeline li {
   margin: 6px 0;
 }
+
+/* Auditor and A/B */
+.auditor .row {
+  align-items: stretch;
+}
+
+.big {
+  font-size: 26px;
+}
+
+.auditstate {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.abgrid {
+  display: grid;
+  grid-template-columns: 1fr 180px 180px;
+  gap: 10px 16px;
+  margin-top: 14px;
+  align-items: start;
+}
+
+.abrow {
+  display: contents;
+}
+
+.abclip video,
+.abclip .placeholder {
+  width: 180px;
+  aspect-ratio: 9 / 16;
+  border-radius: 8px;
+  background: #000;
+  display: block;
+}
+
+.abclip {
+  border-radius: 10px;
+  padding: 4px;
+  border: 2px solid transparent;
+}
+
+.abclip.pass {
+  border-color: var(--green);
+}
+
+.abclip.fail {
+  border-color: var(--red);
+}
+
+.verdict.pass {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.verdict.fail {
+  color: var(--red);
+  font-weight: 600;
+}
