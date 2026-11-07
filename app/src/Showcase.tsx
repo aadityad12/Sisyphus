@@ -177,14 +177,15 @@ export function Showcase() {
   const shown = compare && all.length > 2 ? [all[0], all[all.length - 1]] : all;
   const currentRendered = all.some((version) => sameVersion(version.version, t.current));
   const pendingAfter = all.length === 1;
+  const hasComparison = all.length > 1;
 
   return (
     <div className={`showcase ${compare ? "sc-compare" : "sc-history"}`}>
       <div className="sc-bar">
         <div className="sc-intro">
           <span className="sc-eyebrow">Showcase · fixed briefs</span>
-          <h3>The same brief, before &amp; after.</h3>
-          <p>Every Creator version gets the same starting point. Watch what changes.</p>
+          <h3>{hasComparison ? "The same brief, before & after." : pendingAfter ? "Baseline so far." : "Start with a baseline."}</h3>
+          <p>{hasComparison ? "Every Creator version gets the same starting point. Watch what changes." : pendingAfter ? currentRendered ? "One Creator version is available. The next promoted version will appear alongside it." : "Render the current Creator to compare. Only the baseline is available so far." : "Render the fixed briefs first. Future Creator versions will appear alongside the baseline."}</p>
         </div>
         <div className="sc-actions">
           {all.length > 2 && (
@@ -213,10 +214,10 @@ export function Showcase() {
       {t.rows.length > 0 && all.length > 0 && (
         <div className="sc-scroll" role="region" aria-label="Showcase version comparison" tabIndex={0}>
           <table className="sc-table" style={{ "--sc-columns": shown.length + (pendingAfter ? 1 : 0) } as CSSProperties}>
-            <caption className="sc-sr-only">The same briefs edited by {compare ? "the first and latest available Creator versions" : "every rendered Creator version"}.</caption>
+            <caption className="sc-sr-only">{hasComparison ? `The same briefs edited by ${compare ? "the first and latest available Creator versions" : "every rendered Creator version"}.` : "Fixed briefs edited by the baseline Creator. A second version is not available yet."}</caption>
             <thead>
               <tr>
-                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{listed.length} fixed brief{listed.length === 1 ? "" : "s"}</strong><span>Same footage.<br />Same goal.<br />Different Creator.</span></div></th>
+                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{listed.length} fixed brief{listed.length === 1 ? "" : "s"}</strong><span>Same footage.<br />Same goal.<br />{hasComparison ? "Different Creator." : "Baseline for comparison."}</span></div></th>
                 {shown.map((v) => {
                   const current = sameVersion(v.version, t.current);
                   return (
@@ -229,7 +230,7 @@ export function Showcase() {
                   <th scope="col" className="sc-pending-column">
                     <div className="sc-head sc-after-head">
                       <div className="sc-version-label"><span>After · {currentRendered ? "next version" : "current version"}</span></div>
-                      <strong className="sc-after-title">{currentRendered ? "The next improvement goes here." : "Ready for the comparison."}</strong>
+                      <strong className="sc-after-title">{currentRendered ? "The next version goes here." : "Ready for the comparison."}</strong>
                       <p>{currentRendered ? "When a Creator change is promoted, its edits appear beside the baseline." : "Render the same briefs with the current Creator to see what changed."}</p>
                       {!currentRendered && <button className="primary" disabled={busy || listed.length === 0} onClick={renderNow}>{busy ? "Queueing renders…" : "Render current Creator"}</button>}
                     </div>
