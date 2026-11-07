@@ -66,19 +66,69 @@ export function Steps({ video }: { video: Video }) {
 }
 
 /** The first thing to read on a card: what the Reviewer decided and why, or where the clip is. */
-function Verdict({ video }: { video: Video }) {
+/** The reason a hand-given verdict is recorded with, so the card can say a person decided, not the Reviewer. */
+const MANUAL_REASON = "Manual verdict after a Reviewer error";
+
+/**
+ * A Reviewer error leaves a clip in "reviewing" with nothing to retry it while the engine runs (a
+ * restart finishes interrupted reviews), so a human gives the verdict the Reviewer couldn't.
+ */
+function StuckReview({ video, onChange }: { video: Video; onChange: () => void }) {
+  const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+
+  async function decide(approved: boolean) {
+    if (pending) return;
+    setPending(true);
+    setFailed(null);
+    try {
+      await api.review(video.id, approved, MANUAL_REASON);
+      onChange();
+    } catch (e) {
+      setFailed(`Couldn't save the verdict: ${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <div className="vc-stuck">
+      <p className="vc-stuck-head">The Reviewer failed on this clip. Watch it and give the verdict yourself:</p>
+      <div className="vc-votes">
+        <button className="vote" disabled={pending} onClick={() => decide(true)}>
+          ✓ Approve
+        </button>
+        <button className="vote" disabled={pending} onClick={() => decide(false)}>
+          ↩ Send back
+        </button>
+      </div>
+      {failed && <p className="vc-failed">{failed}</p>}
+    </div>
+  );
+}
+
+function Verdict({ video, onChange }: { video: Video; onChange: () => void }) {
   const [full, setFull] = useState(false);
   if (video.status === "approved" || video.status === "rejected") {
     const ok = video.status === "approved";
+    const manual = video.review_reason === MANUAL_REASON;
     const reason = video.review_reason && reasonText(video.review_reason);
     return (
       <div className={`vc-verdict ${ok ? "ok" : "no"}`}>
         <div className="vc-verdict-head">
           <span className="icon">{ok ? "✓" : "↩"}</span>
-          {ok ? "Reviewer approved" : "Reviewer sent it back"}
-          {video.reviewer_version && <code className="vc-ver">{shortVersion(video.reviewer_version)}</code>}
+          {manual
+            ? ok
+              ? "Approved by hand"
+              : "Sent back by hand"
+            : ok
+              ? "Reviewer approved"
+              : "Reviewer sent it back"}
+          {video.reviewer_version && !manual && <code className="vc-ver">{shortVersion(video.reviewer_version)}</code>}
         </div>
-        {reason ? (
+        {manual ? (
+          <p className="dim small">The Reviewer failed on this clip, so a person gave the verdict.</p>
+        ) : reason ? (
           <>
             {/* Reasons run to a paragraph; the first few lines carry the verdict, the rest is on demand. */}
             <blockquote className={full ? "" : "clamp"}>{reason}</blockquote>
@@ -109,6 +159,7 @@ function Verdict({ video }: { video: Video }) {
     <div className="vc-verdict pending">
       <Steps video={video} />
       {video.error && <pre className="vc-error">{video.error.split("\n")[0]}</pre>}
+      {video.status === "reviewing" && video.error && video.plan && <StuckReview video={video} onChange={onChange} />}
     </div>
   );
 }
@@ -151,6 +202,7 @@ function InFlightRow({ video }: { video: Video }) {
 /** One line on how the human's vote sits against the Reviewer's verdict: disagreements are what the Auditor learns from. */
 function agreement(video: Video): { text: string; cls: string } | null {
   if (video.human_liked === null || video.review_approved === null) return null;
+  if (video.review_reason === MANUAL_REASON) return null; // a person gave that verdict, not the Reviewer
   if (video.human_liked === video.review_approved) return { text: "You agree with the Reviewer.", cls: "agree" };
   return {
     text: video.human_liked
@@ -224,7 +276,7 @@ export function VideoCard({
         </div>
 
         <div className="vc-body">
-          <Verdict video={video} />
+          <Verdict video={video} onChange={onChange} />
 
           <div className="vc-what">
             <h3 title={video.plan?.title ?? video.brief}>{video.plan?.title ?? video.brief}</h3>
