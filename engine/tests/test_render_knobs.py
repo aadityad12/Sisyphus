@@ -163,3 +163,12 @@ def test_caption_knobs_reach_the_subtitles(ffmpeg_call):
     assert fields[16] == str(round(5 * 96 / 62))  # outline grows with the text
     assert "so" in ass and "SO" not in ass  # transcript case kept
     assert r"{\c&HFFFFFF&}here{\c&HB469FF&}" in ass  # karaoke highlight, back to the text colour
+
+
+def test_camera_shots_are_trimmed_in_sped_up_time(ffmpeg_call, monkeypatch):
+    # [raw{i}] is retimed before shots are cut, so a cut 1.2 s into the source is 1.0 s into it at 1.2x
+    # (the Opus review of #13: trimming in source seconds gave the next shot the speaker's crop).
+    monkeypatch.setattr(render.faces, "shots", lambda footage, a, b: [(0.0, 1.2), (1.2, b - a)])
+    args, _ = ffmpeg_call(make("tracked", speed=1.2))
+    g = graph(args)
+    assert "trim=start=0.000:end=1.000" in g and "trim=start=1.000:end=" in g

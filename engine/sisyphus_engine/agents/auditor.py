@@ -242,6 +242,8 @@ def propose(agent: str, cluster: dict, failures: list[dict], rolled_back: list[d
         name = _file_name(f["name"])
         if name is None:
             continue
+        if kind in ("style", "new_style") and name == f"{style}.md":
+            name = f"styles/{style}.md"  # the style's file, named without its folder
         # A style change stays inside its style: anything else it writes would go untested on other styles.
         if kind in ("style", "new_style") and name != f"styles/{style}.md":
             continue

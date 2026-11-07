@@ -110,9 +110,17 @@ def create(name: str, how_to_edit: str, what_good_looks_like: str) -> dict:
         f"skills/reviewer/styles/{name}.md": _as_style_file(title, good),
     }
     branch = f"human/style-{name}"
-    versioning.create_change_branch(branch, files, f"Add the {title} editing style\n\nA person added it in the app.")
-    versioning.promote(branch, message=f"Add the {title} editing style, from the app")
-    versioning.delete_branch(branch)
+    from .experiments import _decide_lock  # experiments imports this module (through compare)
+
+    with _decide_lock:  # one git merge at a time, alongside A/B promotions
+        if name in names():  # added while this request waited for the lock
+            raise FileExistsError(name)
+        versioning.create_change_branch(branch, files, f"Add the {title} editing style\n\nA person added it in the app.")
+        versioning.promote(branch, message=f"Add the {title} editing style, from the app")
+        try:
+            versioning.delete_branch(branch)
+        except subprocess.CalledProcessError:
+            pass  # the style is in; a leftover branch is harmless
     return next(s for s in library() if s["name"] == name)
 
 

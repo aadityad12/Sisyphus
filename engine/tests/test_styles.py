@@ -117,3 +117,13 @@ def test_new_style_brings_its_reviewer_file(repo, monkeypatch):
         "skills/creator/styles/lofi.md": "# Lofi\n\nSlow and warm.\n",
         "skills/reviewer/styles/lofi.md": "# Lofi\n\nCalm.\n",
     }
+
+
+def test_style_file_named_without_its_folder_is_still_the_style(repo, monkeypatch):
+    monkeypatch.setattr(auditor, "REPO_ROOT", repo)
+    monkeypatch.setattr(auditor, "load_skills", lambda agent, ref=None: "")
+    monkeypatch.setattr(auditor.llm, "complete_json", lambda *a, **k: {
+        "title": "t", "rationale": "r", "reviewer_style": "", "files": [{"name": "simple.md", "content": "# Simple\n\nNew."}],
+    })
+    out = auditor.propose("creator", {"label": "l", "root_cause": "c", "video_ids": [], "kind": "style", "style": "simple"}, [], [])
+    assert list(out["files"]) == ["skills/creator/styles/simple.md"]

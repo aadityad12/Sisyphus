@@ -220,7 +220,9 @@ def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src
     parts = [f"[raw{i}]split={len(framed)}{labels}"]
     for k, (a, b, face, layout) in enumerate(framed):
         tag = f"{i}_{k}"
-        parts.append(f"[sh{tag}]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[st{tag}]")
+        # [raw{i}] is already retimed to plan.speed, so the shot bounds (source seconds) are scaled to match.
+        s, e = a / plan.speed, b / plan.speed
+        parts.append(f"[sh{tag}]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS[st{tag}]")
         parts.extend(_chain(plan, layout, f"st{tag}", f"sv{tag}", tag, face, src_w, src_h, seg.punch))
     parts.append("".join(f"[sv{i}_{k}]" for k in range(len(framed))) + f"concat=n={len(framed)}:v=1:a=0[v{i}]")
     return parts
