@@ -74,6 +74,7 @@ MIGRATIONS = [
     ("videos", "review_tags", "TEXT"),
     ("videos", "reviewer_ref", "TEXT"),
     ("videos", "showcase", "INTEGER"),  # 1 = a showcase render: the demo's yardstick, never Auditor input
+    ("videos", "styles_requested", "TEXT"),  # JSON list of style names the job asked for; empty or null = Auto
 ]
 
 
@@ -90,6 +91,9 @@ def _video(row: sqlite3.Row, comments: list[dict] | None = None) -> dict:
     v = dict(row)
     v["plan"] = json.loads(v["plan"]) if v["plan"] else None
     v["review_tags"] = json.loads(v["review_tags"]) if v.get("review_tags") else []
+    v["styles_requested"] = json.loads(v["styles_requested"]) if v.get("styles_requested") else []
+    # The video's style tags: what the Creator applied (plan.styles). Videos from before styles have none.
+    v["styles"] = (v["plan"] or {}).get("styles") or []
     for k in ("review_approved", "human_liked"):
         v[k] = None if v[k] is None else bool(v[k])
     v["failed_agents"] = (
@@ -128,7 +132,7 @@ def get_video(video_id: int) -> dict | None:
         return _video(row, comments)
 
 
-def list_videos(status: str | None = None, experiment_id: int | None = None) -> list[dict]:
+def list_videos(status: str | None = None, experiment_id: int | None = None, style: str | None = None) -> list[dict]:
     q, args = "SELECT * FROM videos WHERE 1=1", []
     if status:
         q += " AND status=?"
@@ -141,7 +145,8 @@ def list_videos(status: str | None = None, experiment_id: int | None = None) -> 
         comments: dict[int, list[dict]] = {}
         for r in c.execute("SELECT * FROM comments ORDER BY id"):
             comments.setdefault(r["video_id"], []).append(dict(r))
-        return [_video(r, comments.get(r["id"])) for r in rows]
+        out = [_video(r, comments.get(r["id"])) for r in rows]
+    return [v for v in out if style in v["styles"]] if style else out
 
 
 def add_comment(video_id: int, text: str) -> None:
@@ -161,6 +166,8 @@ def failures() -> list[dict]:
             "human_liked": v["human_liked"],
             "comments": [c["text"] for c in v["comments"]],
             "creator_version": v["creator_version"],
+            "styles": v["styles"],
+            "styles_requested": v["styles_requested"],
         }
         for v in list_videos()
         if v["failed_agents"] and v["experiment_id"] is None and not v.get("showcase")

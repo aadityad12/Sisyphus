@@ -19,6 +19,7 @@ from openai import BadRequestError
 from .. import llm
 from ..media import frame_at, probe
 from ..plan import EditPlan
+from .. import styles as style_lib
 from ..render import timeline
 from ..transcribe import words as all_words
 from . import load_skills
@@ -26,7 +27,7 @@ from . import load_skills
 log = logging.getLogger(__name__)
 
 # Failure tags the Reviewer may attach. The Auditor clusters failures on these and on the reason.
-TAGS = ("hook", "pacing", "framing", "captions", "audio", "off_brief", "length", "ending")
+TAGS = ("hook", "pacing", "framing", "captions", "audio", "off_brief", "length", "ending", "off_style")
 
 # Send the MP4 itself (the model sees cuts, audio and caption timing), plus stills. Inline limit is 50 MB.
 SEND_VIDEO = os.environ.get("SISYPHUS_REVIEWER_VIDEO", "1") != "0"
@@ -55,6 +56,9 @@ Tags name what is wrong, and only that: an approved clip may have none.
 - off_brief: the clip doesn't deliver what the brief asked for.
 - length: much longer or shorter than the brief asked for.
 - ending: the clip stops mid-thought or without a payoff.
+- off_style: the clip doesn't look or feel like the editing style it was made in.
+
+Each clip was edited in one or more editing styles (brain rot, polished, artsy, ...), named in the edit plan. Judge it as a clip in those styles: frantic cuts are the point of one style and a flaw in another. Your standards for each style follow your general standards and take precedence over them where they disagree. The general standards that don't depend on style (a hook, a finished ending, the subject in frame, readable captions) still apply to every clip.
 
 Your standards follow. Apply them.
 
@@ -121,6 +125,7 @@ def _plan_text(plan: EditPlan) -> str:
         f"Hook text (first 3s): {plan.hook or '(none)'}\n"
         f"Layout: {plan.layout}, crop_x {plan.crop_x:.2f}; captions: {plan.caption_style}, "
         f"{plan.caption_words} words at a time\n"
+        f"Editing styles: {', '.join(plan.styles) or '(none named)'}\n"
         f"Creator's rationale: {plan.rationale or '(none)'}"
     )
 
@@ -141,6 +146,9 @@ def review(
     text = [f"Brief: {brief}", f"Clip: {duration:.1f}s, {info['width']}x{info['height']}"]
     if plan is not None:
         plan = plan if isinstance(plan, EditPlan) else EditPlan.model_validate(plan)
+        if plan.styles:
+            # The Reviewer's own standards for these styles, at its own (possibly frozen) ref.
+            skills += "\n\n# Your standards for this clip's styles\n\n" + style_lib.for_agent("reviewer", plan.styles, ref)
         text.append("Edit plan:\n" + _plan_text(plan))
         if transcript is not None:
             text.append("What is said in the clip (clip timeline):\n" + _spoken(plan, transcript))

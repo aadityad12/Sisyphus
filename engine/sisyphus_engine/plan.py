@@ -3,6 +3,7 @@
 Plans are plain JSON, so they diff cleanly between agent versions.
 """
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -28,6 +29,9 @@ class EditPlan(BaseModel):
     crop_y: float = Field(0.5, ge=0, le=1, description="Vertical position of a zoomed crop: 0 top, 1 bottom")
     caption_style: Literal["karaoke", "plain", "none"] = "karaoke"
     caption_words: int = Field(3, ge=1, le=8, description="Max words on screen at once")
+    styles: list[str] = Field(
+        default_factory=list, description="The editing styles applied (names from skills/creator/styles/), the video's tags"
+    )
     rationale: str = Field("", description="Why these cuts answer the brief")
 
     def duration(self) -> float:
@@ -40,7 +44,7 @@ def json_schema() -> dict:
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["title", "hook", "segments", "layout", "track_face", "crop_x", "zoom", "crop_y", "caption_style", "caption_words", "rationale"],
+        "required": ["title", "hook", "segments", "layout", "track_face", "crop_x", "zoom", "crop_y", "caption_style", "caption_words", "styles", "rationale"],
         "properties": {
             "title": {"type": "string"},
             "hook": {"type": "string"},
@@ -60,6 +64,7 @@ def json_schema() -> dict:
             "crop_y": num,
             "caption_style": {"type": "string", "enum": ["karaoke", "plain", "none"]},
             "caption_words": {"type": "integer"},
+            "styles": {"type": "array", "items": {"type": "string"}},
             "rationale": {"type": "string"},
         },
     }
@@ -72,6 +77,9 @@ def clamp_raw(raw: dict) -> dict:
         raw["caption_words"] = int(min(8, max(1, raw["caption_words"])))
     if isinstance(raw.get("hook"), str) and raw["hook"].strip().lower() in ("none", "n/a", "null", "no hook"):
         raw["hook"] = ""  # the model sometimes spells "no hook" as the word itself
+    if isinstance(raw.get("styles"), list):  # "Brain Rot" -> "brain-rot", once each
+        names = [re.sub(r"[^a-z0-9]+", "-", str(x).strip().lower()).strip("-") for x in raw["styles"]]
+        raw["styles"] = list(dict.fromkeys(n for n in names if n))
     if isinstance(raw.get("zoom"), (int, float)):
         raw["zoom"] = min(4.0, max(1.0, float(raw["zoom"])))
     if isinstance(raw.get("crop_y"), (int, float)):

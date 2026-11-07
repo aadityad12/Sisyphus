@@ -104,7 +104,7 @@ def test_a_vote_during_a_run_triggers_one_more_pass(env, monkeypatch):
     real_held_out = reviewer_ab.held_out
     passes = []
 
-    def held_out_then_vote(exclude):
+    def held_out_then_vote(exclude, style=None):
         snapshot = real_held_out(exclude)
         if not passes:  # first pass: a human votes on a 4th clip right after the snapshot
             new = _voted(env, True)

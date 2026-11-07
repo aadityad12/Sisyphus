@@ -6,7 +6,7 @@ It writes a structured edit plan (see plan.py) and the fixed renderer (render.py
 import json
 from pathlib import Path
 
-from .. import llm
+from .. import llm, styles as style_lib
 from ..media import frame_at, probe
 from ..plan import EditPlan, clamp_raw, json_schema, sanitize
 from ..render import render
@@ -24,15 +24,38 @@ from the timestamped transcript you are given.
 
 The frames you see are evenly spaced stills from the source, so you can choose the layout and crop_x.
 
+Every clip is edited in one or more editing styles. A style's file says how to cut, caption, frame and pace in it, and it takes precedence over the general skills where they disagree. List the styles you applied in "styles", by name.
+
 Your skills follow. Follow them.
 
 """
 
 
-def make_plan(footage: Path, brief: str, workdir: Path, skills_ref: str | None = None, model: str | None = None) -> tuple[EditPlan, dict]:
+def style_prompt(wanted: list[str], ref: str | None) -> str:
+    """The style section of the prompt: the requested styles' files, or on Auto the whole library to pick from."""
+    if wanted:
+        return (
+            f"\n\n# Editing style for this clip: {', '.join(wanted)}\n\nThe person asked for this. Apply it, "
+            f"and set styles to {wanted}.\n\n" + style_lib.for_agent("creator", wanted, ref)
+        )
+    library = style_lib.names(ref)
+    if not library:
+        return ""
+    return (
+        "\n\n# Editing styles\n\nNo style was requested: pick the one that suits this footage and brief best, "
+        "or mix two when that clearly serves the clip, and list them in styles. The styles you can use:\n\n"
+        + style_lib.for_agent("creator", library, ref)
+    )
+
+
+def make_plan(
+    footage: Path, brief: str, workdir: Path, skills_ref: str | None = None, model: str | None = None,
+    styles: list[str] | None = None,
+) -> tuple[EditPlan, dict]:
     info = probe(footage)
     transcript = transcribe(footage)
-    skills = load_skills("creator", skills_ref)
+    wanted = list(dict.fromkeys(styles or []))
+    skills = load_skills("creator", skills_ref) + style_prompt(wanted, skills_ref)
 
     frames = []
     for i, frac in enumerate((0.15, 0.4, 0.65, 0.9)):
@@ -48,13 +71,19 @@ def make_plan(footage: Path, brief: str, workdir: Path, skills_ref: str | None =
     ]
     raw = llm.complete_json(SYSTEM + skills, user, json_schema(), "edit_plan", model=model)
     plan = sanitize(EditPlan.model_validate(clamp_raw(raw)), info["duration"])
-    return plan, info
+    # The tags are what was asked for, or on Auto what the Creator says it picked from the library.
+    known = set(style_lib.names(skills_ref))
+    used = wanted or [s for s in plan.styles if s in known]
+    return plan.model_copy(update={"styles": used}), info
 
 
-def create(footage: Path, brief: str, workdir: Path, skills_ref: str | None = None, model: str | None = None) -> tuple[EditPlan, Path]:
-    """Plan and render one video. Returns the plan and the MP4 path."""
+def create(
+    footage: Path, brief: str, workdir: Path, skills_ref: str | None = None, model: str | None = None,
+    styles: list[str] | None = None,
+) -> tuple[EditPlan, Path]:
+    """Plan and render one video. Returns the plan and the MP4 path. No `styles` means Auto."""
     workdir.mkdir(parents=True, exist_ok=True)
-    plan, info = make_plan(footage, brief, workdir, skills_ref, model)
+    plan, info = make_plan(footage, brief, workdir, skills_ref, model, styles)
     (workdir / "plan.json").write_text(json.dumps(plan.model_dump(), indent=2), encoding="utf-8")
     video = render(plan, footage, transcribe(footage), workdir / "video.mp4", info["width"], info["height"])
     return plan, video

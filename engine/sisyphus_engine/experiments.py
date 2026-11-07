@@ -74,6 +74,8 @@ def run_audit(agent: str = "creator") -> int | None:
             _set("idle", f"No pattern yet: {len(failures)} failures, need {auditor.MIN_CLUSTER} with one cause")
             return None
         top = clusters[0]
+        if agent == "reviewer" and top.get("kind") == "new_style":
+            top = {**top, "kind": "shared", "style": ""}  # only the Creator side can add a style
         _set("proposing", f"{top['label']} ({len(top['video_ids'])} failures)")
         rolled_back = [c for c in store.list_changes() if c["agent"] == agent and c["status"] == "rolled_back"]
         proposal = auditor.propose(agent, top, failures, rolled_back)
@@ -97,7 +99,8 @@ def run_audit(agent: str = "creator") -> int | None:
             diff=versioning.diff(base, commit),
             failure_ids=top["video_ids"],
             status="testing",
-            results={"base": base[:8], "candidate": commit[:8], "cluster": top["label"]},
+            results={"base": base[:8], "candidate": commit[:8], "cluster": top["label"],
+                     "kind": top.get("kind", "shared"), "style": top.get("style") or None},
         )
 
         if agent == "reviewer":
@@ -116,10 +119,12 @@ def run_audit(agent: str = "creator") -> int | None:
             results={**(change["results"] or {}), "reviewer_ref": reviewer_ref[:8], "expected": 2 * len(work)},
         )
         _set("testing", f"{branch}: {len(work)} held-out clips × 2 arms")
+        arm_styles = _arm_styles(top)
         for w in work:
             for arm, ref in (("control", base[:12]), ("candidate", branch)):
                 jobs.submit(
-                    w["footage"], w["brief"], skills_ref=ref, experiment_id=change_id, arm=arm, reviewer_ref=reviewer_ref
+                    w["footage"], w["brief"], skills_ref=ref, styles=arm_styles[arm],
+                    experiment_id=change_id, arm=arm, reviewer_ref=reviewer_ref,
                 )
         return change_id
     except Exception as exc:
@@ -127,6 +132,20 @@ def run_audit(agent: str = "creator") -> int | None:
         raise
     finally:
         _lock.release()
+
+
+def _arm_styles(cluster: dict) -> dict[str, list[str] | None]:
+    """Which styles each arm's held-out clips are made in (issue #13). None is Auto.
+
+    A fix to one style is tested on clips in that style; a shared fix on Auto; a new style against what
+    the current version makes on Auto, since without the change the style doesn't exist.
+    """
+    kind, style = cluster.get("kind", "shared"), cluster.get("style")
+    if kind == "style" and style:
+        return {"control": [style], "candidate": [style]}
+    if kind == "new_style" and style:
+        return {"control": None, "candidate": [style]}
+    return {"control": None, "candidate": None}
 
 
 def _passed(v: dict) -> bool | None:
@@ -154,7 +173,10 @@ def _compare_pairs(videos: list[dict], reviewer_ref: str | None) -> list[dict]:
     def one(item):
         (footage, brief), arms = item
         try:
-            r = compare.prefer(Path(arms["control"]["video_path"]), Path(arms["candidate"]["video_path"]), brief, full_ref)
+            r = compare.prefer(
+                Path(arms["control"]["video_path"]), Path(arms["candidate"]["video_path"]), brief, full_ref,
+                styles=(arms["control"]["styles"], arms["candidate"]["styles"]),
+            )
         except Exception as exc:
             log.exception("head-to-head failed for %s", footage)
             r = {"winner": "same", "reason": f"comparison failed: {exc}"}

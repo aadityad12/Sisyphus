@@ -28,11 +28,15 @@ _rerun: set[int] = set()  # asked to run while running: new votes may have arriv
 _lock = threading.Lock()
 
 
-def held_out(exclude_ids: set[int], limit: int = MAX_VIDEOS) -> list[dict]:
-    """Rendered clips with a human vote, newest first, leaving out the ones the change came from."""
+def held_out(exclude_ids: set[int], limit: int = MAX_VIDEOS, style: str | None = None) -> list[dict]:
+    """Rendered clips with a human vote, newest first, leaving out the ones the change came from.
+
+    For a change to one style's file, only clips in that style: on any other clip both versions read
+    the same files, so their verdicts could differ by chance alone.
+    """
     return [
         v
-        for v in store.list_videos()
+        for v in store.list_videos(style=style)
         if v["human_liked"] is not None
         and not v.get("showcase")
         and v["id"] not in exclude_ids
@@ -100,7 +104,8 @@ def _run_once(change_id: int) -> None:
             return
         results = {k: v for k, v in (change["results"] or {}).items() if k != "waiting_for_votes"}
         base = results.get("base") or versioning.head()
-        videos = held_out(set(change["failure_ids"]))
+        style = results.get("style") if results.get("kind") == "style" else None
+        videos = held_out(set(change["failure_ids"]), style=style)
         if len(videos) < MIN_VIDEOS:
             results["waiting_for_votes"] = f"{len(videos)} of {MIN_VIDEOS} held-out clips have a human vote"
             store.update_change(change_id, results=results)

@@ -22,7 +22,8 @@ def video_dir(video_id: int) -> Path:
     return RUNS_DIR / "videos" / str(video_id)
 
 
-def submit(footage: str, brief: str, skills_ref: str | None = None, **fields) -> int:
+def submit(footage: str, brief: str, skills_ref: str | None = None, styles: list[str] | None = None, **fields) -> int:
+    """Queue one video. `styles` are the editing styles asked for; none means Auto (the Creator picks)."""
     brief = brief.strip()  # so a showcase brief typed with stray spaces is the same brief everywhere
     path = (FOOTAGE_DIR / footage).resolve()
     if path.parent != FOOTAGE_DIR.resolve() or not path.exists():
@@ -37,9 +38,10 @@ def submit(footage: str, brief: str, skills_ref: str | None = None, **fields) ->
         brief,
         skills_ref=skills_ref,
         creator_version=skills_ref or versioning.agent_version("creator"),
+        styles_requested=json.dumps(list(styles)) if styles else None,
         **fields,
     )
-    executor.submit(_run, video_id, path, brief, skills_ref)
+    executor.submit(_run, video_id, path, brief, skills_ref, styles or None)
     return video_id
 
 
@@ -49,7 +51,7 @@ def resume_unfinished() -> int:
     stuck = [v for v in videos if v["status"] in ("queued", "creating")]
     for v in reversed(stuck):
         store.update_video(v["id"], status="queued")
-        executor.submit(_run, v["id"], FOOTAGE_DIR / v["footage"], v["brief"], v["skills_ref"])
+        executor.submit(_run, v["id"], FOOTAGE_DIR / v["footage"], v["brief"], v["skills_ref"], v["styles_requested"])
     # A restart during a review leaves a rendered video with no verdict: review it again.
     unreviewed = [v for v in videos if v["status"] == "reviewing" and v["video_path"] and v["review_approved"] is None]
     for v in reversed(unreviewed):
@@ -57,10 +59,10 @@ def resume_unfinished() -> int:
     return len(stuck) + len(unreviewed)
 
 
-def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None) -> None:
+def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None, styles: list[str] | None = None) -> None:
     try:
         store.update_video(video_id, status="creating")
-        plan, video = creator.create(footage, brief, video_dir(video_id), skills_ref=skills_ref)
+        plan, video = creator.create(footage, brief, video_dir(video_id), skills_ref=skills_ref, styles=styles)
         stored = plan.model_dump()
         # The cut points the renderer actually used, so later changes to snapping don't rewrite history.
         stored["rendered_segments"] = [
