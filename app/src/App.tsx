@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { api } from "./api";
 import { Studio } from "./Studio";
-import { VideoCard } from "./VideoCard";
+import { Feed } from "./Feed";
 import { Versions } from "./Versions";
 import { Showcase } from "./Showcase";
 import { usePoll } from "./usePoll";
@@ -101,28 +101,8 @@ function App() {
 
       <section className="panel">
         {tab === "Studio" && <Studio videos={all} refresh={videos.refresh} />}
-        {tab === "Feed" && (
-          <>
-            <p className="dim">Clips the Reviewer approved. Your likes, dislikes and comments teach the system.</p>
-            <div className="grid">
-              {approved.map((v) => (
-                <VideoCard key={v.id} video={v} onChange={videos.refresh} mode="feed" />
-              ))}
-            </div>
-          </>
-        )}
-        {tab === "Rejected" && (
-          <>
-            <p className="dim">
-              Clips the Reviewer sent back. If one is actually good, say so: that counts against the Reviewer.
-            </p>
-            <div className="grid">
-              {rejected.map((v) => (
-                <VideoCard key={v.id} video={v} onChange={videos.refresh} mode="rejected" />
-              ))}
-            </div>
-          </>
-        )}
+        {tab === "Feed" && <Feed videos={approved} mode="feed" refresh={videos.refresh} />}
+        {tab === "Rejected" && <Feed videos={rejected} mode="rejected" refresh={videos.refresh} />}
         {tab === "Versions" && <Versions videos={all} />}
         {tab === "Showcase" && <Showcase />}
       </section>
