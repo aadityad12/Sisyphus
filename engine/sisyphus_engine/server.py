@@ -23,6 +23,7 @@ app.add_middleware(
 )
 
 store.init()
+jobs.resume_unfinished()
 
 
 @app.get("/health")

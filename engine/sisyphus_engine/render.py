@@ -126,10 +126,20 @@ def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width
     concat_in = "".join(f"[v{i}][a{i}]" for i in range(len(segs)))
     crop_w = f"ih*{WIDTH}/{HEIGHT}"
     parts.append(f"{concat_in}concat=n={len(segs)}:v=1:a=1[cv][ca]")
-    parts.append(
-        f"[cv]crop={crop_w}:ih:(iw-{crop_w})*{plan.crop_x:.3f}:0,scale={WIDTH}:{HEIGHT},setsar=1,"
-        f"subtitles=captions.ass:fontsdir=fonts[vout]"
-    )
+    if plan.layout == "fit":
+        # Whole frame, full width, centered over a blurred, zoomed copy of itself.
+        parts.append("[cv]split[bgsrc][fgsrc]")
+        parts.append(
+            f"[bgsrc]crop={crop_w}:ih:(iw-{crop_w})/2:0,scale={WIDTH // 4}:{HEIGHT // 4},boxblur=8:2,"
+            f"scale={WIDTH}:{HEIGHT},eq=brightness=-0.12[bg]"
+        )
+        parts.append(f"[fgsrc]scale={WIDTH}:-2[fg]")
+        parts.append("[bg][fg]overlay=0:(H-h)/2,setsar=1,subtitles=captions.ass:fontsdir=fonts[vout]")
+    else:
+        parts.append(
+            f"[cv]crop={crop_w}:ih:(iw-{crop_w})*{plan.crop_x:.3f}:0,scale={WIDTH}:{HEIGHT},setsar=1,"
+            f"subtitles=captions.ass:fontsdir=fonts[vout]"
+        )
     args += [
         "-filter_complex", ";".join(parts),
         "-map", "[vout]", "-map", "[ca]",

@@ -17,6 +17,9 @@ class EditPlan(BaseModel):
     title: str = Field(description="Short internal title for the clip")
     hook: str = Field(description="On-screen hook text shown over the first seconds; empty for none")
     segments: list[Segment] = Field(description="Source ranges, played in this order")
+    layout: Literal["crop", "fit"] = Field(
+        "crop", description="crop: fill 9:16 with a crop of the frame; fit: whole 16:9 frame over a blurred fill"
+    )
     crop_x: float = Field(0.5, ge=0, le=1, description="Horizontal position of the 9:16 crop: 0 left, 0.5 center, 1 right")
     caption_style: Literal["karaoke", "plain", "none"] = "karaoke"
     caption_words: int = Field(3, ge=1, le=8, description="Max words on screen at once")
@@ -32,7 +35,7 @@ def json_schema() -> dict:
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["title", "hook", "segments", "crop_x", "caption_style", "caption_words", "rationale"],
+        "required": ["title", "hook", "segments", "layout", "crop_x", "caption_style", "caption_words", "rationale"],
         "properties": {
             "title": {"type": "string"},
             "hook": {"type": "string"},
@@ -45,12 +48,23 @@ def json_schema() -> dict:
                     "properties": {"start": num, "end": num},
                 },
             },
+            "layout": {"type": "string", "enum": ["crop", "fit"]},
             "crop_x": num,
             "caption_style": {"type": "string", "enum": ["karaoke", "plain", "none"]},
             "caption_words": {"type": "integer"},
             "rationale": {"type": "string"},
         },
     }
+
+
+def clamp_raw(raw: dict) -> dict:
+    """Pull out-of-range numbers back into range before validation: a model slip shouldn't fail the job."""
+    raw = dict(raw)
+    if isinstance(raw.get("caption_words"), (int, float)):
+        raw["caption_words"] = int(min(8, max(1, raw["caption_words"])))
+    if isinstance(raw.get("crop_x"), (int, float)):
+        raw["crop_x"] = min(1.0, max(0.0, float(raw["crop_x"])))
+    return raw
 
 
 def sanitize(plan: EditPlan, source_duration: float) -> EditPlan:

@@ -32,6 +32,15 @@ def submit(footage: str, brief: str, skills_ref: str | None = None, **fields) ->
     return video_id
 
 
+def resume_unfinished() -> int:
+    """Re-run jobs a restart interrupted (the dev server reloads on every save). Returns how many."""
+    stuck = [v for v in store.list_videos() if v["status"] in ("queued", "creating")]
+    for v in reversed(stuck):
+        store.update_video(v["id"], status="queued")
+        executor.submit(_run, v["id"], FOOTAGE_DIR / v["footage"], v["brief"], v["skills_ref"])
+    return len(stuck)
+
+
 def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None) -> None:
     try:
         store.update_video(video_id, status="creating")

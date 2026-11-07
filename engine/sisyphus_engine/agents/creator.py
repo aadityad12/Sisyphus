@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .. import llm
 from ..media import frame_at, probe
-from ..plan import EditPlan, json_schema, sanitize
+from ..plan import EditPlan, clamp_raw, json_schema, sanitize
 from ..render import render
 from ..transcribe import as_prompt_text, transcribe
 from . import load_skills
@@ -17,11 +17,12 @@ SYSTEM = """You are the Creator in SIsyphus, a video editing system. You turn a 
 vertical short-form clip (9:16) that answers a one-line brief.
 
 You do not touch pixels. You write an edit plan: source time ranges to keep, in play order, plus an on-screen \
-hook, caption settings and a horizontal crop position. A fixed renderer cuts the footage, crops it to 9:16 and \
-burns in word-by-word captions from the transcript. All times are in seconds of the source video and must come \
+hook, caption settings and a layout. A fixed renderer cuts the footage, makes it 9:16 and burns in \
+word-by-word captions from the transcript. Layouts: "crop" fills the vertical frame with a 9:16 slice of the \
+source, positioned by crop_x; "fit" shows the whole 16:9 frame across the middle over a blurred fill. All times are in seconds of the source video and must come \
 from the timestamped transcript you are given.
 
-The frames you see are evenly spaced stills from the source, so you can choose crop_x to keep the speaker in frame.
+The frames you see are evenly spaced stills from the source, so you can choose the layout and crop_x.
 
 Your skills follow. Follow them.
 
@@ -46,7 +47,7 @@ def make_plan(footage: Path, brief: str, workdir: Path, skills_ref: str | None =
         *[llm.image_part(f) for f in frames],
     ]
     raw = llm.complete_json(SYSTEM + skills, user, json_schema(), "edit_plan", model=model)
-    plan = sanitize(EditPlan.model_validate(raw), info["duration"])
+    plan = sanitize(EditPlan.model_validate(clamp_raw(raw)), info["duration"])
     return plan, info
 
 
