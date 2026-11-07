@@ -47,6 +47,26 @@ The Auditor turns identified failures into changes. Every change is **versioned*
 
 There will be many failures, so the Auditor **must not overreact** to any single one.
 
+### Human feedback
+
+- People leave comments and feedback **in the app**, on content and at different points in the system.
+- The main human review comes **after the Reviewer approves** a video.
+- A **rejected-videos tab** shows every video the Reviewer sent back. If people liked one, that counts as a Reviewer failure.
+
+### Creator input
+
+The Creator starts from **raw footage plus a brief**: a long clip, such as a talk, podcast or screen recording, and a one-line goal (for example, "30s clip on X").
+
+### Open: how the Creator edits
+
+This is left to whoever builds the editing agent. Some options:
+
+- **Edit plan rendered with ffmpeg (recommended).** The Creator writes a structured edit plan (cuts, captions, music, zooms), and a fixed renderer turns it into an MP4. Plans are easy to diff and version, and the Auditor can improve the Creator's skills separately from the renderer's tools.
+- **Remotion (React video).** Polished captions and motion graphics, but heavier and slower to render on a laptop.
+- **Free-form ffmpeg or Python scripts.** The most flexible, but the hardest to version and verify, because each video is its own code.
+
+Whichever is chosen, the Auditor's changes need to be versionable and verifiable.
+
 ## Demo
 
 The demo shows two things:
