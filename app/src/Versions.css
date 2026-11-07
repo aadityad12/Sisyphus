@@ -1,581 +1,1247 @@
-/* Versions: is it getting better, what the Auditor changed, and how each change was tested. */
+/*
+ * Versions: is the Creator getting better, what the Auditor changed, and how each change was tested.
+ * Every class here is prefixed `vz-` (or scoped under `.versions`): stylesheets are global, and this page
+ * once restyled every `.empty` in the app.
+ */
 .versions {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
+}
+.versions .page-title {
+  margin-bottom: 4px;
+}
+.versions .section-head .sub code,
+.versions code {
+  font-variant-numeric: tabular-nums;
 }
 
-.versions h2 {
-  margin: 0;
+/* ---------- Current versions, beside the title ---------- */
+
+.vz-current {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  box-shadow: var(--inset-top);
+}
+.vz-current-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+}
+.vz-current-item + .vz-current-item {
+  border-left: 1px solid var(--border-1);
+  border-radius: 0;
+}
+.vz-current-item .agentname {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.vz-current-item code {
+  font-size: 11px;
+  color: var(--text-4);
+}
+.vz-current-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--agent-c, var(--text-4));
+}
+.vz-current-item.creator {
+  --agent-c: var(--creator);
+}
+.vz-current-item.reviewer {
+  --agent-c: var(--reviewer);
+}
+.vz-current-item.auditor {
+  --agent-c: var(--auditor);
 }
 
-.evo-title {
+/* ---------- KPI strip ---------- */
+
+.vz-kpis {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr 1fr;
+  overflow: hidden;
+}
+.vz-kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px 18px 15px;
+}
+.vz-kpi + .vz-kpi {
+  border-left: 1px solid var(--border-1);
+}
+.vz-kpi-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+}
+.vz-kpi-label svg {
+  color: var(--text-4);
+}
+.vz-kpi-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+.vz-kpi-value strong {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-1);
+}
+.vz-kpi-value strong.ok {
+  color: var(--ok);
+}
+.vz-kpi-value strong.err {
+  color: color-mix(in srgb, var(--err) 75%, var(--text-3));
+}
+.vz-kpi-value strong.zero {
+  color: var(--text-4);
+}
+.vz-slash {
+  font-size: 20px;
+  font-weight: 300;
+  color: var(--text-4);
+}
+.vz-kpi-sub {
+  font-size: 12px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.vz-kpi-sub code {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.vz-kpi-sub .agentname {
+  font-weight: 500;
+}
+
+/* Small up/down delta: a number in a tinted pill. Shared by the KPI and the chart. */
+.vz-dpill {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  border-radius: var(--r-xs);
+  white-space: nowrap;
+  line-height: 1;
+}
+.vz-dpill.up {
+  color: var(--ok);
+  background: var(--ok-tint);
+}
+.vz-dpill.down {
+  color: var(--err);
+  background: var(--err-tint);
+}
+
+/* Shared card header. */
+.vz-card-head {
   display: flex;
   align-items: baseline;
-  gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 14px;
+  gap: 4px 10px;
+}
+.vz-card-head h2 {
+  font-size: 14px;
+}
+.vz-sub {
+  font-size: 12px;
+  color: var(--text-3);
 }
 
-.empty {
-  padding: 28px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius);
-  color: var(--dim);
-  text-align: center;
-}
+/* ---------- Hero: the chart beside the Auditor ---------- */
 
-/* Hero: the pass-rate chart beside the Auditor */
-.evo {
+.vz-evo {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 300px;
   gap: 16px;
   align-items: stretch;
 }
 
-.evo-chart,
-.auditor-panel {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 18px 20px;
+.vz-skeleton {
+  height: 92px;
+  border: 1px solid var(--border-1);
+}
+.vz-skeleton.tall {
+  height: 340px;
 }
 
-.bars {
+.vz-chart {
   display: flex;
-  gap: 14px;
-  align-items: flex-end;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  flex-direction: column;
+  min-width: 0;
+  padding: 16px 20px 18px;
+}
+.vz-note-line {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-3);
+  max-width: 640px;
+}
+.vz-chart-empty {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-height: 200px;
+  margin-top: 14px;
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-3);
+  border: 1px dashed var(--border-2);
+  border-radius: var(--r-md);
 }
 
-.barcol {
-  flex: 0 0 120px;
+/* The plot: a fixed y axis, then scrolling columns that each draw their own slice of the gridlines. */
+.vz-plot {
+  --plot-h: 196px;
+  --plot-top: 34px;
+  display: flex;
+  margin-top: 8px;
+  min-width: 0;
+}
+.vz-axis {
+  position: relative;
+  flex: none;
+  width: 30px;
+  height: var(--plot-h);
+  margin-top: var(--plot-top);
+}
+.vz-axis span {
+  position: absolute;
+  right: 8px;
+  transform: translateY(50%);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.vz-cols {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.vz-col {
+  flex: 0 0 132px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  padding: var(--plot-top) 8px 0;
   text-align: center;
+  border-radius: var(--r-md);
 }
-
-.barval {
+.vz-col.fill {
+  flex: 1 0 24px;
+  padding-left: 0;
+  padding-right: 0;
+}
+.vz-bararea {
+  position: relative;
+  align-self: stretch;
+  height: var(--plot-h);
+  margin: 0 -8px;
+  background:
+    repeating-linear-gradient(90deg, var(--border-2) 0 2px, transparent 2px 6px) 0 0 / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, var(--border-1) 0 2px, transparent 2px 6px) 0 50% / 100% 1px no-repeat,
+    linear-gradient(var(--border-3), var(--border-3)) 0 100% / 100% 1px no-repeat;
+}
+.vz-col.fill .vz-bararea {
+  margin: 0;
+}
+.vz-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 44px;
+  transform: translateX(-50%);
+  border-radius: 5px 5px 1px 1px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--creator) 70%, transparent) 0%,
+    color-mix(in srgb, var(--creator) 18%, transparent) 100%
+  );
+  box-shadow: inset 0 1.5px 0 var(--creator);
+  transform-origin: bottom;
+  transition: height 0.6s var(--ease-move);
+  animation: vz-grow 700ms var(--ease-move) both;
+}
+.vz-col.latest .vz-bar {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ok) 80%, transparent) 0%,
+    color-mix(in srgb, var(--ok) 22%, transparent) 100%
+  );
+  box-shadow:
+    inset 0 1.5px 0 #7fe0b2,
+    0 0 28px -8px rgba(70, 196, 138, 0.7);
+}
+@keyframes vz-grow {
+  from {
+    transform: translateX(-50%) scaleY(0);
+  }
+}
+.vz-val {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%, -7px);
   display: flex;
-  gap: 6px;
-  align-items: baseline;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.vz-val strong {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-1);
   font-variant-numeric: tabular-nums;
 }
-
-.barval strong {
-  font-size: 18px;
+.vz-col.latest .vz-val strong {
+  color: var(--ok);
 }
-
-.barval .up {
-  color: var(--green);
-  font-size: 12px;
+.vz-col.awaiting .vz-val strong,
+.vz-col.ghost .vz-val strong {
+  color: var(--text-4);
 }
-
-.barval .down {
-  color: var(--red);
-  font-size: 12px;
+/* A promoted version with no clips yet: a hatched, outlined slot. */
+.vz-col.awaiting .vz-bar {
+  height: 100%;
+  border: 1px dashed rgba(70, 196, 138, 0.45);
+  border-bottom: none;
+  background: repeating-linear-gradient(-45deg, rgba(70, 196, 138, 0.07) 0 5px, transparent 5px 10px);
+  box-shadow: none;
+  animation: none;
 }
-
-.bartrack {
-  width: 56px;
-  height: 150px;
-  background: var(--sunken);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: flex-end;
-  overflow: hidden;
-}
-
-.barfill {
-  width: 100%;
-  background: color-mix(in srgb, var(--creator) 55%, transparent);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition: height 0.6s ease;
-}
-
-.barcol.ghost .bartrack {
+/* The next version, still to come. */
+.vz-col.ghost .vz-bar {
+  height: 100%;
+  border: 1px dashed var(--border-2);
+  border-bottom: none;
   background: none;
-  border: 1px dashed var(--line-strong);
+  box-shadow: none;
+  animation: none;
 }
-
-.barcol.ghost .barnote {
-  color: var(--faint);
-}
-
-.barcol.awaiting .bartrack {
-  border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
-  background: repeating-linear-gradient(-45deg, var(--sunken) 0 6px, var(--card-hover) 6px 12px);
-}
-
-.awaiting-note {
-  color: var(--green);
-}
-
-.barcol.latest .barfill {
-  background: var(--green);
-}
-
-.barlabel {
+.vz-vlabel {
   display: flex;
-  gap: 6px;
   align-items: baseline;
+  gap: 6px;
+  margin-top: 10px;
+  font-family: var(--mono);
 }
-
-.barlabel .vname {
+.vz-vname {
+  font-size: 12px;
   font-weight: 600;
+  color: var(--text-1);
 }
-
-.barlabel code {
+.vz-col.ghost .vz-vname {
+  color: var(--text-4);
+}
+.vz-vlabel code {
   font-size: 11px;
-  color: var(--faint);
+  color: var(--text-4);
 }
-
-.barnote {
+.vz-vnote {
+  margin-top: 6px;
   font-size: 11.5px;
-  color: var(--dim);
   line-height: 1.3;
+  color: var(--text-2);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 3.9em;
+}
+.vz-vnote.none,
+.vz-col.ghost .vz-vnote {
+  color: var(--text-4);
+}
+.vz-vclips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+.vz-now {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ok);
 }
 
-.auditor-panel {
+/* ---------- The Auditor ---------- */
+
+.vz-auditor {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-top: 3px solid var(--auditor);
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
 }
-
-.auditor-panel p {
-  margin: 0;
+.vz-auditor::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 80px;
+  background: radial-gradient(120% 100% at 0% 0%, rgba(240, 180, 41, 0.07), transparent 70%);
+  pointer-events: none;
 }
-
-.auditor-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 16px;
-}
-
-.auditor-state {
+.vz-auditor-head {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 13px;
-  color: var(--dim);
+  gap: 8px;
+  font-size: 14px;
 }
-
-.state-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--faint);
-}
-
-.auditor-panel:not(.state-idle):not(.state-error) .state-dot {
-  background: var(--auditor);
-  animation: blink 1.2s ease-in-out infinite;
-}
-
-.auditor-panel:not(.state-idle):not(.state-error) .auditor-state {
+.vz-auditor-mark {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
   color: var(--auditor);
+  background: var(--auditor-tint);
+  box-shadow: inset 0 0 0 1px rgba(240, 180, 41, 0.2);
 }
-
-.auditor-panel.state-error .state-dot {
-  background: var(--red);
+.vz-auditor-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  height: 22px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  background: var(--fill-active);
+  border-radius: var(--r-pill);
 }
-
-@keyframes blink {
-  50% {
-    opacity: 0.3;
-  }
+.vz-state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-4);
 }
-
-.auditor-detail {
-  font-size: 12.5px;
-  font-family: var(--mono);
-  color: var(--text);
-  background: var(--sunken);
+.vz-auditor:not(.state-idle):not(.state-error) .vz-auditor-state {
+  color: var(--auditor);
+  background: var(--auditor-tint);
+}
+.vz-auditor:not(.state-idle):not(.state-error) .vz-state-dot {
+  background: var(--auditor);
+  color: var(--auditor);
+  animation: pulse 1.4s var(--ease) infinite;
+}
+.vz-auditor.state-error .vz-auditor-state {
+  color: var(--err);
+  background: var(--err-tint);
+}
+.vz-auditor.state-error .vz-state-dot {
+  background: var(--err);
+}
+.vz-auditor-detail {
   padding: 8px 10px;
-  border-radius: var(--radius-sm);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-2);
+  background: var(--bg-0);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm);
   overflow-wrap: anywhere;
 }
-
-.failcounts {
+.vz-failcounts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
 }
-
-.failcounts > div {
+.vz-failcounts > div {
   display: flex;
   flex-direction: column;
-  background: var(--sunken);
-  border-radius: var(--radius-sm);
+  gap: 4px;
   padding: 10px 12px;
-  line-height: 1.3;
 }
-
-.failcounts strong {
-  font-size: 26px;
+.vz-failcounts > div + div {
+  border-left: 1px solid var(--border-1);
+}
+.vz-failcounts strong {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
-
-.auditor-panel button.primary {
+.vz-failcounts > div > span {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.vz-failcounts .agentname {
+  font-weight: 500;
+}
+.vz-auditor-explain {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-3);
+}
+.vz-auditor button.primary {
   margin-top: auto;
-  padding: 10px;
+  height: 34px;
+  width: 100%;
 }
 
-/* Change cards */
-.changes {
+/* ---------- Changes: a vertical timeline of cards ---------- */
+
+.vz-changes {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  margin: 0;
+  padding: 0 0 0 36px;
+  list-style: none;
+}
+/* The rail joining each change's node. */
+.vz-changes::before {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 14px;
+  bottom: 14px;
+  width: 1px;
+  background: linear-gradient(var(--border-2), var(--border-1));
+}
+.vz-change {
+  position: relative;
+  animation: fade-up var(--med) var(--ease) both;
+}
+.vz-change.promoted {
+  --tone: var(--ok);
+  --tone-tint: var(--ok-tint);
+}
+.vz-change.rolled_back {
+  --tone: color-mix(in srgb, var(--err) 70%, var(--text-3));
+  --tone-tint: rgba(240, 89, 93, 0.09);
+}
+.vz-change.testing {
+  --tone: var(--warn);
+  --tone-tint: var(--warn-tint);
+}
+.vz-change.proposed {
+  --tone: var(--info);
+  --tone-tint: var(--info-tint);
+}
+.vz-node {
+  position: absolute;
+  left: -36px;
+  top: 14px;
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  color: var(--tone);
+  background: var(--bg-1);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--tone) 45%, transparent),
+    0 0 0 4px var(--bg-1);
+}
+.vz-node::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--tone-tint);
+}
+.vz-node svg {
+  position: relative;
+  z-index: 1;
+}
+.vz-change.testing .vz-node {
+  animation: pulse 1.6s var(--ease) infinite;
 }
 
-.change {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--line-strong);
-  border-radius: var(--radius);
-  padding: 16px 20px;
+.vz-change-card {
+  padding: 14px 18px 12px;
 }
-
-.change.promoted {
-  border-left-color: var(--green);
+.vz-change.rolled_back .vz-change-card h3 {
+  color: var(--text-2);
 }
-
-.change.rolled_back {
-  border-left-color: var(--red);
-}
-
-.change.testing {
-  border-left-color: var(--gold);
-}
-
-.change-head {
+.vz-change-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 13px;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12.5px;
 }
-
-.change-time {
-  margin-left: auto;
+.vz-change-head .grow {
+  flex: 1;
 }
-
-.change h3 {
-  margin: 8px 0 6px;
-  font-size: 17px;
+.vz-status.err {
+  color: var(--tone);
+  background: var(--tone-tint);
 }
-
-.change p {
-  margin: 4px 0;
+.vz-change.testing .vz-status .dot {
+  animation: pulse 1.4s var(--ease) infinite;
 }
-
-.cluster {
-  font-size: 13px;
-}
-
-.rationale {
-  color: var(--dim);
-  font-size: 13.5px;
-  line-height: 1.5;
-  max-width: 90ch;
-}
-
-.stamp {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--card-hover);
-  color: var(--dim);
-}
-
-.stamp.promoted {
-  background: var(--green-soft);
-  color: var(--green);
-}
-
-.stamp.rolled_back {
-  background: var(--red-soft);
-  color: var(--red);
-}
-
-.stamp.testing {
-  background: var(--gold-soft);
-  color: var(--gold);
-}
-
-.abresult {
-  display: grid;
-  grid-template-columns: auto auto auto auto 1fr;
+.vz-scope {
+  display: inline-flex;
   align-items: center;
-  gap: 4px 20px;
-  margin: 14px 0 6px;
-  padding: 12px 16px;
-  background: var(--sunken);
-  border-radius: var(--radius-sm);
+  gap: 6px;
+  padding-left: 8px;
+  font-size: 12px;
+  color: var(--text-3);
+  border-left: 1px solid var(--border-2);
+}
+.vz-time {
+  font-size: 11px;
+  color: var(--text-4);
+}
+.vz-change-card h3 {
+  margin: 10px 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+}
+.vz-pattern {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+.vz-k {
+  flex: none;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-4);
+}
+.vz-from {
+  color: var(--text-3);
+}
+.vz-rationale {
+  margin-top: 8px;
+  max-width: 88ch;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-3);
 }
 
-.abarm {
+/* The A/B: two arms as meters, the delta, and the decision. */
+.vz-ab {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px 20px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 14px 16px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+}
+.vz-ab-arms {
   display: flex;
   flex-direction: column;
-  line-height: 1.2;
+  gap: 8px;
 }
-
-.abarm strong {
-  font-size: 24px;
+.vz-arm {
+  display: grid;
+  grid-template-columns: 128px minmax(80px, 1fr) 48px minmax(0, auto);
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.vz-arm-label {
+  color: var(--text-3);
+}
+.vz-arm.candidate .vz-arm-label {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.vz-meter {
+  position: relative;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--fill-active);
+  overflow: hidden;
+}
+.vz-meter span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--text-4);
+  transition: width 0.6s var(--ease-move);
+}
+.vz-arm.candidate .vz-meter span {
+  background: var(--text-3);
+}
+.vz-arm.candidate.up .vz-meter span {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--ok) 55%, transparent), var(--ok));
+}
+.vz-arm.candidate.down .vz-meter span {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--err) 45%, transparent), var(--err));
+}
+.vz-arm-pct {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
-
-.abarm.candidate strong {
-  color: var(--auditor);
+.vz-arm.candidate .vz-arm-pct {
+  color: var(--text-1);
 }
-
-.ablabel {
+.vz-arm.candidate.up .vz-arm-pct {
+  color: var(--ok);
+}
+.vz-arm.candidate.down .vz-arm-pct {
+  color: var(--err);
+}
+.vz-arm-count {
+  font-family: var(--mono);
   font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--dim);
-}
-
-.abvs {
-  color: var(--faint);
-  font-size: 13px;
-}
-
-.abdelta {
-  font-size: 20px;
-  font-weight: 700;
+  color: var(--text-4);
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--dim);
+}
+.vz-ab-side {
+  display: flex;
+  justify-content: flex-end;
+}
+.vz-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 30px;
+  padding: 0 10px 0 7px;
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+  background: var(--fill-active);
+  border-radius: var(--r-sm);
+}
+.vz-delta .unit {
+  margin-left: 2px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  opacity: 0.75;
+}
+.vz-delta.up {
+  color: var(--ok);
+  background: var(--ok-tint);
+}
+.vz-delta.down {
+  color: var(--err);
+  background: var(--err-tint);
+}
+.vz-ab-decision {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  border-top: 1px solid var(--border-1);
+}
+.vz-ab-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  height: 19px;
+}
+.vz-ab.promoted .vz-ab-icon {
+  color: var(--ok);
+}
+.vz-ab.rolled_back .vz-ab-icon {
+  color: color-mix(in srgb, var(--err) 70%, var(--text-3));
+}
+.vz-ab.testing .vz-ab-icon {
+  color: var(--warn);
+}
+.vz-ab.proposed .vz-ab-icon {
+  color: var(--info);
+}
+.vz-ab-humans {
+  color: var(--text-3);
 }
 
-.abdelta .small {
-  margin-left: 3px;
-  font-weight: 400;
+/* Head to head, when pass counts tied. */
+.vz-h2h {
+  margin-top: 10px;
+  padding: 12px 16px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  font-size: 12.5px;
+  color: var(--text-2);
 }
-
-.abdelta.up {
-  color: var(--green);
+.vz-h2h-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 16px;
 }
-
-.abdelta.down {
-  color: var(--red);
+.vz-h2h-head strong {
+  font-weight: 600;
+  color: var(--text-1);
 }
-
-.abdecision {
-  font-size: 13px;
+.vz-h2h-score {
+  display: inline-flex;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
 }
-
-.abresult.promoted .abdecision {
-  color: var(--green);
+.vz-h2h-score .up {
+  color: var(--ok);
+  font-weight: 600;
 }
-
-.abresult.rolled_back .abdecision {
-  color: var(--red);
+.vz-h2h-score .down {
+  color: var(--err);
+  font-weight: 600;
 }
-
-.abresult.testing .abdecision {
-  color: var(--gold);
+.vz-h2h-score .same,
+.vz-h2h-score .sep {
+  color: var(--text-4);
 }
-
-.abdecision .dim {
-  color: var(--dim);
-}
-
-.h2h {
-  margin: 4px 0 6px;
-}
-
-.h2h p {
-  margin: 0;
-}
-
-.h2h ul {
-  margin: 6px 0 0;
-  padding-left: 0;
-  list-style: none;
+.vz-h2h ul {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin: 10px 0 0;
+  padding: 10px 0 0;
+  list-style: none;
+  border-top: 1px solid var(--border-1);
+}
+.vz-h2h li {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+.vz-h2h li .pill {
+  justify-self: start;
 }
 
-.h2h .up {
-  color: var(--green);
-  font-weight: 600;
-}
-
-.h2h .down {
-  color: var(--red);
-  font-weight: 600;
-}
-
-.change-more {
+/* Card footer: toggles on the left, the branch on the right. */
+.vz-change-foot {
   display: flex;
-  gap: 14px;
   align-items: center;
   flex-wrap: wrap;
-  margin-top: 6px;
+  gap: 4px;
+  margin: 10px -8px 0;
+}
+.vz-change-foot .grow {
+  flex: 1;
+}
+.vz-change-foot button.ghost {
+  color: var(--text-3);
+}
+.vz-change-foot button.ghost:hover:not(:disabled),
+.vz-change-foot button.ghost.on {
+  color: var(--text-1);
+  background: var(--fill-active);
+}
+.vz-stat {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.vz-stat .add {
+  color: var(--ok);
+}
+.vz-stat .del {
+  color: var(--err);
+}
+.vz-branch {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  max-width: 46%;
+  padding: 0 8px;
+  font-size: 11px;
+  color: var(--text-4);
+}
+.vz-branch span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vz-branch svg {
+  flex: none;
 }
 
-.change-more button.link {
-  padding-left: 0;
-}
+/* ---------- Diff: GitHub-dark ---------- */
 
-.change-more code {
-  margin-left: auto;
+.vz-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  animation: fade-up var(--med) var(--ease) both;
 }
-
-.change-more .add {
-  color: var(--green);
+.vz-diff-file {
+  border: 1px solid #30363d;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #0d1117;
 }
-
-.change-more .del {
-  color: var(--red);
+.vz-diff-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #8b949e;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
 }
-
-.diff {
-  background: var(--sunken);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
+.vz-diff-path {
   font-family: var(--mono);
   font-size: 12px;
-  line-height: 1.5;
-  overflow-x: auto;
-  max-height: 420px;
+  font-weight: 500;
+  color: #e6edf3;
+}
+.vz-diff-index {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: #6e7681;
+}
+.vz-diff-body {
+  max-height: 440px;
+  overflow: auto;
+}
+.vz-diff table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 20px;
+}
+.vz-diff td {
+  padding: 0;
+  vertical-align: top;
+}
+.vz-diff td.ln {
+  width: 1%;
+  min-width: 40px;
+  padding: 0 8px;
+  text-align: right;
+  color: #6e7681;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+/* Skills are prose, so long lines wrap rather than scroll. */
+.vz-diff td.code {
+  padding: 0 14px 0 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: #e6edf3;
+}
+.vz-diff tr.add td {
+  background: rgba(46, 160, 67, 0.15);
+}
+.vz-diff tr.add td.ln {
+  background: rgba(63, 185, 80, 0.3);
+  color: #9be9a8;
+}
+.vz-diff tr.del td {
+  background: rgba(248, 81, 73, 0.15);
+}
+.vz-diff tr.del td.ln {
+  background: rgba(248, 81, 73, 0.3);
+  color: #ffa198;
+}
+.vz-diff tr.hunk td {
+  background: rgba(56, 139, 253, 0.1);
+  color: #8b949e;
+}
+.vz-diff tr.hunk td.ln {
+  background: rgba(56, 139, 253, 0.15);
+}
+.vz-diff tr.meta td.code {
+  color: #6e7681;
 }
 
-.diff .add {
-  color: var(--green);
-  background: var(--green-soft);
-  display: inline-block;
-  min-width: 100%;
-}
+/* ---------- Held-out clips: current beside candidate ---------- */
 
-.diff .del {
-  color: var(--red);
-  background: var(--red-soft);
-  display: inline-block;
-  min-width: 100%;
-}
-
-.diff .hunk {
-  color: var(--blue);
-}
-
-/* Version history, collapsed by default */
-.history summary {
+.vz-clips {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  cursor: pointer;
-  list-style: none;
+  flex-direction: column;
+  margin-top: 10px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  animation: fade-up var(--med) var(--ease) both;
 }
-
-.history summary::-webkit-details-marker {
-  display: none;
-}
-
-.history summary h2::before {
-  content: "▸ ";
-}
-
-.history[open] summary h2::before {
-  content: "▾ ";
-}
-
-.timelines {
+.vz-clips-head,
+.vz-clips-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: minmax(0, 1fr) 196px 196px;
   gap: 16px;
-  margin-top: 14px;
+  padding: 0 14px;
 }
-
-.timeline h3 {
-  margin: 0 0 8px;
-  font-size: 14px;
+.vz-clips-head {
+  height: 34px;
+  align-items: center;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-4);
+  border-bottom: 1px solid var(--border-1);
 }
-
-.timeline ol {
-  list-style: none;
-  margin: 0;
-  padding: 0 0 0 12px;
-  border-left: 2px solid var(--line);
-}
-
-.timeline li {
-  font-size: 12.5px;
-  padding: 3px 0;
-  color: var(--text);
-}
-
-.timeline li code {
-  color: var(--faint);
-  margin-right: 4px;
-}
-
-/* Held-out clips: current beside candidate */
-.abgrid {
-  display: grid;
-  grid-template-columns: 1fr 180px 180px;
-  gap: 10px 16px;
-  margin-top: 14px;
+.vz-clips-row {
+  padding-top: 14px;
+  padding-bottom: 14px;
   align-items: start;
 }
-
-.abrow {
-  display: contents;
+.vz-clips-row + .vz-clips-row {
+  border-top: 1px solid var(--border-1);
 }
-
-.abclip video,
-.abclip .placeholder {
-  width: 180px;
-  aspect-ratio: 9 / 16;
-  border-radius: var(--radius-sm);
-  background: #000;
+.vz-brief {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+  max-width: 48ch;
+}
+.vz-clip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.vz-clip video,
+.vz-clip .placeholder {
   display: block;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  border-radius: var(--r-md);
+  background: #000;
+  box-shadow: 0 0 0 1px var(--border-1);
+}
+.vz-clip.pass video,
+.vz-clip.pass .placeholder {
+  box-shadow: 0 0 0 1px rgba(70, 196, 138, 0.55);
+}
+.vz-clip.fail video,
+.vz-clip.fail .placeholder {
+  box-shadow: 0 0 0 1px rgba(240, 89, 93, 0.5);
+}
+.vz-clip.none {
+  aspect-ratio: 9 / 16;
+  border: 1px dashed var(--border-1);
+  border-radius: var(--r-md);
+}
+.vz-clip-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.vz-votes {
+  display: inline-flex;
+  gap: 2px;
+  margin-left: auto;
+}
+.vz-votes button.icon {
+  width: 26px;
+  height: 26px;
+  color: var(--text-3);
+}
+.vz-clip-reason {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-3);
 }
 
-.abclip {
-  border-radius: 10px;
-  padding: 4px;
-  border: 2px solid transparent;
-}
+/* ---------- Version history, collapsed by default ---------- */
 
-.abclip.pass {
-  border-color: var(--green);
+.vz-history > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 0 -8px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  transition: background var(--fast) var(--ease);
 }
-
-.abclip.fail {
-  border-color: var(--red);
+.vz-history > summary:hover {
+  background: var(--fill-hover);
 }
-
-.verdict.pass {
-  color: var(--green);
-  font-weight: 600;
+.vz-history > summary .sub {
+  font-size: 12px;
+  color: var(--text-3);
 }
-
-.verdict.fail {
-  color: var(--red);
-  font-weight: 600;
+.vz-chev {
+  color: var(--text-3);
+  transition: transform var(--fast) var(--ease);
 }
-
-.waiting {
-  color: var(--gold);
+.vz-history[open] .vz-chev {
+  transform: rotate(90deg);
+}
+.vz-timelines {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px;
+  margin-top: 12px;
+  align-items: start;
+}
+.vz-timeline {
+  padding: 12px 14px 10px;
+  min-width: 0;
+}
+.vz-timeline.creator {
+  --agent-c: var(--creator);
+}
+.vz-timeline.reviewer {
+  --agent-c: var(--reviewer);
+}
+.vz-timeline.auditor {
+  --agent-c: var(--auditor);
+}
+.vz-timeline-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.vz-timeline-head h3 {
   font-size: 13px;
 }
+.vz-timeline ol {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.vz-timeline ol::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--border-2);
+}
+.vz-timeline li {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 28px;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+.vz-timeline li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -3.5px;
+  border-radius: 50%;
+  background: var(--bg-2);
+  box-shadow: inset 0 0 0 1.5px var(--border-3);
+}
+.vz-timeline li:first-child::before {
+  background: var(--agent-c);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--agent-c) 20%, transparent);
+}
+.vz-hash {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.vz-subject {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vz-ctime {
+  flex: none;
+  font-size: 10.5px;
+  color: var(--text-4);
+}
 
-
-.evo-note {
-  margin: -6px 0 14px;
+@media (max-width: 1100px) {
+  .vz-evo {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vz-kpis {
+    grid-template-columns: 1fr 1fr;
+  }
+  .vz-kpi:nth-child(3) {
+    border-left: none;
+  }
+  .vz-kpi:nth-child(n + 3) {
+    border-top: 1px solid var(--border-1);
+  }
+  .vz-current {
+    display: none;
+  }
+}
+@media (max-width: 760px) {
+  .vz-clips-head,
+  .vz-clips-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .vz-clips-head span:first-child,
+  .vz-brief {
+    grid-column: 1 / -1;
+  }
+  .vz-arm {
+    grid-template-columns: 1fr 48px;
+  }
+  .vz-arm .vz-meter {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }

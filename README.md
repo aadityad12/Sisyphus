@@ -29,7 +29,7 @@ The agents run on Meta's `muse-wonder-1.0` through the Meta Model API. Put the k
 MODEL_API_KEY=...
 ```
 
-Footage goes in `footage/` (gitignored), with an optional `footage/manifest.json` listing each file's title, speaker and a suggested brief. The Auditor's shadow A/B draws its held-out work from that manifest. Transcripts, renders and the SQLite database go in `runs/` (gitignored). `SISYPHUS_FOOTAGE_DIR` and `SISYPHUS_RUNS_DIR` override both folders, for example to share one footage folder with a second checkout.
+Footage goes in `footage/` (gitignored), with an optional `footage/manifest.json` listing each file's title, speaker and a suggested brief. The Auditor's shadow A/B draws its held-out work from that manifest. That is the `default` project's footage; any other project's goes in `footage/<project-id>/`, with its own optional `manifest.json` in the same format (see [VISION.md](VISION.md), Projects). The engine creates that folder when the project is created. Transcripts, renders and the SQLite database go in `runs/` (gitignored). `SISYPHUS_FOOTAGE_DIR` and `SISYPHUS_RUNS_DIR` override both folders, for example to share one footage folder with a second checkout.
 
 On a Mac, transcribe the footage on the GPU before the first run. The engine's faster-whisper has no Metal backend and takes minutes per talk on the CPU. `scripts/prewarm_transcripts.py` runs the same small.en model through whisper.cpp and writes each transcript where the engine looks for it. It did a 15-minute talk in 47 s on an M3, where faster-whisper took 282 s (2026-11-07). It needs `brew install whisper-cpp`, and the first run downloads the 466 MB model into `runs/models/`:
 
@@ -46,7 +46,7 @@ cd engine && uv run python -m sisyphus_engine   # engine on :8765
 cd app && npm run dev                           # UI on http://localhost:1420
 ```
 
-Then open http://localhost:1420. The UI reloads on save; restart the engine after changing its code. On Windows, `--reload` noticed changes only in `.venv`, not in the engine's own files (2026-11-07), and any reload kills the jobs in flight. The engine re-queues interrupted jobs when it starts.
+Then open http://localhost:1420. To point the dev UI at an engine on another port, set `VITE_ENGINE_URL` (for example `VITE_ENGINE_URL=http://127.0.0.1:8775 npm run dev`); the engine's CORS list allows only the origins in `server.py`. The UI reloads on save; restart the engine after changing its code. On Windows, `--reload` noticed changes only in `.venv`, not in the engine's own files (2026-11-07), and any reload kills the jobs in flight. The engine re-queues interrupted jobs when it starts.
 
 When the Auditor promotes a change, it merges the change's branch into whatever branch is checked out. Run a demo or a long experiment from its own worktree, so promotions don't land on a branch a pull request is open from.
 

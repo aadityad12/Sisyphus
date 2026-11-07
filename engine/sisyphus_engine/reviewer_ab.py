@@ -15,7 +15,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import FOOTAGE_DIR, store, versioning
+from . import projects, store, versioning
 from .agents import reviewer
 from .transcribe import transcribe
 
@@ -51,7 +51,7 @@ def _review(v: dict, ref: str) -> dict:
             Path(v["video_path"]),
             v["brief"],
             plan=v["plan"],
-            transcript=transcribe(FOOTAGE_DIR / v["footage"]),
+            transcript=transcribe(projects.footage_path(v.get("project"), v["footage"])),
             ref=ref,
         )
         return {"approved": r.approved, "agrees": r.approved == v["human_liked"], "reason": r.reason, "tags": r.tags}

@@ -1,6 +1,10 @@
 import { useEffect, useState, type CSSProperties } from "react";
+import {
+  CircleCheck, CircleX, Columns2, Info, Loader, Play, Plus, RefreshCw, ShieldCheck, TriangleAlert, Undo2,
+} from "lucide-react";
 import { api, type ShowcaseRow, type ShowcaseVersion, type Video } from "./api";
 import { usePoll } from "./usePoll";
+import { Empty } from "./ui";
 import "./Showcase.css";
 
 function tagsOf(v: Video): string[] {
@@ -41,7 +45,7 @@ function Cell({ video }: { video: Video | undefined }) {
 
   if (!video) return (
     <div className="sc-cell empty">
-      <span className="sc-empty-mark" aria-hidden="true">＋</span>
+      <span className="sc-empty-mark" aria-hidden="true"><Plus size={16} /></span>
       <strong>Not rendered yet</strong>
       <span>No clip for this version.</span>
     </div>
@@ -49,6 +53,7 @@ function Cell({ video }: { video: Video | undefined }) {
   const error = video.status === "approved" || video.status === "rejected" ? null : video.error;
   const busy = !error && BUSY[video.status];
   const tags = tagsOf(video);
+  const failedMark = video.status === "failed" || playbackError;
   return (
     <div className={`sc-cell status-${video.status}`}>
       <div className="sc-player">
@@ -57,18 +62,22 @@ function Cell({ video }: { video: Video | undefined }) {
             onError={() => setPlaybackError(true)} />
         ) : (
           <div className={`sc-placeholder ${busy ? "busy" : ""}`}>
-            <span className="sc-frame-mark" aria-hidden="true">{video.status === "failed" || playbackError ? "!" : "▶"}</span>
+            <span className="sc-frame-mark" aria-hidden="true">
+              {failedMark ? <TriangleAlert size={18} /> : busy ? <Loader size={18} className="sc-spin" /> : <Play size={18} />}
+            </span>
             <strong>{playbackError ? "Video unavailable" : busy || (video.status === "failed" ? "Render failed" : error ? "Review needs attention" : "Loading video…")}</strong>
             <span>{playbackError ? "The clip could not be loaded." : video.status === "queued" ? "Your fixed brief is next in line." : "The same brief. This Creator version."}</span>
-            {playbackError && <button onClick={() => setPlaybackAttempt((attempt) => attempt + 1)}>Retry video</button>}
+            {playbackError && <button className="sm" onClick={() => setPlaybackAttempt((attempt) => attempt + 1)}><RefreshCw size={12} /> Retry video</button>}
           </div>
         )}
       </div>
-      {video.status === "approved" && <span className="badge approved">✓ Reviewer approved</span>}
-      {video.status === "rejected" && <span className="badge rejected">↩ Reviewer sent it back</span>}
-      {video.status === "failed" && <span className="badge failed">Render failed</span>}
-      {video.status === "reviewing" && video.error && <span className="badge failed">Review needs attention</span>}
-      {busy && <span className="badge queued">{busy}</span>}
+      <div className="sc-verdict">
+        {video.status === "approved" && <span className="pill ok"><CircleCheck size={12} /> Reviewer approved</span>}
+        {video.status === "rejected" && <span className="pill err"><Undo2 size={12} /> Reviewer sent it back</span>}
+        {video.status === "failed" && <span className="pill err"><CircleX size={12} /> Render failed</span>}
+        {video.status === "reviewing" && video.error && <span className="pill warn"><TriangleAlert size={12} /> Review needs attention</span>}
+        {busy && <span className="pill info"><span className="dot" /> {busy}</span>}
+      </div>
       {error && <p className="sc-error">{error.split("\n")[0]}</p>}
       {tags.length > 0 && (
         <div className="sc-tags">
@@ -112,17 +121,24 @@ function VersionHead({ version, rows, current, first, latest, shared }: {
   const title = version.change?.title ?? "";
   const cluster = version.change?.rationale?.split(": ")[0]?.trim();
   const changeTitle = /^[\w./-]+\.md$/.test(title) && cluster ? `Fix: ${cluster}` : title;
+  const pct = result.total > 0 ? (result.approved / result.total) * 100 : 0;
   return (
     <div className="sc-head">
       <div className="sc-version-label">
-        <span>{first ? "Before · " : latest ? "Latest · " : "Version · "}{version.label}</span>
-        {current && <span className="sc-current">Current Creator</span>}
+        <span className="sc-version-kind">
+          {first ? "Before" : latest ? "Latest" : "Version"}
+          <code>{version.label}</code>
+        </span>
+        {current && <span className="pill accent"><span className="dot" /> Current Creator</span>}
       </div>
-      <div className={`sc-score ${result.reviewed < result.total ? "sc-incomplete" : ""}`}>
-        <strong>{result.reviewed ? result.approved : "—"}</strong>
-        {result.total > 0 && <span>/ {result.total}</span>}
+      <div className="sc-score-row">
+        <div className={`sc-score ${result.reviewed < result.total ? "sc-incomplete" : ""}`}>
+          <strong>{result.reviewed ? result.approved : "—"}</strong>
+          {result.total > 0 && <span>/ {result.total}</span>}
+        </div>
+        <div className="sc-score-label">Reviewer approved</div>
       </div>
-      <div className="sc-score-label">Reviewer approved</div>
+      <div className="sc-meter" aria-hidden="true"><i style={{ width: `${pct}%` }} /></div>
       <div className="sc-completion">
         {result.total > 0 ? `${result.reviewed} of ${result.total} reviewed` : shared ? "No shared briefs to score" : "No active briefs to score"}{result.failed > 0 ? ` · ${result.failed} need attention` : ""}
       </div>
@@ -165,11 +181,14 @@ export function Showcase() {
   }
 
   if (!t) return (
-    <div className="showcase sc-empty-state" role="status">
-      <span className="sc-eyebrow">Showcase</span>
-      <h3>{table.error ? "The Showcase is unavailable" : "Loading the before & after…"}</h3>
-      <p>{table.error || "Gathering the same briefs at every Creator version."}</p>
-      {table.error && <button onClick={table.refresh}>Try again</button>}
+    <div className="showcase" role="status">
+      <Empty
+        icon={table.error ? <TriangleAlert size={18} /> : <Columns2 size={18} />}
+        title={table.error ? "The Showcase is unavailable" : "Loading the before & after…"}
+        action={table.error ? <button onClick={table.refresh}><RefreshCw size={13} /> Try again</button> : undefined}
+      >
+        {table.error || "Gathering the same briefs at every Creator version."}
+      </Empty>
     </div>
   );
   const all = t.versions;
@@ -183,34 +202,41 @@ export function Showcase() {
 
   return (
     <div className={`showcase ${compare ? "sc-compare" : "sc-history"}`}>
-      <div className="sc-bar">
-        <div className="sc-intro">
-          <span className="sc-eyebrow">Showcase · fixed briefs</span>
-          <h3>{hasComparison ? "The same brief, before & after." : pendingAfter ? "Baseline so far." : "Start with a baseline."}</h3>
-          <p>{hasComparison ? "Every Creator version gets the same starting point. Watch what changes." : pendingAfter ? currentRendered ? "One Creator version is available. The next promoted version will appear alongside it." : "Render the current Creator to compare. Only the baseline is available so far." : "Render the fixed briefs first. Future Creator versions will appear alongside the baseline."}</p>
+      <div className="page-title">
+        <div className="grow">
+          <h1>{hasComparison ? "The same brief, before & after" : pendingAfter ? "Baseline so far" : "Start with a baseline"}</h1>
+          <p>{hasComparison ? "Every Creator version gets the same fixed briefs as its starting point. Watch what changes." : pendingAfter ? currentRendered ? "One Creator version is available. The next promoted version will appear alongside it." : "Render the current Creator to compare. Only the baseline is available so far." : "Render the fixed briefs first. Future Creator versions will appear alongside the baseline."}</p>
         </div>
         <div className="sc-actions">
           {all.length > 2 && (
-            <button onClick={() => setCompare(!compare)}>{compare ? `All ${all.length} versions` : "Before & after"}</button>
+            <div className="seg" role="group" aria-label="Versions shown">
+              <button className={compare ? "on" : ""} aria-pressed={compare} onClick={() => setCompare(true)}>Before &amp; after</button>
+              <button className={compare ? "" : "on"} aria-pressed={!compare} onClick={() => setCompare(false)}>All {all.length} versions</button>
+            </div>
           )}
           <button className="primary" disabled={busy || listed.length === 0} onClick={renderNow}>
+            {busy ? <Loader size={14} className="sc-spin" /> : <Play size={13} />}
             {busy ? "Queueing renders…" : currentRendered ? "Render missing clips" : all.length === 0 ? "Render the baseline" : "Render current Creator"}
           </button>
         </div>
       </div>
-      <div className="sc-isolation"><span aria-hidden="true">◇</span> Reserved for the Showcase. Never used to train or test a change.</div>
-      {(renderError || table.error) && <p className="sc-error sc-message" role="alert">{renderError || `Could not refresh: ${table.error}`}</p>}
-      {notice && <p className="sc-notice sc-message" role="status">{notice}</p>}
+      <div className="sc-isolation"><ShieldCheck size={14} aria-hidden="true" /> Reserved for the Showcase. Never used to train or test a change.</div>
+      {(renderError || table.error) && <p className="sc-message sc-error" role="alert"><TriangleAlert size={14} /> {renderError || `Could not refresh: ${table.error}`}</p>}
+      {notice && <p className="sc-message sc-notice" role="status"><CircleCheck size={14} /> {notice}</p>}
       {all.length > 0 && !currentRendered && (
-        <p className="sc-pending-current">The current Creator <code>{t.current.slice(0, 8)}</code> has not been rendered here yet. Showing the latest available version.</p>
+        <p className="sc-message sc-pending-current"><Info size={14} /> <span>The current Creator <code>{t.current.slice(0, 8)}</code> has not been rendered here yet. Showing the latest available version.</span></p>
       )}
 
       {listed.length === 0 && (
-        <div className="sc-empty-state"><h3>{all.length ? "No active briefs." : "Set the starting point."}</h3><p>Mark two or three entries in <code>footage/manifest.json</code> with <code>"showcase": true</code> to compare the same work across versions.{all.length > 0 && " Historical renders remain below, outside the scores."}</p></div>
+        <Empty icon={<Columns2 size={18} />} title={all.length ? "No active briefs." : "Set the starting point."}>
+          Mark two or three entries in this project's <code>manifest.json</code> (in its footage folder) with <code>"showcase": true</code> to compare the same work across versions.{all.length > 0 && " Historical renders remain below, outside the scores."}
+        </Empty>
       )}
 
       {t.rows.length > 0 && all.length === 0 && (
-        <div className="sc-empty-state"><h3>The before comes first.</h3><p>{t.rows.length} fixed brief{t.rows.length === 1 ? " is" : "s are"} ready. Render the baseline; promoted Creator versions will appear alongside it.</p></div>
+        <Empty icon={<Play size={18} />} title="The before comes first.">
+          {t.rows.length} fixed brief{t.rows.length === 1 ? " is" : "s are"} ready. Render the baseline; promoted Creator versions will appear alongside it.
+        </Empty>
       )}
 
       {t.rows.length > 0 && all.length > 0 && (
@@ -219,7 +245,7 @@ export function Showcase() {
             <caption className="sc-sr-only">{hasComparison ? `The same briefs edited by ${compare ? "the first and latest available Creator versions" : "every rendered Creator version"}.` : "Fixed briefs edited by the baseline Creator. A second version is not available yet."}</caption>
             <thead>
               <tr>
-                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{listed.length} fixed brief{listed.length === 1 ? "" : "s"}</strong>{sharedScoring && <span className="sc-score-scope">Scored on {scoredRows.length} shared brief{scoredRows.length === 1 ? "" : "s"}</span>}<span>Same footage.<br />Same goal.<br />{hasComparison ? "Different Creator." : "Baseline for comparison."}</span></div></th>
+                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{listed.length} fixed brief{listed.length === 1 ? "" : "s"}</strong>{sharedScoring && <span className="sc-score-scope">Scored on {scoredRows.length} shared brief{scoredRows.length === 1 ? "" : "s"}</span>}<span className="sc-yardstick-note">Same footage. Same goal.<br />{hasComparison ? "Different Creator." : "Baseline for comparison."}</span></div></th>
                 {shown.map((v) => {
                   const current = sameVersion(v.version, t.current);
                   return (
@@ -231,10 +257,10 @@ export function Showcase() {
                 {pendingAfter && (
                   <th scope="col" className="sc-pending-column">
                     <div className="sc-head sc-after-head">
-                      <div className="sc-version-label"><span>After · {currentRendered ? "next version" : "current version"}</span></div>
+                      <div className="sc-version-label"><span className="sc-version-kind">After<code>{currentRendered ? "next version" : "current version"}</code></span></div>
                       <strong className="sc-after-title">{currentRendered ? "The next version goes here." : "Ready for the comparison."}</strong>
                       <p>{currentRendered ? "When a Creator change is promoted, its edits appear beside the baseline." : "Render the same briefs with the current Creator to see what changed."}</p>
-                      {!currentRendered && <button className="primary" disabled={busy || listed.length === 0} onClick={renderNow}>{busy ? "Queueing renders…" : "Render current Creator"}</button>}
+                      {!currentRendered && <button className="primary sm" disabled={busy || listed.length === 0} onClick={renderNow}>{busy ? "Queueing renders…" : "Render current Creator"}</button>}
                     </div>
                   </th>
                 )}
@@ -245,8 +271,8 @@ export function Showcase() {
                 <tr key={`${r.footage}|${r.brief}`} className={!r.listed || (sharedScoring && !scoredRows.includes(r)) ? "sc-unscored" : ""}>
                   <th className="sc-brief sc-brief-content" scope="row">
                     <strong>{r.title}</strong>
-                    {!r.listed ? <span className="sc-unscored-label">Archived · not scored</span> : sharedScoring && !scoredRows.includes(r) && <span className="sc-unscored-label">Not shared · not scored</span>}
-                    {r.speaker && <div className="dim small">{r.speaker}</div>}
+                    {!r.listed ? <span className="pill sc-unscored-label">Archived · not scored</span> : sharedScoring && !scoredRows.includes(r) && <span className="pill sc-unscored-label">Not shared · not scored</span>}
+                    {r.speaker && <div className="sc-speaker">{r.speaker}</div>}
                     <p>“{r.brief}”</p>
                   </th>
                   {shown.map((v) => (
@@ -257,7 +283,7 @@ export function Showcase() {
                   {pendingAfter && (
                     <td className="sc-pending-column">
                       <div className="sc-cell empty">
-                        <span className="sc-empty-mark" aria-hidden="true">＋</span>
+                        <span className="sc-empty-mark" aria-hidden="true"><Plus size={16} /></span>
                         <strong>{!r.listed ? "Archived brief" : currentRendered ? "Waiting for the next Creator" : "Not rendered yet"}</strong>
                         <span>{!r.listed ? "Removed from the fixed set. Kept here for history." : "Same footage. Same brief. A new edit."}</span>
                       </div>

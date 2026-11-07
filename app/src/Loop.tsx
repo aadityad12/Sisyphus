@@ -1,3 +1,4 @@
+import { RefreshCcw } from "lucide-react";
 import type { AuditStatus, Video } from "./api";
 
 /** Two commit hashes name the same commit when the shorter is a prefix of the longer (7+ characters). */
@@ -33,6 +34,7 @@ export function passRates(videos: Video[]) {
     passed: last.passed,
     clips: last.total,
     lastVersion: last.version,
+    series: ordered.map(pct),
   };
 }
 
@@ -63,7 +65,7 @@ function Node({
     <button
       className={`loop-node ${agent} ${active ? "active" : ""} ${warn ? "warn" : ""}`}
       onClick={onClick}
-      title={`Go to ${agent}`}
+      title={`${agent[0].toUpperCase() + agent.slice(1)}: ${activity}`}
     >
       <span className="loop-dot" />
       <span className="loop-text">
@@ -106,11 +108,14 @@ function describe(verb: string, videos: Video[]): string {
  */
 export function Loop({
   videos,
+  project = "default",
   versions,
   audit,
   go,
 }: {
   videos: Video[];
+  /** The project shown: verdict counts are its own, while activity counts every project's work. */
+  project?: string;
   versions: Record<string, string> | undefined;
   audit: AuditStatus | null;
   go: (tab: Tab) => void;
@@ -123,8 +128,9 @@ export function Loop({
   const stuck = videos.filter((v) => v.status === "reviewing" && v.error);
   // Verdicts on regular clips match what Feed + Rejected show; A/B and showcase verdicts are counted apart.
   const done = videos.filter((v) => v.status === "approved" || v.status === "rejected");
-  const judged = done.filter((v) => poolOf(v) === "regular").length;
-  const judgedElsewhere = done.length - judged;
+  // Verdicts on this project's regular clips, so the count matches its Feed + Rejected.
+  const judged = done.filter((v) => poolOf(v) === "regular" && (v.project ?? "default") === project).length;
+  const judgedElsewhere = done.filter((v) => poolOf(v) !== "regular").length;
   const state = audit?.state ?? "idle";
 
   const creatorActivity = creating.length
@@ -143,39 +149,38 @@ export function Loop({
   const reviewerPool = busiest(reviewing.length ? reviewing : stuck);
 
   return (
-    <div className="loop" aria-label="The agents">
-      <Node
-        agent="creator"
-        version={versions?.creator}
-        activity={creatorActivity}
-        active={creating.length + queued.length > 0}
-        onClick={() => go(creatorPool ? POOL_TAB[creatorPool] : "Studio")}
-      />
-      <span className="loop-arrow" aria-hidden>
-        →
-      </span>
-      <Node
-        agent="reviewer"
-        version={versions?.reviewer}
-        activity={reviewerActivity}
-        active={reviewing.length > 0}
-        warn={!reviewing.length && stuck.length > 0}
-        onClick={() => go(reviewerPool ? POOL_TAB[reviewerPool] : "Feed")}
-      />
-      <span className="loop-arrow" aria-hidden>
-        →
-      </span>
-      <Node
-        agent="auditor"
-        version={versions?.auditor}
-        activity={state === "error" ? `error: ${audit?.detail ?? ""}` : AUDIT_LABEL[state]}
-        active={state !== "idle" && state !== "error"}
-        warn={state === "error"}
-        onClick={() => go("Versions")}
-      />
-      <span className="loop-back" aria-hidden title="The Auditor rewrites the Creator's and the Reviewer's skills">
-        ↺ rewrites skills
-      </span>
-    </div>
+    <section className="agents" aria-label="The agents">
+      <div className="agents-head">
+        <span>Agents</span>
+        <span className="loopback" title="The Auditor rewrites the Creator's and the Reviewer's skills">
+          <RefreshCcw size={11} /> self-improving
+        </span>
+      </div>
+      <div className="loop">
+        <Node
+          agent="creator"
+          version={versions?.creator}
+          activity={creatorActivity}
+          active={creating.length + queued.length > 0}
+          onClick={() => go(creatorPool ? POOL_TAB[creatorPool] : "Studio")}
+        />
+        <Node
+          agent="reviewer"
+          version={versions?.reviewer}
+          activity={reviewerActivity}
+          active={reviewing.length > 0}
+          warn={!reviewing.length && stuck.length > 0}
+          onClick={() => go(reviewerPool ? POOL_TAB[reviewerPool] : "Feed")}
+        />
+        <Node
+          agent="auditor"
+          version={versions?.auditor}
+          activity={state === "error" ? `error: ${audit?.detail ?? ""}` : AUDIT_LABEL[state]}
+          active={state !== "idle" && state !== "error"}
+          warn={state === "error"}
+          onClick={() => go("Versions")}
+        />
+      </div>
+    </section>
   );
 }

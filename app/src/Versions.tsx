@@ -1,39 +1,113 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronDown,
+  ChevronRight,
+  CircleCheck,
+  CircleDot,
+  CircleX,
+  Code,
+  Columns2,
+  FlaskConical,
+  GitBranch,
+  GitMerge,
+  Sparkles,
+  ThumbsDown,
+  ThumbsUp,
+  TriangleAlert,
+  TrendingUp,
+  Undo2,
+} from "lucide-react";
 import "./Versions.css";
-import { api, type AuditStatus, type Change, type Video } from "./api";
-import { Progress, changeTitle } from "./Progress";
+import { api, type AuditStatus, type Change, type Failure, type Video } from "./api";
+import { Progress, changeTitle, passRows, rowPct } from "./Progress";
 import { usePoll } from "./usePoll";
-import { plural } from "./Loop";
+import { plural, samePrefix } from "./Loop";
 import { StyleTags } from "./Styles";
+import { Empty } from "./ui";
 
-const STAMP: Record<Change["status"], string> = {
-  proposed: "PROPOSED",
-  testing: "A/B TESTING",
-  promoted: "PROMOTED",
-  rolled_back: "ROLLED BACK",
+const STATUS: Record<Change["status"], { label: string; tone: string; icon: ReactNode }> = {
+  proposed: { label: "Proposed", tone: "info", icon: <CircleDot size={13} /> },
+  testing: { label: "A/B testing", tone: "warn", icon: <FlaskConical size={13} /> },
+  promoted: { label: "Promoted", tone: "ok", icon: <GitMerge size={13} /> },
+  rolled_back: { label: "Rolled back", tone: "err", icon: <Undo2 size={13} /> },
 };
+
+const clock = (seconds: number) => new Date(seconds * 1000).toLocaleTimeString();
+
+type DiffLine = { kind: "add" | "del" | "ctx" | "hunk" | "meta"; text: string; old?: number; new?: number };
+type DiffFile = { path: string; index: string | null; lines: DiffLine[] };
+
+/** Splits a unified diff into files, numbering each line from its hunk header. */
+function parseDiff(diff: string): DiffFile[] {
+  const files: DiffFile[] = [];
+  let file: DiffFile | null = null;
+  let o = 0;
+  let n = 0;
+  const lines = diff.split("\n");
+  if (lines[lines.length - 1] === "") lines.pop();
+  for (const line of lines) {
+    if (line.startsWith("diff --git")) {
+      const m = / b\/(.+)$/.exec(line);
+      file = { path: m ? m[1] : line.slice(11), index: null, lines: [] };
+      files.push(file);
+      continue;
+    }
+    if (!file) {
+      file = { path: "", index: null, lines: [] };
+      files.push(file);
+    }
+    if (line.startsWith("index ") && file.lines.length === 0) {
+      file.index = line.slice(6);
+    } else if (line.startsWith("@@")) {
+      const m = /^@@ -(\d+)(?:,\d+)? \+(\d+)/.exec(line);
+      if (m) {
+        o = Number(m[1]);
+        n = Number(m[2]);
+      }
+      file.lines.push({ kind: "hunk", text: line });
+    } else if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("\\")) {
+      file.lines.push({ kind: "meta", text: line });
+    } else if (line.startsWith("+")) {
+      file.lines.push({ kind: "add", text: line, new: n++ });
+    } else if (line.startsWith("-")) {
+      file.lines.push({ kind: "del", text: line, old: o++ });
+    } else {
+      file.lines.push({ kind: "ctx", text: line, old: o++, new: n++ });
+    }
+  }
+  return files;
+}
 
 function DiffView({ diff }: { diff: string }) {
   return (
-    <pre className="diff">
-      {diff.split("\n").map((line, i) => (
-        <span
-          key={i}
-          className={
-            line.startsWith("+") && !line.startsWith("+++")
-              ? "add"
-              : line.startsWith("-") && !line.startsWith("---")
-                ? "del"
-                : line.startsWith("@@")
-                  ? "hunk"
-                  : ""
-          }
-        >
-          {line}
-          {"\n"}
-        </span>
+    <div className="vz-diff">
+      {parseDiff(diff).map((f, fi) => (
+        <div key={fi} className="vz-diff-file">
+          {(f.path || f.index) && (
+            <div className="vz-diff-head">
+              <Code size={13} />
+              <span className="vz-diff-path">{f.path}</span>
+              {f.index && <code className="vz-diff-index">{f.index}</code>}
+            </div>
+          )}
+          <div className="vz-diff-body">
+            <table>
+              <tbody>
+                {f.lines.map((l, i) => (
+                  <tr key={i} className={l.kind}>
+                    <td className="ln">{l.old ?? ""}</td>
+                    <td className="ln">{l.new ?? ""}</td>
+                    <td className="code">{l.text || " "}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ))}
-    </pre>
+    </div>
   );
 }
 
@@ -81,30 +155,39 @@ function ABResult({ change }: { change: Change }) {
       : "Testing: rendering held-out clips with both versions.";
   else decision = "Testing.";
 
+  const trend = d === null || d === 0 ? "flat" : d > 0 ? "up" : "down";
+  const arm = (label: string, x: number | null, r: ArmResult, cls: string) => (
+    <div className={`vz-arm ${cls}`}>
+      <span className="vz-arm-label">{label}</span>
+      <span className="vz-meter">
+        <span style={{ width: `${x === null ? 0 : Math.max(x * 100, 1.5)}%` }} />
+      </span>
+      <strong className="vz-arm-pct">{pct(x)}</strong>
+      <span className="vz-arm-count">
+        {count(r)}/{r.total ?? 0} {metric}
+      </span>
+    </div>
+  );
+
   return (
-    <div className={`abresult ${change.status}`}>
-      <div className="abarm">
-        <span className="ablabel">Without the change</span>
-        <strong>{pct(a)}</strong>
-        <span className="dim small">
-          {count(control)}/{control.total ?? 0} {metric}
+    <div className={`vz-ab ${change.status}`}>
+      <div className="vz-ab-arms">
+        {arm("Without the change", a, control, "control")}
+        {arm("With the change", b, candidate, `candidate ${trend}`)}
+      </div>
+      <div className="vz-ab-side">
+        <span className={`vz-delta ${trend}`}>
+          {trend === "up" ? <ArrowUpRight size={14} /> : trend === "down" ? <ArrowDownRight size={14} /> : null}
+          {d === null ? "–" : d === 0 ? "±0" : `${d > 0 ? "+" : ""}${d}`}
+          <span className="unit">pts</span>
         </span>
       </div>
-      <div className="abvs">vs</div>
-      <div className="abarm candidate">
-        <span className="ablabel">With the change</span>
-        <strong>{pct(b)}</strong>
-        <span className="dim small">
-          {count(candidate)}/{candidate.total ?? 0} {metric}
+      <p className="vz-ab-decision">
+        <span className="vz-ab-icon">{STATUS[change.status].icon}</span>
+        <span>
+          {decision}
+          {humans && <span className="vz-ab-humans"> {humans}</span>}
         </span>
-      </div>
-      <div className={`abdelta ${d === null ? "" : d > 0 ? "up" : d < 0 ? "down" : ""}`}>
-        {d === null ? "–" : `${d > 0 ? "+" : ""}${d}`}
-        <span className="small">pts</span>
-      </div>
-      <p className="abdecision">
-        {decision}
-        {humans && <span className="dim"> {humans}</span>}
       </p>
     </div>
   );
@@ -123,7 +206,7 @@ function Clip({ video, onVoted }: { video: Video | undefined; onVoted: () => voi
   useEffect(() => {
     if (video?.plan) api.videoUrl(video.id).then(setSrc);
   }, [video?.id, video?.plan]);
-  if (!video) return <div className="abclip empty" />;
+  if (!video) return <div className="vz-clip none" />;
   const v = verdict(video);
   // A human vote overrides the Reviewer for this clip, and can decide the A/B.
   async function vote(liked: boolean) {
@@ -140,32 +223,37 @@ function Clip({ video, onVoted }: { video: Video | undefined; onVoted: () => voi
     }
   }
   return (
-    <div className={`abclip ${v}`}>
+    <div className={`vz-clip ${v}`}>
       {src ? <video src={src} controls preload="metadata" /> : <div className="placeholder busy">{video.status}</div>}
-      <div className="small">
-        <span className={`verdict ${v}`}>{v === "pass" ? "✓ pass" : v === "fail" ? "✗ fail" : "…"}</span>
+      <div className="vz-clip-meta">
+        <span className={`pill ${v === "pass" ? "ok" : v === "fail" ? "err" : ""}`}>
+          {v === "pass" ? <CircleCheck size={12} /> : v === "fail" ? <CircleX size={12} /> : null}
+          {v === "pass" ? "Pass" : v === "fail" ? "Fail" : "Pending"}
+        </span>
         {video.human_liked !== null && <span className="chip">human</span>}
+        {video.plan && (
+          <span className="vz-votes">
+            <button
+              className={video.human_liked === true ? "vote on up sm icon" : "vote ghost sm icon"}
+              disabled={pending}
+              onClick={() => vote(true)}
+              title="Good clip"
+            >
+              <ThumbsUp size={13} />
+            </button>
+            <button
+              className={video.human_liked === false ? "vote on down sm icon" : "vote ghost sm icon"}
+              disabled={pending}
+              onClick={() => vote(false)}
+              title="Bad clip"
+            >
+              <ThumbsDown size={13} />
+            </button>
+          </span>
+        )}
       </div>
       <StyleTags video={video} />
-      {video.review_reason && <p className="dim small">{video.review_reason}</p>}
-      {video.plan && (
-        <div className="row">
-          <button
-            className={video.human_liked === true ? "vote on up" : "vote"}
-            disabled={pending}
-            onClick={() => vote(true)}
-          >
-            ▲
-          </button>
-          <button
-            className={video.human_liked === false ? "vote on down" : "vote"}
-            disabled={pending}
-            onClick={() => vote(false)}
-          >
-            ▼
-          </button>
-        </div>
-      )}
+      {video.review_reason && <p className="vz-clip-reason">{video.review_reason}</p>}
       {voteError && <p className="error">Vote not saved: {voteError}</p>}
     </div>
   );
@@ -183,13 +271,15 @@ function ABClips({ changeId }: { changeId: number }) {
     rows.set(key, row);
   }
   return (
-    <div className="abgrid">
-      <div className="abhead dim small">Held-out brief</div>
-      <div className="abhead dim small">Without the change</div>
-      <div className="abhead dim small">With the change</div>
+    <div className="vz-clips">
+      <div className="vz-clips-head">
+        <span>Held-out brief</span>
+        <span>Without the change</span>
+        <span>With the change</span>
+      </div>
       {[...rows.entries()].map(([key, row]) => (
-        <div key={key} className="abrow">
-          <p className="small">“{row.brief}”</p>
+        <div key={key} className="vz-clips-row">
+          <p className="vz-brief">“{row.brief}”</p>
           <Clip video={row.control} onVoted={refresh} />
           <Clip video={row.candidate} onVoted={refresh} />
         </div>
@@ -206,12 +296,11 @@ const AUDIT_STATE: Record<AuditStatus["state"], string> = {
   error: "Error",
 };
 
-function AuditorPanel() {
+function AuditorPanel({ failures }: { failures: Failure[] | null | undefined }) {
   const status = usePoll(api.auditStatus, 2000);
-  const failures = usePoll(api.failures, 4000);
   const [error, setError] = useState<string | null>(null);
-  const creator = (failures.data ?? []).filter((f) => f.agents.includes("creator"));
-  const reviewer = (failures.data ?? []).filter((f) => f.agents.includes("reviewer"));
+  const creator = (failures ?? []).filter((f) => f.agents.includes("creator"));
+  const reviewer = (failures ?? []).filter((f) => f.agents.includes("reviewer"));
   const state = status.data?.state ?? "idle";
   const busy = state === "clustering" || state === "proposing";
   async function run() {
@@ -224,32 +313,38 @@ function AuditorPanel() {
     }
   }
   return (
-    <section className={`auditor-panel state-${state}`}>
-      <div className="auditor-head">
+    <section className={`card vz-auditor state-${state}`}>
+      <div className="vz-auditor-head">
+        <span className="vz-auditor-mark">
+          <Sparkles size={14} />
+        </span>
         <span className="agentname auditor">Auditor</span>
-        <span className="auditor-state">
-          <span className="state-dot" />
+        <span className="vz-auditor-state">
+          <span className="vz-state-dot" />
           {AUDIT_STATE[state]}
         </span>
       </div>
-      {status.data?.detail && <p className="auditor-detail">{status.data.detail}</p>}
-      <div className="failcounts">
-        <div>
+      {status.data?.detail && <p className="vz-auditor-detail">{status.data.detail}</p>}
+      <div className="vz-failcounts">
+        <div className="creator">
           <strong>{creator.length}</strong>
-          <span className="agentname creator">Creator</span>
-          <span className="dim small">failures</span>
+          <span>
+            <span className="agentname creator">Creator</span> failures
+          </span>
         </div>
-        <div>
+        <div className="reviewer">
           <strong>{reviewer.length}</strong>
-          <span className="agentname reviewer">Reviewer</span>
-          <span className="dim small">failures</span>
+          <span>
+            <span className="agentname reviewer">Reviewer</span> failures
+          </span>
         </div>
       </div>
-      <p className="dim small">
+      <p className="vz-auditor-explain">
         A failure is a clip the Reviewer sent back, or one where a human's vote disagreed with the Reviewer. The Auditor
         groups them, writes one change to the skills, and A/B tests it on held-out work before adopting it.
       </p>
       <button className="primary" disabled={busy} onClick={run}>
+        <Sparkles size={14} className={busy ? "spin" : undefined} />
         {busy ? `${AUDIT_STATE[state]}…` : "Run Auditor"}
       </button>
       {error && <p className="error">{error}</p>}
@@ -264,27 +359,37 @@ function HeadToHead({ results }: { results: Record<string, unknown> }) {
   const score = results.head_to_head as { candidate: number; control: number; same: number } | undefined;
   const pairs = (results.pairs ?? []) as Pair[];
   if (!score) return null;
-  const label = { candidate: "with the change", control: "without", same: "same" } as const;
+  const label = { candidate: "With the change", control: "Without", same: "Same" } as const;
   return (
-    <div className="h2h">
-      <p className="small">
-        <strong>Pass counts tied</strong>, so the frozen Reviewer compared each pair head to head:{" "}
-        <span className="up">with the change {score.candidate}</span> ·{" "}
-        <span className="down">without {score.control}</span>
-        {score.same > 0 && <span className="dim"> · same {score.same}</span>}
-      </p>
-      <ul>
-        {pairs.map((p) => (
-          <li key={p.footage + p.brief} className="small">
-            <span
-              className={`chip ${p.winner === "candidate" ? "arm-candidate" : p.winner === "control" ? "fail" : ""}`}
-            >
-              {label[p.winner]}
-            </span>{" "}
-            {p.reason}
-          </li>
-        ))}
-      </ul>
+    <div className="vz-h2h">
+      <div className="vz-h2h-head">
+        <span>
+          <strong>Pass counts tied</strong>, so the frozen Reviewer compared each pair head to head
+        </span>
+        <span className="vz-h2h-score">
+          <span className="up">with {score.candidate}</span>
+          <span className="sep">·</span>
+          <span className="down">without {score.control}</span>
+          {score.same > 0 && (
+            <>
+              <span className="sep">·</span>
+              <span className="same">same {score.same}</span>
+            </>
+          )}
+        </span>
+      </div>
+      {pairs.length > 0 && (
+        <ul>
+          {pairs.map((p) => (
+            <li key={p.footage + p.brief}>
+              <span className={`pill ${p.winner === "candidate" ? "ok" : p.winner === "control" ? "err" : ""}`}>
+                {label[p.winner]}
+              </span>
+              <span>{p.reason}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -308,22 +413,18 @@ function ChangeScope({ change }: { change: Change }) {
   const style = typeof change.results?.style === "string" ? change.results.style : null;
   if (kind === "style" && style)
     return (
-      <span className="change-scope">
-        style: <span className="style-tag">{style}</span>
+      <span className="vz-scope">
+        style <span className="style-tag">{style}</span>
       </span>
     );
   if (kind === "new_style")
     return (
-      <span className="change-scope">
+      <span className="vz-scope">
         new style
-        {style && (
-          <>
-            : <span className="style-tag">{style}</span>
-          </>
-        )}
+        {style && <span className="style-tag">{style}</span>}
       </span>
     );
-  if (kind === "shared") return <span className="change-scope dim">shared skills</span>;
+  if (kind === "shared") return <span className="vz-scope">shared skills</span>;
   return null;
 }
 
@@ -337,105 +438,247 @@ function ChangeCard({ change }: { change: Change }) {
       ? change.rationale.slice(cluster.length + 2)
       : change.rationale;
   const stat = change.diff ? diffStat(change.diff) : null;
+  const s = STATUS[change.status];
   return (
-    <article className={`change ${change.status}`}>
-      <header className="change-head">
-        <span className={`agentname ${change.agent}`}>{change.agent}</span>
-        <span className={`stamp ${change.status}`}>{STAMP[change.status]}</span>
-        <ChangeScope change={change} />
-        <span className="dim small change-time">{new Date(change.created_at * 1000).toLocaleTimeString()}</span>
-      </header>
-      <h3 title={change.title}>{changeTitle(change)}</h3>
-      {cluster && (
-        <p className="cluster">
-          <span className="dim">Pattern:</span> {cluster}
-          {change.failure_ids.length > 0 && (
-            <span className="dim">
-              {" "}
-              · from {change.failure_ids.length} failure{change.failure_ids.length > 1 ? "s" : ""}
+    <li className={`vz-change ${change.status}`}>
+      <span className="vz-node" aria-hidden>
+        {s.icon}
+      </span>
+      <article className="card vz-change-card">
+        <header className="vz-change-head">
+          <span className={`agentname ${change.agent}`}>{change.agent}</span>
+          <span className={`pill ${s.tone} vz-status`}>
+            <span className="dot" />
+            {s.label}
+          </span>
+          <ChangeScope change={change} />
+          <span className="grow" />
+          <code className="vz-time">{clock(change.created_at)}</code>
+        </header>
+        <h3 title={change.title}>{changeTitle(change)}</h3>
+        {cluster && (
+          <p className="vz-pattern">
+            <span className="vz-k">Pattern</span>
+            <span>
+              {cluster}
+              {change.failure_ids.length > 0 && (
+                <span className="vz-from"> · from {plural(change.failure_ids.length, "failure")}</span>
+              )}
             </span>
+          </p>
+        )}
+        {rationale && <p className="vz-rationale">{rationale}</p>}
+        {typeof change.results?.error === "string" && <p className="error">{change.results.error}</p>}
+        {change.results && <ABResult change={change} />}
+        {change.results && <HeadToHead results={change.results} />}
+        <div className="vz-change-foot">
+          {change.diff && stat && (
+            <button className={`ghost sm ${showDiff ? "on" : ""}`} onClick={() => setShowDiff(!showDiff)}>
+              {showDiff ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+              Skill diff
+              <span className="vz-stat">
+                <span className="add">+{stat.add}</span>
+                <span className="del">−{stat.del}</span>
+              </span>
+            </button>
           )}
-        </p>
-      )}
-      {rationale && <p className="rationale">{rationale}</p>}
-      {typeof change.results?.error === "string" && <p className="error">{change.results.error}</p>}
-      {change.results && <ABResult change={change} />}
-      {change.results && <HeadToHead results={change.results} />}
-      <div className="change-more">
-        {change.diff && stat && (
-          <button className="link" onClick={() => setShowDiff(!showDiff)}>
-            {showDiff ? "Hide" : "Show"} skill diff <span className="add">+{stat.add}</span>{" "}
-            <span className="del">−{stat.del}</span>
-          </button>
-        )}
-        {change.agent === "creator" && (
-          <button className="link" onClick={() => setShowClips(!showClips)}>
-            {showClips ? "Hide" : "Show"} held-out clips
-          </button>
-        )}
-        <code className="dim small">{change.branch}</code>
+          {change.agent === "creator" && (
+            <button className={`ghost sm ${showClips ? "on" : ""}`} onClick={() => setShowClips(!showClips)}>
+              <Columns2 size={13} />
+              {showClips ? "Hide" : "Show"} held-out clips
+            </button>
+          )}
+          <span className="grow" />
+          <code className="vz-branch" title={change.branch}>
+            <GitBranch size={12} />
+            <span>{change.branch}</span>
+          </code>
+        </div>
+        {showDiff && change.diff && <DiffView diff={change.diff} />}
+        {showClips && <ABClips changeId={change.id} />}
+      </article>
+    </li>
+  );
+}
+
+function Kpi({ icon, label, children, sub }: { icon: ReactNode; label: string; children: ReactNode; sub: ReactNode }) {
+  return (
+    <div className="vz-kpi">
+      <span className="vz-kpi-label">
+        {icon}
+        {label}
+      </span>
+      <div className="vz-kpi-value">{children}</div>
+      <span className="vz-kpi-sub">{sub}</span>
+    </div>
+  );
+}
+
+function PageTitle({ current }: { current?: Record<string, string> }) {
+  return (
+    <div className="page-title">
+      <div>
+        <h1>Versions</h1>
+        <p>Is the Creator getting better? Each change the Auditor made, and the A/B test that decided it.</p>
       </div>
-      {showDiff && change.diff && <DiffView diff={change.diff} />}
-      {showClips && <ABClips changeId={change.id} />}
-    </article>
+      <span className="grow" />
+      {current && (
+        <div className="vz-current" title="The version each agent runs now">
+          {["creator", "reviewer", "auditor"]
+            .filter((a) => current[a])
+            .map((a) => (
+              <span key={a} className={`vz-current-item ${a}`}>
+                <span className="vz-current-dot" />
+                <span className="agentname">{a}</span>
+                <code>{current[a].slice(0, 7)}</code>
+              </span>
+            ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 export function Versions({ videos }: { videos: Video[] }) {
   const { data } = usePoll(api.versions, 3000);
   const showcase = usePoll(api.showcase, 6000);
-  if (!data) return <p className="dim">Loading…</p>;
+  const failures = usePoll(api.failures, 4000);
+  if (!data)
+    return (
+      <div className="versions">
+        <PageTitle />
+        <div className="vz-kpis card vz-skeleton shimmer" />
+        <div className="vz-evo">
+          <div className="card vz-skeleton tall shimmer" />
+          <div className="card vz-skeleton tall shimmer" />
+        </div>
+      </div>
+    );
   const known: Record<string, number> = {};
   for (const v of showcase.data?.versions ?? []) if (v.change) known[v.version] = v.change.id;
   const changes = [...data.changes].sort((a, b) => b.created_at - a.created_at);
   const promoted = changes.filter((c) => c.status === "promoted").length;
   const rolledBack = changes.filter((c) => c.status === "rolled_back").length;
   const testing = changes.filter((c) => c.status === "testing" || c.status === "proposed").length;
+
+  const rows = passRows(videos);
+  const last = rows[rows.length - 1];
+  const first = rows[0];
+  const gain = rows.length > 1 ? rowPct(last) - rowPct(first) : null;
+  const fails = failures.data ?? [];
+  const creatorFails = fails.filter((f) => f.agents.includes("creator")).length;
+  const reviewerFails = fails.filter((f) => f.agents.includes("reviewer")).length;
+
   return (
     <div className="versions">
-      <div className="evo">
+      <PageTitle current={data.current} />
+
+      <div className="card vz-kpis">
+        <Kpi
+          icon={<TrendingUp size={13} />}
+          label="Creator pass rate"
+          sub={
+            last ? (
+              <>
+                <code>v{rows.length - 1}</code> · {last.passed}/{last.total} clips
+                {gain !== null && <> · was {rowPct(first)}% at v0</>}
+              </>
+            ) : (
+              "no verdicts yet"
+            )
+          }
+        >
+          <strong>{last ? `${rowPct(last)}%` : "–"}</strong>
+          {gain !== null && gain !== 0 && (
+            <span className={`vz-dpill ${gain > 0 ? "up" : "down"}`}>
+              {gain > 0 ? "+" : ""}
+              {gain} pts
+            </span>
+          )}
+        </Kpi>
+        <Kpi
+          icon={<GitBranch size={13} />}
+          label="Changes"
+          sub={testing > 0 ? `${testing} in progress` : "none in progress"}
+        >
+          <strong>{changes.length}</strong>
+        </Kpi>
+        <Kpi icon={<GitMerge size={13} />} label="Promoted / rolled back" sub="decided by A/B on held-out clips">
+          <strong className={promoted ? "ok" : "zero"}>{promoted}</strong>
+          <span className="vz-slash">/</span>
+          <strong className={rolledBack ? "err" : "zero"}>{rolledBack}</strong>
+        </Kpi>
+        <Kpi
+          icon={<TriangleAlert size={13} />}
+          label="Failures to learn from"
+          sub={
+            failures.data ? (
+              <>
+                <span className="agentname creator">Creator</span> {creatorFails} ·{" "}
+                <span className="agentname reviewer">Reviewer</span> {reviewerFails}
+              </>
+            ) : (
+              "loading…"
+            )
+          }
+        >
+          <strong>{failures.data ? fails.length : "–"}</strong>
+        </Kpi>
+      </div>
+
+      <div className="vz-evo">
         <Progress videos={videos} changes={data.changes} current={data.current.creator} known={known} />
-        <AuditorPanel />
+        <AuditorPanel failures={failures.data} />
       </div>
 
       <section>
-        <div className="evo-title">
+        <div className="section-head">
           <h2>What the Auditor changed</h2>
           {changes.length > 0 && (
-            <span className="dim small">
+            <span className="sub">
               {plural(changes.length, "change")} · {promoted} promoted · {rolledBack} rolled back
               {testing > 0 && ` · ${testing} in progress`}
             </span>
           )}
         </div>
         {changes.length === 0 ? (
-          <div className="empty">
-            No changes yet. When clips fail, run the Auditor: it proposes a change to an agent's skills and tests it
-            here before adopting it.
-          </div>
+          <Empty icon={<GitBranch size={18} />} title="No changes yet">
+            When clips fail, run the Auditor: it proposes a change to an agent's skills and tests it here before
+            adopting it.
+          </Empty>
         ) : (
-          <div className="changes">
+          <ol className="vz-changes">
             {changes.map((c) => (
               <ChangeCard key={c.id} change={c} />
             ))}
-          </div>
+          </ol>
         )}
       </section>
 
-      <details className="history">
+      <details className="vz-history">
         <summary>
+          <ChevronRight size={15} className="vz-chev" />
           <h2>Version history</h2>
-          <span className="dim small">every commit to each agent's skills</span>
+          <span className="sub">every commit to each agent's skills</span>
         </summary>
-        <div className="timelines">
+        <div className="vz-timelines">
           {Object.entries(data.history).map(([agent, commits]) => (
-            <div key={agent} className="timeline">
-              <h3 className={`agentname ${agent}`}>{agent}</h3>
+            <div key={agent} className={`card vz-timeline ${agent}`}>
+              <div className="vz-timeline-head">
+                <h3 className={`agentname ${agent}`}>{agent}</h3>
+                <span className="count">{commits.length}</span>
+              </div>
               <ol>
                 {commits.map((c) => (
                   <li key={c.version}>
-                    <code>{c.version.slice(0, 7)}</code> <span>{c.subject}</span>{" "}
-                    <span className="dim small">{new Date(c.time * 1000).toLocaleTimeString()}</span>
+                    <code className="vz-hash">{c.version.slice(0, 7)}</code>
+                    <span className="vz-subject" title={c.subject}>
+                      {c.subject}
+                    </span>
+                    {data.current[agent] && samePrefix(c.version, data.current[agent]) && (
+                      <span className="vz-now">current</span>
+                    )}
+                    <code className="vz-ctime">{clock(c.time)}</code>
                   </li>
                 ))}
               </ol>

@@ -7,7 +7,7 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import FOOTAGE_DIR, RUNS_DIR, store, versioning
+from . import RUNS_DIR, projects, store, versioning
 from . import render
 from .agents import creator, reviewer
 from .transcribe import transcribe
@@ -22,20 +22,27 @@ def video_dir(video_id: int) -> Path:
     return RUNS_DIR / "videos" / str(video_id)
 
 
-def submit(footage: str, brief: str, skills_ref: str | None = None, styles: list[str] | None = None, **fields) -> int:
-    """Queue one video. `styles` are the editing styles asked for; none means Auto (the Creator picks)."""
+def submit(
+    footage: str,
+    brief: str,
+    skills_ref: str | None = None,
+    styles: list[str] | None = None,
+    project: str = projects.DEFAULT,
+    **fields,
+) -> int:
+    """Queue one video in `project`, from footage in that project's folder. `styles` are the editing
+    styles asked for; none means Auto (the Creator picks). Raises FileNotFoundError for missing footage."""
     brief = brief.strip()  # so a showcase brief typed with stray spaces is the same brief everywhere
-    path = (FOOTAGE_DIR / footage).resolve()
-    if path.parent != FOOTAGE_DIR.resolve() or not path.exists():
-        raise FileNotFoundError(footage)
+    path = projects.resolve_footage(project, footage)
     from . import showcase  # showcase imports jobs
 
-    if showcase.is_showcase(footage, brief):
+    if showcase.is_showcase(footage, brief, project):
         # The demo's yardstick, even when started from the Studio: it must never feed the Auditor or an A/B.
         fields["showcase"] = 1
     video_id = store.add_video(
         footage,
         brief,
+        project=project,
         skills_ref=skills_ref,
         creator_version=skills_ref or versioning.agent_version("creator"),
         styles_requested=json.dumps(list(styles)) if styles else None,
@@ -51,7 +58,7 @@ def resume_unfinished() -> int:
     stuck = [v for v in videos if v["status"] in ("queued", "creating")]
     for v in reversed(stuck):
         store.update_video(v["id"], status="queued")
-        executor.submit(_run, v["id"], FOOTAGE_DIR / v["footage"], v["brief"], v["skills_ref"], v["styles_requested"])
+        executor.submit(_run, v["id"], projects.footage_path(v["project"], v["footage"]), v["brief"], v["skills_ref"], v["styles_requested"])
     # A restart during a review leaves a rendered video with no verdict: review it again.
     unreviewed = [v for v in videos if v["status"] == "reviewing" and v["video_path"] and v["review_approved"] is None]
     for v in reversed(unreviewed):
@@ -90,7 +97,7 @@ def run_review(video_id: int, reviewer_ref: str | None = None) -> None:
             Path(v["video_path"]),
             v["brief"],
             plan=v["plan"],
-            transcript=transcribe(FOOTAGE_DIR / v["footage"]),
+            transcript=transcribe(projects.footage_path(v["project"], v["footage"])),
             ref=ref,
         )
     except NotImplementedError:

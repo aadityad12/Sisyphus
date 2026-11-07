@@ -93,7 +93,7 @@ def test_held_out_prefers_the_failing_kind(db, tmp_path, monkeypatch):
         {"file": "pod2.mp4", "brief": "b", "kind": "interview"},
     ]
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
-    monkeypatch.setattr(experiments, "FOOTAGE_DIR", tmp_path)
+    monkeypatch.setattr(experiments.projects, "FOOTAGE_DIR", tmp_path)
     picked = experiments._held_out({"pod1.mp4"}, 2)
     assert [p["footage"] for p in picked] == ["pod2.mp4", "talk1.mp4"]
 
@@ -192,8 +192,7 @@ def audit(db, tmp_path, monkeypatch):
         {"file": "c.mp4", "brief": "brief c", "kind": "talk"},
         {"file": "d.mp4", "brief": "brief d", "kind": "talk"},
     ]))
-    for module in (jobs, experiments.showcase, experiments):
-        monkeypatch.setattr(module, "FOOTAGE_DIR", footage)
+    monkeypatch.setattr(experiments.projects, "FOOTAGE_DIR", footage)
     executor = _Inline()
     monkeypatch.setattr(jobs, "executor", executor)
     monkeypatch.setattr(experiments, "AB_SIZE", 2)

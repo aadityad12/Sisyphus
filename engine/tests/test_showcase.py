@@ -18,7 +18,7 @@ def env(tmp_path, monkeypatch):
         {"file": "b.mp4", "title": "B", "brief": "brief b", "showcase": True},
         {"file": "c.mp4", "title": "C", "brief": "brief c"},
     ]))
-    monkeypatch.setattr(showcase, "FOOTAGE_DIR", footage)
+    monkeypatch.setattr(showcase.projects, "FOOTAGE_DIR", footage)
     version = {"v": "aaa1111"}
     monkeypatch.setattr(showcase.versioning, "agent_version", lambda agent: version["v"])
     submitted = []
@@ -36,7 +36,7 @@ def env(tmp_path, monkeypatch):
 def test_renders_only_showcase_briefs_once_per_version(env):
     assert len(showcase.render()) == 2
     assert {s[0] for s in env["submitted"]} == {"a.mp4", "b.mp4"}
-    assert all(s[1] == "aaa1111" and s[2] == {"showcase": 1} for s in env["submitted"])
+    assert all(s[1] == "aaa1111" and s[2] == {"project": "default", "showcase": 1} for s in env["submitted"])
     assert showcase.render() == []  # already rendered at this version
     env["version"]["v"] = "bbb2222"
     assert len(showcase.render()) == 2
@@ -73,7 +73,6 @@ def test_showcase_clips_never_reach_the_auditor(env):
 def test_a_studio_job_on_a_showcase_brief_is_marked_showcase(env, monkeypatch):
     from sisyphus_engine import jobs
 
-    monkeypatch.setattr(jobs, "FOOTAGE_DIR", showcase.FOOTAGE_DIR)
     monkeypatch.setattr(jobs.executor, "submit", lambda *a, **k: None)
     monkeypatch.setattr(jobs.versioning, "agent_version", lambda agent: "aaa1111")
     same = env["real_submit"]("a.mp4", " brief a ")

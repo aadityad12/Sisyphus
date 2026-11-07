@@ -1,4 +1,18 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  Check,
+  CircleAlert,
+  CircleCheck,
+  Clock,
+  FileText,
+  ListVideo,
+  Loader,
+  MessageSquare,
+  SendHorizontal,
+  ThumbsDown,
+  ThumbsUp,
+  Undo2,
+} from "lucide-react";
 import "./VideoCard.css";
 import { api, type Video } from "./api";
 import { StyleTags } from "./Styles";
@@ -58,8 +72,10 @@ export function Steps({ video }: { video: Video }) {
         const state = i < at ? "done" : i === at ? (stuck ? "stuck" : "active") : "todo";
         return (
           <li key={label} className={`${state} step-${i}`}>
-            <span className="dot" />
-            {label}
+            <span className="dot">
+              {state === "done" ? <Check size={9} strokeWidth={3} /> : state === "stuck" ? "!" : null}
+            </span>
+            <span className="step-label">{label}</span>
           </li>
         );
       })}
@@ -103,13 +119,15 @@ function StuckReview({ video, onChange }: { video: Video; onChange: () => void }
 
   return (
     <div className="vc-stuck">
-      <p className="vc-stuck-head">The Reviewer failed on this clip. Watch it and give the verdict yourself:</p>
+      <p className="vc-stuck-head">
+        <CircleAlert size={14} /> The Reviewer failed on this clip. Watch it and give the verdict yourself.
+      </p>
       <div className="vc-votes">
-        <button className="vote" disabled={pending || saved !== null} onClick={() => decide(true)}>
-          ✓ Approve
+        <button className="vote sm" disabled={pending || saved !== null} onClick={() => decide(true)}>
+          <Check size={13} /> Approve
         </button>
-        <button className="vote" disabled={pending || saved !== null} onClick={() => decide(false)}>
-          ↩ Send back
+        <button className="vote sm" disabled={pending || saved !== null} onClick={() => decide(false)}>
+          <Undo2 size={13} /> Send back
         </button>
       </div>
       {saved !== null && <p className="dim small">Saved: {saved ? "approved" : "sent back"}. Updating…</p>}
@@ -127,7 +145,7 @@ function Verdict({ video, onChange }: { video: Video; onChange: () => void }) {
     return (
       <div className={`vc-verdict ${ok ? "ok" : "no"}`}>
         <div className="vc-verdict-head">
-          <span className="icon">{ok ? "✓" : "↩"}</span>
+          <span className="icon">{ok ? <CircleCheck size={15} /> : <Undo2 size={15} />}</span>
           {manual
             ? ok
               ? "Approved by hand"
@@ -159,7 +177,9 @@ function Verdict({ video, onChange }: { video: Video; onChange: () => void }) {
     return (
       <div className="vc-verdict no">
         <div className="vc-verdict-head">
-          <span className="icon">!</span>
+          <span className="icon">
+            <CircleAlert size={15} />
+          </span>
           The Creator couldn't finish this clip
         </div>
         {video.error && <pre className="vc-error">{video.error.split("\n")[0]}</pre>}
@@ -188,29 +208,49 @@ function InFlightRow({ video }: { video: Video }) {
     const id = setInterval(() => setNow(Date.now() / 1000), 1000);
     return () => clearInterval(id);
   }, [video.status]);
+  const failed = video.status === "failed";
   return (
     <article className={`vrow v-${video.status}`}>
+      <span className={`vrow-icon ${failed ? "err" : ""}`} aria-hidden>
+        {failed ? <CircleAlert size={15} /> : <Loader size={15} className="spin-slow" />}
+      </span>
       <div className="vrow-what">
         <p className="vrow-brief" title={video.brief}>
           {video.brief}
         </p>
         <p className="vrow-facts">
-          {video.footage}
+          <span>{video.footage}</span>
           {video.creator_version && (
             <span className="vc-maker">
-              {" · "}Creator <code>{shortVersion(video.creator_version)}</code>
+              <span className="agent-dot creator" />
+              Creator <code>{shortVersion(video.creator_version)}</code>
             </span>
           )}
           {/* No plan yet, so no styles used yet: say what was asked for. */}
-          {video.styles_requested !== undefined &&
-            (video.styles_requested.length ? ` · in ${video.styles_requested.join(" + ")}` : " · style: Auto")}
+          {video.styles_requested !== undefined && (
+            <span>{video.styles_requested.length ? `in ${video.styles_requested.join(" + ")}` : "style: Auto"}</span>
+          )}
         </p>
         {video.error && <pre className="vc-error">{video.error.split("\n")[0]}</pre>}
       </div>
       <Steps video={video} />
-      {video.status !== "failed" && <span className="vrow-time">{elapsed(now - video.created_at)}</span>}
+      {!failed && (
+        <span className="vrow-time">
+          <Clock size={12} />
+          {elapsed(now - video.created_at)}
+        </span>
+      )}
     </article>
   );
+}
+
+/** "4m ago", for when a clip last changed. */
+function ago(t: number) {
+  const s = Math.max(0, Date.now() / 1000 - t);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
 }
 
 /** One line on how the human's vote sits against the Reviewer's verdict: disagreements are what the Auditor learns from. */
@@ -226,6 +266,8 @@ function agreement(video: Video): { text: string; cls: string } | null {
   };
 }
 
+type Panel = "plan" | "transcript" | "comments";
+
 export function VideoCard({
   video,
   onChange,
@@ -240,12 +282,14 @@ export function VideoCard({
   // One feedback request at a time: a double-click or a held Enter must not send it twice.
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
-  const [showComments, setShowComments] = useState(video.comments.length > 0);
-  // Mounted only while open, so a feed of cards doesn't fetch every clip's transcript.
-  const [showTranscript, setShowTranscript] = useState(false);
+  // Comments start open when there are some. The transcript mounts only while its panel is open, so a feed of
+  // cards doesn't fetch every clip's transcript.
+  const [panel, setPanel] = useState<Panel | null>(video.comments.length > 0 ? "comments" : null);
+  const toggle = (p: Panel) => setPanel((open) => (open === p ? null : p));
 
   useEffect(() => {
-    if (video.plan) api.videoUrl(video.id).then(setSrc);
+    // "#t=0.1" makes the player show the first frame instead of black before anyone presses play.
+    if (video.plan) api.videoUrl(video.id).then((u) => setSrc(`${u}#t=0.1`));
   }, [video.id, video.plan]);
 
   async function feedback(body: { liked?: boolean | null; comment?: string }): Promise<boolean> {
@@ -281,145 +325,178 @@ export function VideoCard({
   const agree = agreement(video);
 
   if (!video.plan) return <InFlightRow video={video} />;
+  const plan = video.plan;
 
   return (
     <article className={`vcard v-${video.status}`}>
-      <div className="vc-inner">
-        <div className="vc-frame">
-          {src ? (
-            <video src={src} controls preload="metadata" playsInline />
-          ) : (
-            <div className={`vc-empty ${busy ? "busy" : ""}`}>{STATUS_LABEL[video.status]}</div>
+      <div className="vc-frame">
+        {src ? (
+          <video src={src} controls preload="metadata" playsInline />
+        ) : (
+          <div className={`vc-empty ${busy ? "busy" : ""}`}>{STATUS_LABEL[video.status]}</div>
+        )}
+      </div>
+
+      <div className="vc-body">
+        <Verdict video={video} onChange={onChange} />
+
+        <div className="vc-what">
+          <h3 title={plan.title ?? video.brief}>{plan.title ?? video.brief}</h3>
+          {plan.title && (
+            <p className="vc-brief" title={video.brief}>
+              “{video.brief}”
+            </p>
           )}
+          <div className="vc-facts">
+            {video.creator_version && (
+              <span className="vc-maker" title="The Creator version that made this clip">
+                <span className="agent-dot creator" />
+                Creator <code>{shortVersion(video.creator_version)}</code>
+              </span>
+            )}
+            {video.arm && <span className={`chip arm-${video.arm}`}>A/B {video.arm}</span>}
+            <StyleTags video={video} />
+          </div>
+          <p className="vc-source">
+            <span className="file" title={video.footage}>
+              {video.footage}
+            </span>
+            <span className="sep">·</span>
+            <code>{fmt(duration)}</code>
+            <span className="sep">·</span>
+            <span>{cuts(plan.segments.length)}</span>
+            <span className="sep">·</span>
+            <span title={new Date(video.updated_at * 1000).toLocaleString()}>{ago(video.updated_at)}</span>
+          </p>
         </div>
 
-        <div className="vc-body">
-          <Verdict video={video} onChange={onChange} />
+        {video.failed_agents.length > 0 && (
+          <p className="vc-blame">
+            Counted as a failure of the{" "}
+            {video.failed_agents.map((a, i) => (
+              <span key={a}>
+                {i > 0 && " and "}
+                <span className="chip fail">{a}</span>
+              </span>
+            ))}
+          </p>
+        )}
 
-          <div className="vc-what">
-            <h3 title={video.plan?.title ?? video.brief}>{video.plan?.title ?? video.brief}</h3>
-            {video.plan?.title && (
-              <p className="vc-brief" title={video.brief}>
-                Brief: “{video.brief}”
-              </p>
-            )}
-            <p className="vc-facts">
-              {video.creator_version && (
-                <span className="vc-maker">
-                  Made by Creator <code>{shortVersion(video.creator_version)}</code>
+        <div className="vc-you">
+          <div className="vc-you-row">
+            <span className="vc-label">Your call</span>
+            <div className="vc-votes" role="group" aria-label="Your vote">
+              <button
+                className={video.human_liked === true ? "vote on up" : "vote"}
+                aria-pressed={video.human_liked === true}
+                disabled={pending}
+                onClick={() => vote(true)}
+              >
+                <ThumbsUp size={14} /> {mode === "rejected" ? "Actually good" : "Good clip"}
+              </button>
+              <button
+                className={video.human_liked === false ? "vote on down" : "vote"}
+                aria-pressed={video.human_liked === false}
+                disabled={pending}
+                onClick={() => vote(false)}
+              >
+                <ThumbsDown size={14} /> {mode === "feed" ? "Not good" : "Bad clip"}
+              </button>
+            </div>
+          </div>
+          {agree && <p className={`vc-agree ${agree.cls}`}>{agree.text}</p>}
+          {failed && <p className="vc-failed">{failed}</p>}
+        </div>
+
+        <div className="vc-tabs" role="tablist" aria-label="Clip details">
+          <button
+            role="tab"
+            aria-selected={panel === "plan"}
+            className={panel === "plan" ? "on" : ""}
+            onClick={() => toggle("plan")}
+          >
+            <ListVideo size={13} /> Edit plan <span className="n">{plan.segments.length}</span>
+          </button>
+          <button
+            role="tab"
+            aria-selected={panel === "transcript"}
+            className={panel === "transcript" ? "on" : ""}
+            onClick={() => toggle("transcript")}
+            title="What was kept and cut"
+          >
+            <FileText size={13} /> Transcript
+          </button>
+          <button
+            role="tab"
+            aria-selected={panel === "comments"}
+            className={panel === "comments" ? "on" : ""}
+            onClick={() => toggle("comments")}
+          >
+            <MessageSquare size={13} /> Comments <span className="n">{video.comments.length}</span>
+          </button>
+        </div>
+
+        {panel === "plan" && (
+          <div className="vc-panel vc-plan" role="tabpanel">
+            <p className="vc-hook">
+              <span className="k">Hook</span> {plan.hook || <em className="dim">none</em>}
+            </p>
+            <ol className="vc-segs">
+              {plan.segments.map((s, i) => (
+                <li key={i}>
+                  <span className="i">{i + 1}</span>
+                  <code>
+                    {fmt(s.start)} → {fmt(s.end)}
+                  </code>
+                  <span className="dim">{fmt(s.end - s.start)}</span>
+                  {s.punch && s.punch > 1 ? <span className="chip">punch {s.punch.toFixed(2)}×</span> : null}
+                </li>
+              ))}
+            </ol>
+            <div className="vc-knobs">
+              <span className="chip">crop {plan.crop_x.toFixed(2)}</span>
+              <span className="chip">
+                captions {plan.caption_style} ×{plan.caption_words}
+              </span>
+              {plan.caption_size && (
+                <span className="chip">
+                  {`${plan.caption_size} ${plan.caption_color ?? ""} ${plan.caption_position ?? ""}`.trim()}
+                  {plan.caption_caps ? " caps" : ""}
                 </span>
               )}
-              {video.arm && <span className={`chip arm-${video.arm}`}>A/B {video.arm}</span>}
-              <StyleTags video={video} />
-              <span className="dim">
-                {video.footage}
-                {video.plan && ` · ${fmt(duration)} · ${cuts(video.plan.segments.length)}`}
-              </span>
-            </p>
+              {plan.color_filter && plan.color_filter !== "none" && <span className="chip">{plan.color_filter}</span>}
+              {plan.speed && plan.speed !== 1 && <span className="chip">{plan.speed}× speed</span>}
+            </div>
+            {plan.rationale && <p className="vc-rationale">{plan.rationale}</p>}
           </div>
+        )}
 
-          {video.failed_agents.length > 0 && (
-            <p className="vc-blame">
-              Counted as a failure of the{" "}
-              {video.failed_agents.map((a, i) => (
-                <span key={a}>
-                  {i > 0 && " and "}
-                  <span className="chip fail">{a}</span>
-                </span>
-              ))}
-            </p>
-          )}
+        {panel === "transcript" && (
+          <div className="vc-panel" role="tabpanel">
+            <Transcript videoId={video.id} />
+          </div>
+        )}
 
-          {video.plan && (
-            <div className="vc-you">
-              <span className="vc-label">Your call</span>
-              <div className="vc-votes">
-                <button
-                  className={video.human_liked === true ? "vote on up" : "vote"}
-                  aria-pressed={video.human_liked === true}
-                  disabled={pending}
-                  onClick={() => vote(true)}
-                >
-                  ▲ {mode === "rejected" ? "Actually good" : "Good clip"}
-                </button>
-                <button
-                  className={video.human_liked === false ? "vote on down" : "vote"}
-                  aria-pressed={video.human_liked === false}
-                  disabled={pending}
-                  onClick={() => vote(false)}
-                >
-                  ▼ {mode === "feed" ? "Not good" : "Bad clip"}
-                </button>
-              </div>
-              {agree && <p className={`vc-agree ${agree.cls}`}>{agree.text}</p>}
-              {failed && <p className="vc-failed">{failed}</p>}
+        {panel === "comments" && (
+          <div className="vc-panel vc-comments" role="tabpanel">
+            {video.comments.map((c) => (
+              <p key={c.id} className="vc-comment">
+                {c.text}
+              </p>
+            ))}
+            <div className="vc-compose">
+              <input
+                value={comment}
+                placeholder="Tell the Creator what to do differently…"
+                onChange={(e) => setComment(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && send()}
+              />
+              <button className="icon" onClick={send} disabled={pending || !comment.trim()} title="Send">
+                <SendHorizontal size={14} />
+              </button>
             </div>
-          )}
-
-          {video.plan && (
-            <div className="vc-more">
-              <details>
-                <summary>
-                  Edit plan <span className="dim">· {cuts(video.plan.segments.length)}</span>
-                </summary>
-                <div className="vc-plan">
-                  <p>
-                    <strong>Hook:</strong> {video.plan.hook || <em>none</em>}
-                  </p>
-                  <ol>
-                    {video.plan.segments.map((s, i) => (
-                      <li key={i}>
-                        {fmt(s.start)} → {fmt(s.end)} <span className="dim">({fmt(s.end - s.start)})</span>
-                        {s.punch && s.punch > 1 ? <span className="dim"> · punch {s.punch.toFixed(2)}×</span> : null}
-                      </li>
-                    ))}
-                  </ol>
-                  <p className="dim small">
-                    crop {video.plan.crop_x.toFixed(2)} · captions {video.plan.caption_style} ×
-                    {video.plan.caption_words}
-                    {video.plan.caption_size &&
-                      ` · ${video.plan.caption_size} ${video.plan.caption_color ?? ""} ${video.plan.caption_position ?? ""}` +
-                        `${video.plan.caption_caps ? " caps" : ""}`}
-                    {video.plan.color_filter && video.plan.color_filter !== "none" && ` · ${video.plan.color_filter}`}
-                    {video.plan.speed && video.plan.speed !== 1 && ` · ${video.plan.speed}× speed`}
-                  </p>
-                  {video.plan.rationale && <p className="small">{video.plan.rationale}</p>}
-                </div>
-              </details>
-
-              <details onToggle={(e) => setShowTranscript(e.currentTarget.open)}>
-                <summary>
-                  Transcript <span className="dim">· what was kept and cut</span>
-                </summary>
-                {showTranscript && <Transcript videoId={video.id} />}
-              </details>
-
-              <details open={showComments} onToggle={(e) => setShowComments(e.currentTarget.open)}>
-                <summary>
-                  Comments <span className="dim">· {video.comments.length}</span>
-                </summary>
-                <div className="vc-comments">
-                  {video.comments.map((c) => (
-                    <p key={c.id} className="vc-comment">
-                      {c.text}
-                    </p>
-                  ))}
-                  <div className="vc-compose">
-                    <input
-                      value={comment}
-                      placeholder="Tell the Creator what to do differently…"
-                      onChange={(e) => setComment(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && send()}
-                    />
-                    <button onClick={send} disabled={pending || !comment.trim()}>
-                      {pending ? "Sending…" : "Send"}
-                    </button>
-                  </div>
-                </div>
-              </details>
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </article>
   );

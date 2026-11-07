@@ -10,70 +10,114 @@
 
 .style-tag {
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 16px;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   color: var(--style);
   background: var(--style-soft);
-  border: 1px solid color-mix(in srgb, var(--style) 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--style) 28%, transparent);
 }
 
 .style-auto {
   font-size: 11px;
-  color: var(--faint);
+  color: var(--text-4);
   font-style: italic;
 }
 
-/* Picker: Auto first, then each style as a toggle with its summary. */
+/* Picker: Auto first, then each style as a selectable tile. It sits in whatever width the Studio gives it,
+   so the grid wraps on the tile minimum rather than assuming a column count. */
 .style-picker {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.style-picker > p {
+.style-picker-note {
   margin: 0;
+  font-size: 12px;
+  color: var(--text-3);
 }
 
 .style-options {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
   gap: 8px;
 }
 
 .style-option {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: flex-start;
+  gap: 3px;
+  min-height: 62px;
+  height: auto;
+  min-width: 0;
+  white-space: normal;
+  justify-content: flex-start;
   text-align: left;
-  padding: 9px 12px;
-  background: var(--sunken);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  padding: 10px 34px 10px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-md);
+  box-shadow: var(--inset-top);
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
 }
 
-.style-option:hover {
-  background: var(--card-hover);
+.style-option:hover:not(:disabled) {
+  background: var(--bg-3);
+  border-color: var(--border-3);
 }
 
-.style-option.on {
-  border-color: var(--style);
-  background: var(--style-soft);
+.style-option.on,
+.style-option.on:hover:not(:disabled) {
+  background: var(--accent-tint);
+  border-color: var(--accent-ring);
 }
 
-.style-option.auto.on {
-  border-color: var(--gold);
-  background: var(--gold-soft);
+.style-option-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border-3);
+  color: transparent;
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.style-option.on .style-option-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
 }
 
 .style-option-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  color: var(--text-1);
+}
+
+.style-option.auto .style-option-title svg {
+  color: var(--accent-text);
 }
 
 .style-option-summary {
   font-size: 12px;
-  color: var(--dim);
+  line-height: 1.4;
+  color: var(--text-3);
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -81,116 +125,58 @@
   overflow: hidden;
 }
 
-/* New style form. */
+/* New style form: a card, labels above fields. */
 .style-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
-  background: var(--sunken);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  gap: 16px;
+  max-width: 760px;
+  padding: 18px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  box-shadow: var(--inset-top), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .style-form label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 5px;
 }
 
-.style-form label .dim {
-  font-weight: 400;
+.style-form-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-1);
+}
+
+.style-form-label .agentname {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.style-form-help {
+  font-size: 12px;
+  color: var(--text-3);
 }
 
 .style-form textarea {
-  font: inherit;
-  font-weight: 400;
-  color: inherit;
-  resize: vertical;
-  padding: 8px 10px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  font-family: inherit;
+  min-height: 84px;
 }
 
 .style-form-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-top: 2px;
 }
 
 .style-form-actions p {
-  margin: 0;
-}
-
-/* Library: each style with its Creator and Reviewer files. */
-.style-library {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.style-entry {
-  background: var(--sunken);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-
-.style-entry summary {
-  cursor: pointer;
-  padding: 8px 12px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
-}
-
-.style-entry-summary {
-  flex-basis: 100%;
-}
-
-.style-files {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 12px;
-  padding: 0 12px 12px;
-}
-
-.style-files pre {
-  margin: 6px 0 0;
-  max-height: 260px;
-  overflow: auto;
-  padding: 10px;
-  white-space: pre-wrap;
-  font-family: var(--mono);
-  font-size: 12px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
-}
-
-/* Style filter on the Feed and Rejected. */
-.style-filter {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--dim);
-}
-
-.style-filter button {
-  font-size: 12px;
-  padding: 3px 10px;
-  border-radius: 999px;
-}
-
-.style-filter button.on {
-  border-color: var(--style);
-  color: var(--style);
-  background: var(--style-soft);
+  margin: 0 0 0 4px;
 }
 
 /* What an Auditor change targets, on its Versions card. */
@@ -199,78 +185,211 @@
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  color: var(--dim);
+  color: var(--text-3);
 }
 
 /* The Styles tab. */
 .styles-tab {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-
-.styles-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
   gap: 16px;
 }
 
-.styles-head h2 {
-  margin: 0 0 4px;
+.styles-tab .page-title {
+  margin-bottom: 8px;
 }
 
-.styles-head p {
+.styles-tab .page-title button {
+  flex-shrink: 0;
+}
+
+.style-added {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin: 0;
-  max-width: 640px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.style-added svg {
+  color: var(--ok);
 }
 
 .style-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 14px;
   align-items: start;
 }
 
 .style-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 14px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  gap: 12px;
+  padding: 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  box-shadow: var(--inset-top), 0 1px 2px rgba(0, 0, 0, 0.3);
+  min-width: 0;
 }
 
 .style-card header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
 }
 
 .style-card h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.style-card header code {
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--style);
+  background: var(--style-soft);
+  border-radius: var(--r-xs);
 }
 
 .style-card-summary {
   margin: 0;
   font-size: 13px;
-  color: var(--dim);
+  line-height: 1.5;
+  color: var(--text-2);
+}
+
+.style-card-none {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-4);
 }
 
 .style-card-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 14px;
-  font-size: 13px;
+  gap: 6px 24px;
+  padding: 12px 0;
+  border-block: 1px solid var(--border-1);
 }
 
-.style-card .style-entry summary {
-  font-size: 13px;
+.style-card-stats .stat {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 6px;
+  font-size: 12px;
+  color: var(--text-3);
 }
 
-.style-card .style-files {
+.style-card-stats .stat strong {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.style-card-stats .meter {
+  grid-column: 1 / -1;
+  height: 3px;
+  margin-top: 6px;
+  overflow: hidden;
+  border-radius: var(--r-pill);
+  background: var(--fill-selected);
+}
+
+.style-card-stats .meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ok);
+  transition: width var(--med) var(--ease-move);
+}
+
+/* Skill files: a collapsible, two mono panes labelled with their agent's colour. */
+.style-entry summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  border-radius: var(--r-sm);
+  transition: color var(--fast) var(--ease);
+}
+
+.style-entry summary::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform var(--fast) var(--ease);
+}
+
+.style-entry[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+.style-entry summary:hover {
+  color: var(--text-1);
+}
+
+.style-files {
+  display: grid;
   grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.style-file {
+  min-width: 0;
+  background: var(--bg-0);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.style-file-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  padding: 7px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-1);
+  border-left: 2px solid var(--creator);
+  background: var(--creator-tint);
+}
+
+.style-file.reviewer .style-file-head {
+  border-left-color: var(--reviewer);
+  background: var(--reviewer-tint);
+}
+
+.style-file-head code {
+  font-size: 11px;
+  color: var(--text-3);
+  overflow-wrap: anywhere;
+}
+
+.style-file pre {
+  margin: 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 10px 12px;
+  white-space: pre-wrap;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-2);
+}
+
+.style-file > .style-card-none {
+  padding: 10px 12px;
 }

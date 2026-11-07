@@ -1,11 +1,47 @@
 import { invoke } from "@tauri-apps/api/core";
 
-// The engine URL comes from the Rust layer. Outside Tauri (plain `npm run dev`), use the default.
+// The engine URL comes from the Rust layer. Outside Tauri (plain `npm run dev`), VITE_ENGINE_URL if set, else the
+// default port.
 let engineUrl: Promise<string> | null = null;
 export function getEngineUrl(): Promise<string> {
-  engineUrl ??= invoke<string>("engine_url").catch(() => "http://127.0.0.1:8765");
+  engineUrl ??= invoke<string>("engine_url").catch(
+    () => (import.meta.env.VITE_ENGINE_URL as string | undefined) ?? "http://127.0.0.1:8765",
+  );
   return engineUrl;
 }
+
+/**
+ * The project the app is showing (#14). Footage, jobs, videos and the Showcase belong to a project; skills,
+ * versions, styles and the Auditor are shared by all of them. An engine without projects ignores the parameter.
+ */
+const PROJECT_KEY = "sisyphus.project";
+let project = "default";
+try {
+  project = localStorage.getItem(PROJECT_KEY) || "default";
+} catch {
+  // storage blocked: start on the default project
+}
+export function currentProject() {
+  return project;
+}
+export function setCurrentProject(id: string) {
+  project = id;
+  try {
+    localStorage.setItem(PROJECT_KEY, id);
+  } catch {
+    // not remembered across reloads, which is fine
+  }
+}
+const inProject = (path: string) => `${path}${path.includes("?") ? "&" : "?"}project=${encodeURIComponent(project)}`;
+
+export type Project = {
+  id: string;
+  name: string;
+  created_at: number;
+  videos: number;
+  footage: number;
+  footage_dir: string;
+};
 
 export type Footage = {
   file: string;
@@ -45,6 +81,7 @@ export type Video = {
   footage: string;
   brief: string;
   status: VideoStatus;
+  project?: string; // #14; absent on an engine without projects
   creator_version: string | null;
   reviewer_version: string | null;
   skills_ref: string | null;
@@ -164,13 +201,24 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   health: () => req<{ status: string; versions: Record<string, string> }>("/health"),
-  footage: () => req<Footage[]>("/footage"),
-  videos: (status?: string) => req<Video[]>(`/videos${status ? `?status=${status}` : ""}`),
+  projects: () => req<Project[]>("/projects"),
+  createProject: (name: string) => req<Project>("/projects", { method: "POST", body: JSON.stringify({ name }) }),
+  renameProject: (id: string, name: string) =>
+    req<Project>(`/projects/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ name }) }),
+  deleteProject: (id: string) => req<{ deleted: string }>(`/projects/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  footage: () => req<Footage[]>(inProject("/footage")),
+  footageUrl: async (file: string) => `${await getEngineUrl()}${inProject(`/footage/${encodeURIComponent(file)}/file`)}`,
+  videos: (status?: string) => req<Video[]>(inProject(`/videos${status ? `?status=${status}` : ""}`)),
+  // Every project's clips: the agents' activity and the shared learning (versions, styles) span projects. An engine
+  // without projects ignores the parameter and answers with every clip anyway.
+  allVideos: () => req<Video[]>("/videos?project=*"),
   // No styles (or none picked) means Auto: the Creator picks from the library.
   createJob: (footage: string, brief: string, styles: string[] = []) =>
     req<{ id: number }>("/jobs", {
       method: "POST",
-      body: JSON.stringify(styles.length ? { footage, brief, styles } : { footage, brief }),
+      body: JSON.stringify(
+        styles.length ? { footage, brief, styles, project } : { footage, brief, project },
+      ),
     }),
   styles: () => req<Style[]>("/styles"),
   // Answers with the new style, shaped like a GET /styles item.
@@ -184,8 +232,8 @@ export const api = {
   failures: () => req<Failure[]>("/failures"),
   auditStatus: () => req<AuditStatus>("/audit"),
   runAudit: () => req<AuditStatus>("/audit", { method: "POST" }),
-  showcase: () => req<ShowcaseTable>("/showcase"),
-  renderShowcase: () => req<{ queued: number[] }>("/showcase", { method: "POST" }),
+  showcase: () => req<ShowcaseTable>(inProject("/showcase")),
+  renderShowcase: () => req<{ queued: number[] }>(inProject("/showcase"), { method: "POST" }),
   transcript: (id: number) => req<TranscriptView>(`/videos/${id}/transcript`),
   videoUrl: async (id: number) => `${await getEngineUrl()}/videos/${id}/file`,
 };

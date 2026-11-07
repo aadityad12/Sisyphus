@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { Check, Palette, Plus, Sparkles } from "lucide-react";
 import "./Styles.css";
 import { api, type Style, type Video } from "./api";
 import { usePoll } from "./usePoll";
+import { Empty } from "./ui";
 
 /**
  * Editing styles (#13). A style is two skill files: how the Creator edits in it, and what the Reviewer
@@ -65,7 +67,12 @@ export function StylePicker({
           onClick={() => onChange([])}
           title="The Creator picks the styles that suit the footage and the brief"
         >
-          <span className="style-option-title">Auto</span>
+          <span className="style-option-check" aria-hidden="true">
+            <Check size={11} strokeWidth={3} />
+          </span>
+          <span className="style-option-title">
+            <Sparkles size={13} aria-hidden="true" /> Auto
+          </span>
           <span className="style-option-summary">The Creator picks for the footage and brief.</span>
         </button>
         {styles.map((s) => (
@@ -76,12 +83,15 @@ export function StylePicker({
             onClick={() => toggle(s.name)}
             title={s.summary}
           >
+            <span className="style-option-check" aria-hidden="true">
+              <Check size={11} strokeWidth={3} />
+            </span>
             <span className="style-option-title">{s.title}</span>
             <span className="style-option-summary">{s.summary}</span>
           </button>
         ))}
       </div>
-      <p className="dim small">
+      <p className="style-picker-note">
         {picked.length === 0
           ? "Auto: the Creator chooses from the library, and the clip is tagged with what it used."
           : picked.length === 1
@@ -124,17 +134,19 @@ export function NewStyleForm({ onCreated, onCancel }: { onCreated: (style: Style
   return (
     <div className="style-form">
       <label>
-        <span>Name</span>
+        <span className="style-form-label">Name</span>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Documentary" />
         {name && (
-          <span className="dim small">
-            saved as <code>{slug || "…"}</code>
+          <span className="style-form-help">
+            Saved as <code>{slug || "…"}</code>
           </span>
         )}
       </label>
       <label>
-        <span>How to edit in it</span>
-        <span className="dim small">For the Creator: pacing, cuts, captions, zoom, colour.</span>
+        <span className="style-form-label">
+          How to edit in it <span className="agentname creator">Creator</span>
+        </span>
+        <span className="style-form-help">For the Creator: pacing, cuts, captions, zoom, colour.</span>
         <textarea
           rows={3}
           value={how}
@@ -143,8 +155,10 @@ export function NewStyleForm({ onCreated, onCancel }: { onCreated: (style: Style
         />
       </label>
       <label>
-        <span>What a good one looks like</span>
-        <span className="dim small">For the Reviewer: how it judges a clip that claims this style.</span>
+        <span className="style-form-label">
+          What a good one looks like <span className="agentname reviewer">Reviewer</span>
+        </span>
+        <span className="style-form-help">For the Reviewer: how it judges a clip that claims this style.</span>
         <textarea
           rows={3}
           value={good}
@@ -194,42 +208,48 @@ function StyleCard({ style, stats }: { style: Style; stats: StyleStats | undefin
     <article className="style-card">
       <header>
         <h3>{style.title}</h3>
-        <code className="dim small">{style.name}</code>
+        <code>{style.name}</code>
       </header>
       <p className="style-card-summary">{style.summary}</p>
-      <div className="style-card-stats">
-        {stats ? (
-          <>
-            <span>
-              <strong>{stats.clips}</strong> clip{stats.clips === 1 ? "" : "s"}
+      {stats ? (
+        <div className="style-card-stats">
+          <div className="stat">
+            <strong>{stats.clips}</strong>
+            <span>clip{stats.clips === 1 ? "" : "s"}</span>
+          </div>
+          <div className="stat" title="A human vote where there is one, else the Reviewer's verdict">
+            <strong>{pct === null ? "–" : `${pct}%`}</strong>
+            <span>passed{stats.judged > 0 && ` (${stats.passed}/${stats.judged})`}</span>
+            <span className="meter" aria-hidden="true">
+              <span style={{ width: `${pct ?? 0}%` }} />
             </span>
-            <span title="A human vote where there is one, else the Reviewer's verdict">
-              <strong>{pct === null ? "–" : `${pct}%`}</strong> passed
-              {stats.judged > 0 && (
-                <span className="dim">
-                  {" "}
-                  ({stats.passed}/{stats.judged})
-                </span>
-              )}
-            </span>
-            {stats.auto > 0 && <span className="dim">{stats.auto} picked on Auto</span>}
-          </>
-        ) : (
-          <span className="dim">No clips in this style yet.</span>
-        )}
-      </div>
+          </div>
+          {stats.auto > 0 && (
+            <div className="stat">
+              <strong>{stats.auto}</strong>
+              <span>picked on Auto</span>
+            </div>
+          )}
+        </div>
+      ) : (
+        <p className="style-card-none">No clips in this style yet.</p>
+      )}
       <details className="style-entry">
         <summary>Skill files</summary>
         <div className="style-files">
-          <div>
-            <span className="agentname creator">Creator</span>
-            <code className="dim small"> skills/creator/styles/{style.name}.md</code>
+          <div className="style-file creator">
+            <div className="style-file-head">
+              <span className="agentname creator">Creator</span>
+              <code>skills/creator/styles/{style.name}.md</code>
+            </div>
             <pre>{style.creator}</pre>
           </div>
-          <div>
-            <span className="agentname reviewer">Reviewer</span>
-            <code className="dim small"> skills/reviewer/styles/{style.name}.md</code>
-            {style.reviewer ? <pre>{style.reviewer}</pre> : <p className="dim small">No Reviewer file yet.</p>}
+          <div className="style-file reviewer">
+            <div className="style-file-head">
+              <span className="agentname reviewer">Reviewer</span>
+              <code>skills/reviewer/styles/{style.name}.md</code>
+            </div>
+            {style.reviewer ? <pre>{style.reviewer}</pre> : <p className="style-card-none">No Reviewer file yet.</p>}
           </div>
         </div>
       </details>
@@ -246,27 +266,32 @@ export function StylesTab({ videos }: { videos: Video[] }) {
 
   if (!library.data) {
     return library.error ? (
-      <p className="dim">
-        This engine has no editing styles (GET /styles: {library.error}). They arrive with #13's engine change.
-      </p>
+      <Empty icon={<Palette size={18} />} title="No editing styles on this engine">
+        GET /styles: {library.error}. They arrive with #13's engine change.
+      </Empty>
     ) : (
-      <p className="dim">Loading styles…</p>
+      <div className="style-cards" aria-label="Loading styles">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="style-card shimmer" style={{ height: 150 }} />
+        ))}
+      </div>
     );
   }
   const styles = withCreated(library.data, added);
   return (
     <div className="styles-tab">
-      <div className="styles-head">
+      <div className="page-title">
         <div>
-          <h2>Editing styles</h2>
-          <p className="dim small">
+          <h1>Editing styles</h1>
+          <p>
             Each style is two skill files: how the Creator edits in it, and what the Reviewer expects of a clip that
             claims it. The Auditor improves each through its own A/B.
           </p>
         </div>
+        <span className="grow" />
         {!adding && (
           <button className="primary" onClick={() => setAdding(true)}>
-            + New style
+            <Plus size={14} /> New style
           </button>
         )}
       </div>
@@ -281,12 +306,14 @@ export function StylesTab({ videos }: { videos: Video[] }) {
         />
       )}
       {added.length > 0 && !adding && (
-        <p className="dim small">
-          Added <code>{added[added.length - 1].name}</code>. Pick it in the Studio.
+        <p className="style-added">
+          <Check size={13} /> Added <code>{added[added.length - 1].name}</code>. Pick it in the Studio.
         </p>
       )}
       {styles.length === 0 ? (
-        <p className="dim">No styles yet. Add the first one.</p>
+        <Empty icon={<Palette size={18} />} title="No styles yet">
+          Add the first one.
+        </Empty>
       ) : (
         <div className="style-cards">
           {styles.map((s) => (

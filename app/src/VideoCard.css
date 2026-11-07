@@ -1,500 +1,593 @@
-/* Video cards: a 9:16 frame on the left, the loop (verdict, who made it, your call) on the right. */
+/* A clip: the 9:16 frame beside what the Reviewer decided, what was made, and your call. */
 
-/* The card is a size container, so it stacks by its own width, not the window's: a 460px grid cell
-   leaves too little room beside a full-size frame. */
 .vcard {
-  container-type: inline-size;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  gap: 18px;
   padding: 14px;
-  box-shadow: var(--shadow);
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-lg);
+  box-shadow: var(--inset-top);
+  transition:
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+  animation: fade-up var(--med) var(--ease) both;
+}
+.vcard:hover {
+  border-color: var(--border-2);
 }
 
-.vcard.v-approved {
-  border-color: color-mix(in srgb, var(--green) 35%, var(--line));
-}
-
-.vcard.v-rejected,
-.vcard.v-failed {
-  border-color: color-mix(in srgb, var(--red) 35%, var(--line));
-}
-
-.vc-inner {
-  display: flex;
-  gap: 16px;
-}
-
-/* The vertical frame. Shorts are 9:16, so the frame is too, whatever the video inside. */
 .vc-frame {
-  flex: 0 0 clamp(150px, 38%, 216px);
-  align-self: flex-start;
+  position: relative;
+  align-self: start;
+  aspect-ratio: 9 / 16;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #000;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.45);
 }
-
-.vc-frame video,
-.vc-empty {
+.vc-frame video {
   display: block;
   width: 100%;
-  aspect-ratio: 9 / 16;
-  border-radius: var(--radius-sm);
-  background: #000;
+  height: 100%;
   object-fit: contain;
-  outline: 1px solid var(--line);
-  outline-offset: -1px;
+  background: #000;
 }
-
 .vc-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px;
-  color: var(--faint);
-  font-size: 13px;
-  text-align: center;
-  background: var(--sunken);
+  display: grid;
+  place-items: center;
+  height: 100%;
+  font-size: 12px;
+  color: var(--text-3);
+  background: var(--bg-0);
 }
-
 .vc-empty.busy {
-  color: var(--dim);
-  background: linear-gradient(110deg, var(--sunken) 30%, var(--card-hover) 50%, var(--sunken) 70%);
-  background-size: 200% 100%;
-  animation: vc-shimmer 1.6s linear infinite;
-}
-
-@keyframes vc-shimmer {
-  to {
-    background-position: -200% 0;
-  }
+  background: linear-gradient(110deg, var(--bg-0) 30%, var(--bg-3) 50%, var(--bg-0) 70%) 0 0 / 300% 100%;
+  animation: shimmer 1.8s linear infinite;
 }
 
 .vc-body {
-  flex: 1;
-  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
-.vc-body p {
-  margin: 0;
-}
+/* ---- The verdict ---- */
 
-/* Verdict: the Reviewer's decision and its reason, in the Reviewer's colour. */
 .vc-verdict {
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  background: var(--sunken);
-  border-left: 3px solid var(--line-strong);
+  --v: var(--text-2);
+  --v-tint: var(--fill-active);
 }
-
 .vc-verdict.ok {
-  background: var(--green-soft);
-  border-left-color: var(--green);
+  --v: var(--ok);
+  --v-tint: var(--ok-tint);
 }
-
 .vc-verdict.no {
-  background: var(--red-soft);
-  border-left-color: var(--red);
+  --v: var(--err);
+  --v-tint: var(--err-tint);
 }
-
 .vc-verdict-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  font-size: 12.5px;
   font-weight: 600;
-  font-size: 14px;
+  color: var(--v);
 }
-
-.vc-verdict.ok .vc-verdict-head {
-  color: var(--green);
-}
-
-.vc-verdict.no .vc-verdict-head {
-  color: var(--red);
-}
-
-.vc-verdict .icon {
+.vc-verdict-head .icon {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-size: 12px;
-  color: var(--bg);
-  background: var(--dim);
 }
-
-.vc-verdict.ok .icon {
-  background: var(--green);
-}
-
-.vc-verdict.no .icon {
-  background: var(--red);
-}
-
 .vc-ver {
   margin-left: auto;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 400;
   padding: 1px 6px;
-  border-radius: 6px;
+  font-size: 10.5px;
   color: var(--reviewer);
-  background: color-mix(in srgb, var(--reviewer) 14%, transparent);
+  background: var(--reviewer-tint);
+  border-radius: var(--r-xs);
 }
-
 .vc-verdict blockquote {
+  position: relative;
   margin: 8px 0 0;
-  padding: 0 0 0 10px;
-  border-left: 2px solid color-mix(in srgb, var(--reviewer) 60%, transparent);
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1.45;
-  font-style: italic;
+  padding: 0 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+  border-left: 2px solid var(--v);
+  border-left-color: color-mix(in srgb, var(--v) 55%, transparent);
 }
-
 .vc-verdict blockquote.clamp {
   display: -webkit-box;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
   overflow: hidden;
 }
-
-.vc-moreless {
-  margin-top: 2px;
-  padding: 2px 0 0 12px;
-  font-size: 12px;
+.vc-verdict > .dim.small {
+  margin-top: 6px;
 }
-
-.vc-verdict blockquote::before {
-  content: "Reviewer: ";
-  font-style: normal;
-  font-weight: 600;
-  color: var(--reviewer);
+.vc-moreless {
+  margin: 6px 0 0 12px;
+}
+.vc-verdict.pending {
+  padding: 10px 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
 }
 
 .vc-error {
   margin: 8px 0 0;
-  color: var(--red);
+  padding: 8px 10px;
+  font-size: 11px;
+  color: var(--err);
+  background: var(--err-tint);
+  border-radius: var(--r-sm);
   white-space: pre-wrap;
-  font-family: var(--mono);
-  font-size: 12px;
+  word-break: break-word;
 }
 
-/* Steps: Queued → Creator editing → Reviewer watching → Verdict. */
+/* The loop as a stepper: done steps tick, the current one pulses. */
 .vc-steps {
-  list-style: none;
+  display: flex;
+  align-items: center;
   margin: 0;
   padding: 0;
-  display: flex;
-  gap: 5px;
-  flex-wrap: nowrap;
-  min-width: 0;
-  font-size: 12px;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--text-4);
 }
-
 .vc-steps li {
   display: flex;
   align-items: center;
-  gap: 5px;
-  color: var(--faint);
+  gap: 6px;
   white-space: nowrap;
 }
-
 .vc-steps li + li::before {
   content: "";
-  width: 8px;
+  width: 18px;
   height: 1px;
-  background: var(--line-strong);
+  margin: 0 8px;
+  background: var(--border-2);
 }
-
+.vc-steps li.done + li::before {
+  background: var(--text-4);
+}
 .vc-steps .dot {
-  width: 8px;
-  height: 8px;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  border: 1.5px solid currentColor;
+  border: 1.5px solid var(--border-3);
+  font-size: 9px;
+  font-weight: 700;
+  flex: none;
 }
-
 .vc-steps li.done {
-  color: var(--dim);
+  color: var(--text-3);
 }
-
 .vc-steps li.done .dot {
-  background: currentColor;
+  color: var(--bg-1);
+  background: var(--text-3);
+  border-color: var(--text-3);
 }
-
 .vc-steps li.active {
-  color: var(--gold);
-  font-weight: 600;
+  color: var(--text-1);
+  font-weight: 500;
 }
-
 .vc-steps li.active .dot {
-  background: currentColor;
-  animation: vc-pulse 1.2s ease-in-out infinite;
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+  background: radial-gradient(circle, var(--accent-text) 0 3px, transparent 3.5px);
+  animation: pulse 1.6s var(--ease) infinite;
 }
-
+.vc-steps li.step-1.active .dot {
+  border-color: var(--creator);
+  color: var(--creator);
+  background: radial-gradient(circle, var(--creator) 0 3px, transparent 3.5px);
+}
+.vc-steps li.step-2.active .dot {
+  border-color: var(--reviewer);
+  color: var(--reviewer);
+  background: radial-gradient(circle, var(--reviewer) 0 3px, transparent 3.5px);
+}
 .vc-steps li.stuck {
-  color: var(--red);
-  font-weight: 600;
+  color: var(--err);
+  font-weight: 500;
+}
+.vc-steps li.stuck .dot {
+  color: #fff;
+  background: var(--err);
+  border-color: var(--err);
 }
 
-@keyframes vc-pulse {
-  50% {
-    box-shadow: 0 0 0 4px var(--gold-soft);
-  }
+.vc-stuck {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-1);
+}
+.vc-stuck-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--warn);
 }
 
-/* What the clip is and who made it. */
+/* ---- What was made ---- */
+
+.vc-what {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
 .vc-what h3 {
-  margin: 0 0 4px;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.3;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
+  letter-spacing: -0.015em;
   overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
-
 .vc-brief {
-  color: var(--dim);
-  font-size: 13px;
+  font-size: 12.5px;
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-
 .vc-facts {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  margin-top: 6px !important;
-  font-size: 12px;
+  gap: 6px;
+  margin-top: 2px;
 }
-
 .vc-maker {
-  color: var(--creator);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 20px;
+  padding: 0 7px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--fill-active);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-sm);
 }
-
 .vc-maker code {
-  font-family: var(--mono);
-  padding: 1px 6px;
-  border-radius: 6px;
-  background: color-mix(in srgb, var(--creator) 14%, transparent);
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+.agent-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+.agent-dot.creator {
+  background: var(--creator);
+}
+.agent-dot.reviewer {
+  background: var(--reviewer);
+}
+.agent-dot.auditor {
+  background: var(--auditor);
+}
+.vc-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--text-4);
+}
+.vc-source .file {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vc-source span,
+.vc-source code {
+  flex: none;
+}
+.vc-source .file {
+  flex: 0 1 auto;
+}
+.vc-source code {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.vc-source .sep {
+  color: var(--text-4);
+  opacity: 0.6;
 }
 
 .vc-blame {
   font-size: 12px;
-  color: var(--dim);
+  color: var(--text-3);
 }
 
-/* Your call: the human verdict. */
+/* ---- Your call ---- */
+
 .vc-you {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.vc-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--faint);
-}
-
-.vc-votes {
-  display: flex;
   gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-1);
 }
-
-.vc-votes .vote {
-  flex: 1;
-  padding: 8px 10px;
-  font-weight: 600;
+.vc-you-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.vc-label {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-4);
   white-space: nowrap;
 }
-
-@container (max-width: 520px) {
-  .vc-votes .vote {
-    padding: 7px 6px;
-    font-size: 13px;
-  }
+.vc-votes {
+  display: flex;
+  gap: 6px;
+  flex: 1;
 }
-
-.vc-votes .vote.on.up {
-  background: var(--green-soft);
+.vc-votes .vote {
+  flex: 1;
+  color: var(--text-2);
 }
-
-.vc-votes .vote.on.down {
-  background: var(--red-soft);
+.vc-votes .vote:hover:not(:disabled) {
+  color: var(--text-1);
 }
-
+.vc-votes .vote svg {
+  color: var(--text-3);
+}
+.vc-votes .vote.on.up svg {
+  color: var(--ok);
+}
+.vc-votes .vote.on.down svg {
+  color: var(--err);
+}
 .vc-agree {
   font-size: 12px;
-  color: var(--dim);
+  color: var(--text-3);
 }
-
 .vc-agree.disagree {
-  color: var(--auditor);
+  color: var(--warn);
+}
+.vc-agree.agree::before {
+  content: "✓ ";
+  color: var(--ok);
+}
+.vc-failed {
+  font-size: 12px;
+  color: var(--err);
 }
 
-/* Details behind disclosures: plan, transcript, comments. */
-.vc-more {
+/* ---- Details: plan, transcript, comments ---- */
+
+.vc-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  margin: 0 -6px;
 }
-
-.vc-more details {
-  border-radius: var(--radius-sm);
-}
-
-.vc-more details[open] {
-  background: var(--sunken);
-}
-
-.vc-more summary {
-  cursor: pointer;
-  padding: 6px 8px;
-  font-size: 13px;
-  color: var(--text);
-  border-radius: var(--radius-sm);
-  list-style-position: inside;
-}
-
-.vc-more summary:hover {
-  background: var(--card-hover);
-}
-
-.vc-plan,
-.vc-comments {
-  padding: 4px 12px 10px;
-  font-size: 13px;
-  display: flex;
-  flex-direction: column;
+.vc-tabs button {
+  height: 26px;
+  padding: 0 8px;
   gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  background: transparent;
+  border: 1px solid transparent;
+  box-shadow: none;
+}
+.vc-tabs button svg {
+  color: var(--text-4);
+}
+.vc-tabs button:hover:not(:disabled) {
+  color: var(--text-1);
+  background: var(--fill-hover);
+  border-color: transparent;
+}
+.vc-tabs button.on,
+.vc-tabs button.on:hover:not(:disabled) {
+  color: var(--text-1);
+  background: var(--fill-active);
+}
+.vc-tabs button.on svg {
+  color: var(--text-2);
+}
+.vc-tabs .n {
+  font-size: 11px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
 }
 
-.vc-plan ol {
+.vc-panel {
+  padding: 12px;
+  background: var(--bg-1);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  animation: fade-up 160ms var(--ease) both;
+}
+
+.vc-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 12.5px;
+}
+.vc-hook {
+  color: var(--text-1);
+}
+.vc-hook .k,
+.vc-plan .k {
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-4);
+}
+.vc-segs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin: 0;
-  padding-left: 20px;
-  font-family: var(--mono);
+  padding: 0;
+  list-style: none;
+  max-height: 200px;
+  overflow: auto;
+}
+.vc-segs li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--r-xs);
   font-size: 12px;
 }
-
-.vc-comment {
-  background: var(--card);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
+.vc-segs li:hover {
+  background: var(--fill-hover);
+}
+.vc-segs .i {
+  width: 16px;
+  font-size: 11px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.vc-segs code {
+  color: var(--text-1);
+}
+.vc-knobs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.vc-rationale {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-3);
 }
 
+.vc-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.vc-comment {
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+}
 .vc-compose {
   display: flex;
   gap: 6px;
 }
+.vc-compose input {
+  flex: 1;
+  height: 30px;
+}
 
-/* A clip with no plan yet: one row of brief, stepper and elapsed time. */
+/* ---- A clip with no plan yet: one row ---- */
+
 .vrow {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 14px;
+  min-height: 52px;
   padding: 10px 14px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-sm);
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: var(--r-md);
+  animation: fade-up var(--med) var(--ease) both;
 }
-
-.vrow.v-failed {
-  border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+.vrow + .vrow {
+  margin-top: 6px;
 }
-
+.vrow-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  color: var(--accent-text);
+  background: var(--accent-tint);
+  border-radius: var(--r-sm);
+}
+.vrow-icon.err {
+  color: var(--err);
+  background: var(--err-tint);
+}
+.spin-slow {
+  animation: spin 2.4s linear infinite;
+}
 .vrow-what {
   flex: 1;
   min-width: 0;
 }
-
-.vrow-what p {
-  margin: 0;
-}
-
 .vrow-brief {
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vrow-facts {
-  margin-top: 2px !important;
-  font-size: 12px;
-  color: var(--dim);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vrow .vc-error {
-  margin-top: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vrow-time {
-  flex: 0 0 64px;
-  text-align: right;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--dim);
-}
-
-@media (max-width: 760px) {
-  .vrow {
-    flex-wrap: wrap;
-  }
-}
-
-/* Too narrow for frame and body side by side: stack the frame above the body. */
-@container (max-width: 420px) {
-  .vc-inner {
-    flex-direction: column;
-  }
-
-  .vc-frame {
-    flex-basis: auto;
-    width: 216px;
-    max-width: 100%;
-    align-self: center;
-  }
-}
-
-.vc-brief {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  overflow: hidden;
-}
-
-.vc-failed {
-  font-size: 12px;
-  color: var(--red);
-}
-
-/* A clip the Reviewer failed on: the human gives the verdict instead. */
-.vc-stuck {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-}
-
-.vc-stuck-head {
   font-size: 13px;
-  color: var(--text);
+  font-weight: 500;
+  color: var(--text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vrow-facts {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.vrow-facts .vc-maker {
+  height: auto;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--text-3);
+}
+.vrow-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 64px;
+  justify-content: flex-end;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .vrow .vc-steps .step-label {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .vcard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .vc-frame {
+    max-width: 240px;
+  }
 }

@@ -6,7 +6,6 @@ Reviewer, and a human vote, when there is one, overrides the Reviewer's verdict 
 candidate is adopted only if it passes strictly more clips; a tie keeps the current version.
 """
 
-import json
 import logging
 import os
 import re
@@ -15,7 +14,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import FOOTAGE_DIR, compare, jobs, reviewer_ab, showcase, store, versioning
+from . import compare, jobs, projects, reviewer_ab, showcase, store, versioning
 from .agents import auditor
 
 log = logging.getLogger(__name__)
@@ -49,12 +48,15 @@ def _held_out(exclude_footage: set[str], n: int) -> list[dict]:
     It prefers footage of the same kind as the failures (the manifest's "kind": talk, interview, ...): the
     first A/B on 2026-11-07 tested a fix for interview framing on slide talks only, where both versions
     already passed, so the result said nothing about the change. Then footage no clip has used yet.
+
+    The work comes from the default project's manifest, and its clips are filed in that project:
+    A/B clips are shared machinery, not any one project's work (VISION.md, Projects).
     """
-    manifest = FOOTAGE_DIR / "manifest.json"
-    items = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []
-    items = [m for m in items if m.get("brief") and not m.get("showcase") and (FOOTAGE_DIR / m["file"]).exists()]
+    folder = projects.footage_dir(projects.DEFAULT)
+    items = [m for m in projects.manifest(projects.DEFAULT) if m.get("brief") and not m.get("showcase")]
+    items = [m for m in items if (folder / m["file"]).exists()]
     kinds = {m.get("kind") for m in items if m["file"] in exclude_footage} - {None}
-    used = {v["footage"] for v in store.list_videos()}
+    used = {v["footage"] for v in store.list_videos(project=projects.DEFAULT)}
     fresh = [m for m in items if m["file"] not in exclude_footage]
     fresh.sort(key=lambda m: (bool(kinds) and m.get("kind") not in kinds, m["file"] in used))
     picked = (fresh or items)[:n]
