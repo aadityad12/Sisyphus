@@ -77,6 +77,8 @@ def test_a_studio_job_on_a_showcase_brief_is_marked_showcase(env, monkeypatch):
     same = env["real_submit"]("a.mp4", " brief a ")
     other = env["real_submit"]("a.mp4", "a different brief")
     assert store.get_video(same)["showcase"] == 1
+    assert store.get_video(same)["brief"] == "brief a"  # one Showcase row, not two
+    assert [r["brief"] for r in showcase.table()["rows"]] == ["brief a", "brief b"]
     assert not store.get_video(other)["showcase"]
 
 

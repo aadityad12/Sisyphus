@@ -21,6 +21,7 @@ def video_dir(video_id: int) -> Path:
 
 
 def submit(footage: str, brief: str, skills_ref: str | None = None, **fields) -> int:
+    brief = brief.strip()  # so a showcase brief typed with stray spaces is the same brief everywhere
     path = (FOOTAGE_DIR / footage).resolve()
     if path.parent != FOOTAGE_DIR.resolve() or not path.exists():
         raise FileNotFoundError(footage)
