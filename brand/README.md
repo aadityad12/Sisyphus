@@ -48,25 +48,30 @@ the wordmark. The slanted wordmark inside the lockup keeps a plain i dot (decide
 | Sisyphus Orange | `#EA3F00` | Accent |
 
 Contrast of the orange (WCAG 2): 4.03:1 on white, which meets AA for graphics and large text
-(3:1) but not body text (4.5:1); 5.21:1 on black and 4.68:1 on the app background `#111114`,
+(3:1) but not body text (4.5:1); 5.21:1 on black and 4.85:1 on the app background `#0c0c0f`,
 which meet AA for body text.
 
-The app's colors, as hardcoded in `app/src/App.css` on 2026-11-07 (it defines no CSS variables
-yet; the Figma variables carry proposed `var(--…)` names for when it does):
+The app's colors are CSS variables in `:root` in `app/src/App.css` (as of 2026-11-07, after the UI
+polish in #12); that file is the source of truth, and the main ones are:
 
-| Figma variable | Hex | In the app |
+| Variable | Hex | In the app |
 |---|---|---|
-| `color/bg/canvas` | `#111114` | Page background |
-| `color/bg/surface` | `#18181C` | Panels |
-| `color/bg/raised` | `#1D1D22` | Tab buttons |
-| `color/border/default` | `#2C2C33` | Borders |
-| `color/text/primary` | `#E8E8EA` | Text |
-| `color/accent/highlight` | `#F5B942` | "SI" in the title, active tab border |
-| `color/status/success`, `-bg` | `#7EE2A0` on `#1F3D2A` | "ok" pill |
-| `color/status/danger`, `-bg` | `#F08A8A` on `#3D1F1F` | "down" pill |
+| `--bg` | `#0c0c0f` | Page background |
+| `--panel` | `#141418` | Panels |
+| `--card`, `--card-hover` | `#1b1b21`, `#22222a` | Cards |
+| `--line`, `--line-strong` | `#2a2a32`, `#3d3d48` | Borders |
+| `--text`, `--dim`, `--faint` | `#ececef`, `#8d8d99`, `#5f5f6b` | Text, from primary to faint |
+| `--gold` | `#f5b942` | Highlight; also `--auditor` |
+| `--green`, `--red` | `#5fd38d`, `#f07a7a` | Success and danger |
+| `--creator`, `--reviewer` | `#7aa7f0`, `#c39af5` | One color per agent |
+| `--style` | `#6fd3c7` | Editing styles (#13) |
 
-The app highlights in amber `#F5B942` while the brand accent is orange `#EA3F00`. They are kept as
-separate variables until one is chosen.
+The Figma Design System page's color variables (`color/bg/canvas` and so on) were made from the
+app's colors before the polish and still hold those older values as of 2026-11-07; update them
+from `App.css` when the Figma file is next touched.
+
+The app highlights in amber `#f5b942` while the brand accent is orange `#EA3F00`. They are kept
+apart until one is chosen.
 
 ## Type
 
