@@ -54,11 +54,14 @@ import tempfile
 
 
 def _git_env(*args: str, env: dict | None = None, input: str | None = None) -> str:
+    # Bytes, not text mode: on Windows a text-mode pipe turns LF into CRLF, which put CRLF skill
+    # files into the repo (.gitattributes wants LF everywhere).
+    data = None if input is None else input.replace("\r\n", "\n").encode("utf-8")
     out = subprocess.run(
-        ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True,
-        env={**os.environ, **(env or {})}, input=input, encoding="utf-8",
+        ["git", *args], cwd=REPO_ROOT, capture_output=True, check=True,
+        env={**os.environ, **(env or {})}, input=data,
     )
-    return out.stdout.strip()
+    return out.stdout.decode("utf-8").strip()
 
 
 def head() -> str:

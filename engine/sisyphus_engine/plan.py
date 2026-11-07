@@ -62,6 +62,8 @@ def clamp_raw(raw: dict) -> dict:
     raw = dict(raw)
     if isinstance(raw.get("caption_words"), (int, float)):
         raw["caption_words"] = int(min(8, max(1, raw["caption_words"])))
+    if isinstance(raw.get("hook"), str) and raw["hook"].strip().lower() in ("none", "n/a", "null", "no hook"):
+        raw["hook"] = ""  # the model sometimes spells "no hook" as the word itself
     if isinstance(raw.get("crop_x"), (int, float)):
         raw["crop_x"] = min(1.0, max(0.0, float(raw["crop_x"])))
     return raw
