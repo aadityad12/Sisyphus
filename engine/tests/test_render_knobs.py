@@ -7,9 +7,10 @@ from typing import get_args
 import pytest
 
 from sisyphus_engine import render
-from sisyphus_engine.plan import EditPlan, Segment, clamp_raw, json_schema, sanitize
+from sisyphus_engine.plan import EditPlan, Segment, clamp_raw, json_schema, load, sanitize
 
-# What render() handed ffmpeg at 01c6e37, before any knob existed, for these plans and this transcript.
+# What render() handed ffmpeg at 01c6e37, before any knob existed, for these plans and this transcript;
+# the caption and hook margins since moved out of the platforms' UI bands (#26).
 GOLDEN = json.loads((Path(__file__).parent / "fixtures" / "render_golden.json").read_text(encoding="utf-8"))
 WORDS = [{"start": round(i * 0.5, 2), "end": round(i * 0.5 + 0.4, 2), "word": w}
          for i, w in enumerate("so here is the thing, we built it. and then? it broke again! every time".split())]
@@ -107,14 +108,21 @@ def test_clamp_uses_the_plans_own_bounds():
 def test_clamp_pulls_speed_and_punch_into_range():
     raw = clamp_raw({"speed": 3, "segments": [{"start": 0, "end": 1, "punch": 0.5}, {"start": 1, "end": 2, "punch": 9}]})
     assert raw["speed"] == 1.5
-    assert [s["punch"] for s in raw["segments"]] == [1.0, 2.0]
+    assert [s["punch"] for s in raw["segments"]] == [1.0, 1.3]
     assert clamp_raw({"speed": 0.1})["speed"] == 0.75
 
 
+def test_a_stored_plan_from_before_the_punch_cap_still_loads():
+    old = make().model_dump()
+    old["segments"][1]["punch"] = 1.5  # brain-rot plans punched this hard before #26
+    assert [s.punch for s in load(old).segments] == [1.0, 1.3]
+    assert old["segments"][1]["punch"] == 1.5  # the stored plan itself is left alone
+
+
 def test_punch_survives_sanitize_and_snapping():
-    plan = sanitize(make(punch=(1.0, 1.4)), source_duration=100)
-    assert [s.punch for s in plan.segments] == [1.0, 1.4]
-    assert render.snap_to_words(Segment(start=0.3, end=2.6, punch=1.4), WORDS).punch == 1.4
+    plan = sanitize(make(punch=(1.0, 1.2)), source_duration=100)
+    assert [s.punch for s in plan.segments] == [1.0, 1.2]
+    assert render.snap_to_words(Segment(start=0.3, end=2.6, punch=1.2), WORDS).punch == 1.2
 
 
 def test_speed_scales_caption_times_but_not_cut_points():
@@ -137,15 +145,15 @@ def test_speed_reaches_picture_sound_and_fades(ffmpeg_call):
 
 
 def test_punch_zooms_only_its_segment(ffmpeg_call):
-    g = graph(ffmpeg_call(make(punch=(1.0, 1.5)))[0])
+    g = graph(ffmpeg_call(make(punch=(1.0, 1.25)))[0])
     v0, v1 = (part for part in g.split(";") if part.endswith(("[v0]", "[v1]")))
     assert "crop=iw/" not in v0
-    assert ",crop=iw/1.500:ih/1.500,scale=720:1280,setsar=1[v1]" in v1  # inside the crop: one resize
-    split = graph(ffmpeg_call(make("split", punch=(1.5, 1.0)))[0])
-    assert ",crop=iw/1.500:ih/1.500,scale=720:876[bot0]" in split
+    assert ",crop=iw/1.250:ih/1.250,scale=720:1280,setsar=1[v1]" in v1  # inside the crop: one resize
+    split = graph(ffmpeg_call(make("split", punch=(1.25, 1.0)))[0])
+    assert ",crop=iw/1.250:ih/1.250,scale=720:876[bot0]" in split
     assert "[ts0]scale=720:404[top0]" in split  # the slide on top stays whole
-    fit = graph(ffmpeg_call(make("fit", punch=(1.5, 1.0)))[0])
-    assert "overlay=0:(H-h)/2,crop=iw/1.500:ih/1.500,scale=720:1280,setsar=1[v0]" in fit
+    fit = graph(ffmpeg_call(make("fit", punch=(1.25, 1.0)))[0])
+    assert "overlay=0:(H-h)/2,crop=iw/1.250:ih/1.250,scale=720:1280,setsar=1[v0]" in fit
 
 
 @pytest.mark.parametrize("name", ["warm", "cool", "bw", "film", "vivid"])
@@ -159,7 +167,7 @@ def test_caption_knobs_reach_the_subtitles(ffmpeg_call):
     cap = next(line for line in ass.splitlines() if line.startswith("Style: Cap,"))
     fields = cap.split(",")
     assert fields[2] == "96" and fields[3] == "&H00B469FF"  # size, text colour
-    assert (fields[18], fields[21]) == ("8", "350")  # alignment top centre, clear of a two-line hook
+    assert (fields[18], fields[21]) == ("8", "400")  # alignment top centre, clear of a two-line hook
     assert fields[16] == str(round(5 * 96 / 62))  # outline grows with the text
     assert "so" in ass and "SO" not in ass  # transcript case kept
     assert r"{\c&HFFFFFF&}here{\c&HB469FF&}" in ass  # karaoke highlight, back to the text colour
@@ -178,8 +186,8 @@ def test_a_shot_with_no_face_takes_no_punch(ffmpeg_call, monkeypatch):
     # A faceless shot is shown whole (fit), so a punch-in would crop the slide it is there to show.
     monkeypatch.setattr(render.faces, "shots", lambda footage, a, b: [(0.0, 1.0), (1.0, b - a)])
     monkeypatch.setattr(render.faces, "locate", lambda footage, a, b: (520.0, 260.0, 120.0) if a < 1.0 else None)
-    args, _ = ffmpeg_call(make("tracked", punch=(2.0, 2.0)))
+    args, _ = ffmpeg_call(make("tracked", punch=(1.3, 1.3)))
     g = graph(args)
-    assert "[sh0_1]" in g and "crop=iw/2.000:ih/2.000" in g
+    assert "[sh0_1]" in g and "crop=iw/1.300:ih/1.300" in g
     faceless = [p for p in g.split(";") if "[sv0_1]" in p and "overlay" in p]
-    assert faceless and "crop=iw/2.000" not in faceless[0]
+    assert faceless and "crop=iw/1.300" not in faceless[0]

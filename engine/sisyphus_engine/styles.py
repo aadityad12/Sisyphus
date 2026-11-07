@@ -1,4 +1,4 @@
-"""Editing styles: brain rot, simple, polished, artsy, and whatever people or the Auditor add.
+"""Editing styles: the files in skills/creator/styles/, and whatever people or the Auditor add.
 
 A style is two skill files (issue #13):
 
