@@ -25,6 +25,7 @@ export type EditPlan = {
   caption_style: "karaoke" | "plain" | "none";
   caption_words: number;
   rationale: string;
+  styles?: string[]; // the editing styles the Creator applied (#13)
 };
 
 export type Comment = { id: number; text: string; created_at: number };
@@ -49,10 +50,25 @@ export type Video = {
   review_tags?: string | string[] | null;
   showcase?: number | null;
   failed_agents: string[];
+  // Editing styles (#13): `styles` is what the Creator used (the video's tags), `styles_requested` what the
+  // Studio asked for; empty means Auto, so the Creator picked. Absent on an engine without styles.
+  styles?: string[];
+  styles_requested?: string[];
   comments: Comment[];
   created_at: number;
   updated_at: number;
 };
+
+/** An editing style: two skill files, one telling the Creator how to edit, one telling the Reviewer what good looks like. */
+export type Style = {
+  name: string; // slug, [a-z0-9-]+
+  title: string;
+  summary: string;
+  creator: string; // skills/creator/styles/<name>.md
+  reviewer: string | null; // skills/reviewer/styles/<name>.md
+};
+
+export type NewStyle = { name: string; how_to_edit: string; what_good_looks_like: string };
 
 export type Change = {
   id: number;
@@ -115,8 +131,14 @@ export const api = {
   health: () => req<{ status: string; versions: Record<string, string> }>("/health"),
   footage: () => req<Footage[]>("/footage"),
   videos: (status?: string) => req<Video[]>(`/videos${status ? `?status=${status}` : ""}`),
-  createJob: (footage: string, brief: string) =>
-    req<{ id: number }>("/jobs", { method: "POST", body: JSON.stringify({ footage, brief }) }),
+  // No styles (or none picked) means Auto: the Creator picks from the library.
+  createJob: (footage: string, brief: string, styles: string[] = []) =>
+    req<{ id: number }>("/jobs", {
+      method: "POST",
+      body: JSON.stringify(styles.length ? { footage, brief, styles } : { footage, brief }),
+    }),
+  styles: () => req<Style[]>("/styles"),
+  createStyle: (body: NewStyle) => req<unknown>("/styles", { method: "POST", body: JSON.stringify(body) }),
   feedback: (id: number, body: { liked?: boolean | null; comment?: string }) =>
     req<Video>(`/videos/${id}/feedback`, { method: "POST", body: JSON.stringify(body) }),
   review: (id: number, approved: boolean, reason: string) =>

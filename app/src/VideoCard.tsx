@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import "./VideoCard.css";
 import { api, type Video } from "./api";
+import { StyleTags } from "./Styles";
 
 const STATUS_LABEL: Record<Video["status"], string> = {
   queued: "Queued",
@@ -199,6 +200,9 @@ function InFlightRow({ video }: { video: Video }) {
               {" · "}Creator <code>{shortVersion(video.creator_version)}</code>
             </span>
           )}
+          {/* No plan yet, so no styles used yet: say what was asked for. */}
+          {video.styles_requested !== undefined &&
+            (video.styles_requested.length ? ` · in ${video.styles_requested.join(" + ")}` : " · style: Auto")}
         </p>
         {video.error && <pre className="vc-error">{video.error.split("\n")[0]}</pre>}
       </div>
@@ -302,6 +306,7 @@ export function VideoCard({
                 </span>
               )}
               {video.arm && <span className={`chip arm-${video.arm}`}>A/B {video.arm}</span>}
+              <StyleTags video={video} />
               <span className="dim">
                 {video.footage}
                 {video.plan && ` · ${fmt(duration)} · ${cuts(video.plan.segments.length)}`}

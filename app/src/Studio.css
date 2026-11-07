@@ -210,3 +210,15 @@
 .st-hint a:hover {
   text-decoration-color: currentColor;
 }
+
+/* Step 3, editing styles (#13). */
+.st-add-style {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.st-library summary {
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 0 8px;
+}
