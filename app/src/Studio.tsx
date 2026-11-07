@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import "./Studio.css";
-import { api, type Footage, type Video } from "./api";
+import { api, type Footage, type Style, type Video } from "./api";
 import { shortVersion, VideoCard } from "./VideoCard";
-import { NewStyleForm, StylePicker } from "./Styles";
+import { NewStyleForm, StylePicker, withCreated } from "./Styles";
 import { usePoll } from "./usePoll";
 
 /** A finished clip stays in the Studio this long, so the verdict landing is visible where the job started. */
@@ -83,7 +83,8 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   const [starting, setStarting] = useState(false);
   // Editing styles (#13). An engine without GET /styles answers 404: then there is no picker and jobs run as before.
   const library = usePoll(api.styles, 15000);
-  const styles = library.data ?? [];
+  const [created, setCreated] = useState<Style[]>([]);
+  const styles = withCreated(library.data ?? [], created);
   const [picked, setPicked] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
   // A held Ctrl+Enter fires before the re-render that disables the button; each repeat would be a paid job.
@@ -127,12 +128,9 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
     setError(null);
     setStarting(true);
     try {
-      // A style removed from the library since it was picked is dropped rather than sent.
-      await api.createJob(
-        file,
-        brief,
-        picked.filter((n) => styles.some((s) => s.name === n)),
-      );
+      // Picks go as chosen, never dropped silently: a job quietly switched to Auto would be a paid clip in a mode
+      // nobody asked for. The engine rejects a style it doesn't know (422), and that error is shown.
+      await api.createJob(file, brief, picked);
       refresh();
     } catch (e) {
       setError(String(e));
@@ -247,10 +245,11 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
             {adding ? (
               <NewStyleForm
                 onCancel={() => setAdding(false)}
-                onCreated={async (name) => {
+                onCreated={(style) => {
                   setAdding(false);
-                  await library.refresh();
-                  setPicked([name]);
+                  setCreated((c) => [...c, style]);
+                  setPicked([style.name]);
+                  library.refresh();
                 }}
               />
             ) : (

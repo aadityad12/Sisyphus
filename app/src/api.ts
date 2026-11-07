@@ -154,7 +154,8 @@ export const api = {
       body: JSON.stringify(styles.length ? { footage, brief, styles } : { footage, brief }),
     }),
   styles: () => req<Style[]>("/styles"),
-  createStyle: (body: NewStyle) => req<unknown>("/styles", { method: "POST", body: JSON.stringify(body) }),
+  // Answers with the new style, shaped like a GET /styles item.
+  createStyle: (body: NewStyle) => req<Style>("/styles", { method: "POST", body: JSON.stringify(body) }),
   feedback: (id: number, body: { liked?: boolean | null; comment?: string }) =>
     req<Video>(`/videos/${id}/feedback`, { method: "POST", body: JSON.stringify(body) }),
   review: (id: number, approved: boolean, reason: string) =>

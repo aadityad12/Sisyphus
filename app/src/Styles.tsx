@@ -93,7 +93,7 @@ export function StylePicker({
 }
 
 /** A human adds a style: both files are written and committed by the engine. */
-export function NewStyleForm({ onCreated, onCancel }: { onCreated: (name: string) => void; onCancel: () => void }) {
+export function NewStyleForm({ onCreated, onCancel }: { onCreated: (style: Style) => void; onCancel: () => void }) {
   const [name, setName] = useState("");
   const [how, setHow] = useState("");
   const [good, setGood] = useState("");
@@ -107,8 +107,13 @@ export function NewStyleForm({ onCreated, onCancel }: { onCreated: (name: string
     setPending(true);
     setFailed(null);
     try {
-      await api.createStyle({ name: slug, how_to_edit: how.trim(), what_good_looks_like: good.trim() });
-      onCreated(slug);
+      const made = await api.createStyle({ name: slug, how_to_edit: how.trim(), what_good_looks_like: good.trim() });
+      // The engine returns the style; if a response ever lacks it, build it from what was sent.
+      onCreated(
+        made && typeof made === "object" && made.name
+          ? made
+          : { name: slug, title: name.trim(), summary: how.trim(), creator: how.trim(), reviewer: good.trim() },
+      );
     } catch (e) {
       setFailed(`Couldn't add the style: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
@@ -236,7 +241,7 @@ function StyleCard({ style, stats }: { style: Style; stats: StyleStats | undefin
 export function StylesTab({ videos }: { videos: Video[] }) {
   const library = usePoll(api.styles, 15000);
   const [adding, setAdding] = useState(false);
-  const [added, setAdded] = useState<string | null>(null);
+  const [added, setAdded] = useState<Style[]>([]);
   const stats = statsByStyle(videos);
 
   if (!library.data) {
@@ -248,6 +253,7 @@ export function StylesTab({ videos }: { videos: Video[] }) {
       <p className="dim">Loading styles…</p>
     );
   }
+  const styles = withCreated(library.data, added);
   return (
     <div className="styles-tab">
       <div className="styles-head">
@@ -267,29 +273,37 @@ export function StylesTab({ videos }: { videos: Video[] }) {
       {adding && (
         <NewStyleForm
           onCancel={() => setAdding(false)}
-          onCreated={async (name) => {
+          onCreated={(style) => {
             setAdding(false);
-            setAdded(name);
-            await library.refresh();
+            setAdded((a) => [...a, style]);
+            library.refresh();
           }}
         />
       )}
-      {added && !adding && (
+      {added.length > 0 && !adding && (
         <p className="dim small">
-          Added <code>{added}</code>. Pick it in the Studio.
+          Added <code>{added[added.length - 1].name}</code>. Pick it in the Studio.
         </p>
       )}
-      {library.data.length === 0 ? (
+      {styles.length === 0 ? (
         <p className="dim">No styles yet. Add the first one.</p>
       ) : (
         <div className="style-cards">
-          {library.data.map((s) => (
+          {styles.map((s) => (
             <StyleCard key={s.name} style={s} stats={stats.get(s.name)} />
           ))}
         </div>
       )}
     </div>
   );
+}
+
+/**
+ * The library as last polled, plus styles created since that the poll hasn't returned yet (its refresh can fail,
+ * or an older poll can land after it), so a style just added is never missing from the picker.
+ */
+export function withCreated(library: Style[], created: Style[]): Style[] {
+  return [...library, ...created.filter((c) => !library.some((s) => s.name === c.name))];
 }
 
 /** Filter options for a set of clips: every style they use, by name. */
