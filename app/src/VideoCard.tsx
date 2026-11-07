@@ -255,7 +255,8 @@ export function VideoCard({
   async function send() {
     const text = comment.trim();
     if (!text) return;
-    if (await feedback({ comment: text })) setComment("");
+    // The input stays editable while the request runs; keep anything typed since instead of erasing it.
+    if (await feedback({ comment: text })) setComment((draft) => (draft.trim() === text ? "" : draft));
   }
 
   const duration = video.plan?.segments.reduce((t, s) => t + (s.end - s.start), 0) ?? 0;

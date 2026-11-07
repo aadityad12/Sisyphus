@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./Studio.css";
 import { api, type Footage, type Video } from "./api";
 import { shortVersion, VideoCard } from "./VideoCard";
@@ -79,6 +79,8 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   const [creator, setCreator] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  // A held Ctrl+Enter fires before the re-render that disables the button; each repeat would be a paid job.
+  const startingRef = useRef(false);
 
   useEffect(() => {
     let stop = false;
@@ -113,6 +115,8 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   }
 
   async function start() {
+    if (startingRef.current || !file || !brief.trim()) return;
+    startingRef.current = true;
     setError(null);
     setStarting(true);
     try {
@@ -121,6 +125,7 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
     } catch (e) {
       setError(String(e));
     } finally {
+      startingRef.current = false;
       setStarting(false);
     }
   }
@@ -134,6 +139,9 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   const inFlight = videos.filter((v) => ["queued", "creating", "reviewing"].includes(v.status));
   const finished = videos.filter((v) => ["approved", "rejected", "failed"].includes(v.status));
   const recent = finished.filter((v) => now - v.updated_at < RECENT_S).sort((a, b) => b.updated_at - a.updated_at);
+  // Only verdicts are capped: they are also in the Feed and Rejected. Errors are shown nowhere else, so all stay here.
+  const recentVerdicts = recent.filter((v) => v.status !== "failed");
+  const recentErrors = recent.filter((v) => v.status === "failed");
   const oldErrors = finished.filter((v) => v.status === "failed" && now - v.updated_at >= RECENT_S);
 
   return (
@@ -197,7 +205,7 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
           value={brief}
           onChange={(e) => setBrief(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && file && brief.trim()) start();
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) start();
           }}
           placeholder="A 30-second clip on …"
         />
@@ -225,11 +233,11 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
         <section>
           <h2>Just finished</h2>
           <p className="dim small st-hint">
-            {recent.length > RECENT_MAX
-              ? `The ${RECENT_MAX} newest of ${recent.length}. The rest are in the Feed (approved) and Rejected (sent back).`
+            {recentVerdicts.length > RECENT_MAX
+              ? `The ${RECENT_MAX} newest of ${recentVerdicts.length} verdicts. The rest are in the Feed (approved) and Rejected (sent back).`
               : "Approved clips also go to the Feed; sent-back clips go to Rejected."}
           </p>
-          <Clips videos={recent.slice(0, RECENT_MAX)} refresh={refresh} />
+          <Clips videos={[...recentVerdicts.slice(0, RECENT_MAX), ...recentErrors]} refresh={refresh} />
         </section>
       )}
 
