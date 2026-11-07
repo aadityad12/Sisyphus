@@ -2,18 +2,36 @@ import type { Change, Video } from "./api";
 
 type Row = { version: string; passed: number; total: number; first: number };
 
-/** The promoted change that produced a Creator version, matched on the shorter of the two hashes. */
-function changeFor(version: string, changes: Change[]): Change | undefined {
-  return changes.find((c) => {
-    const merged = c.results?.merged;
-    if (c.agent !== "creator" || c.status !== "promoted" || typeof merged !== "string") return false;
-    const n = Math.min(merged.length, version.length);
-    return n >= 7 && merged.slice(0, n) === version.slice(0, n);
-  });
+/**
+ * A change's headline. The Auditor sometimes titles a change with the skill file it edits
+ * ("editing.md", 2026-11-07); the failure pattern it fixes says more.
+ */
+export function changeTitle(c: Change): string {
+  const cluster = typeof c.results?.cluster === "string" ? c.results.cluster : null;
+  return /^[\w./-]+\.md$/.test(c.title.trim()) && cluster ? `Fix: ${cluster}` : c.title;
+}
+
+const samePrefix = (a: string, b: string) => {
+  const n = Math.min(a.length, b.length);
+  return n >= 7 && a.slice(0, n) === b.slice(0, n);
+};
+
+/**
+ * The promoted change that produced Creator version `index`. The merge hash the engine records is
+ * not always the version the agent reports, so this falls back to order: the nth promotion made vn.
+ */
+function changeFor(version: string, index: number, promoted: Change[]): Change | undefined {
+  return (
+    promoted.find((c) => typeof c.results?.merged === "string" && samePrefix(c.results.merged, version)) ??
+    promoted[index - 1]
+  );
 }
 
 /** Pass rate per Creator version on regular work (A/B clips excluded): is the system getting better? */
-export function Progress({ videos, changes }: { videos: Video[]; changes: Change[] }) {
+export function Progress({ videos, changes, current }: { videos: Video[]; changes: Change[]; current?: string }) {
+  const promoted = changes
+    .filter((c) => c.agent === "creator" && c.status === "promoted")
+    .sort((a, b) => a.created_at - b.created_at);
   const rows = new Map<string, Row>();
   for (const v of videos) {
     if (v.experiment_id !== null || v.showcase || !v.creator_version) continue;
@@ -26,6 +44,8 @@ export function Progress({ videos, changes }: { videos: Video[]; changes: Change
     rows.set(v.creator_version, r);
   }
   const ordered = [...rows.values()].sort((a, b) => a.first - b.first);
+  // A freshly promoted version has no verdicts yet; it still gets a bar, so the promotion shows at once.
+  const awaiting = current && !ordered.some((r) => samePrefix(r.version, current)) ? current : null;
 
   return (
     <section className="evo-chart">
@@ -40,8 +60,8 @@ export function Progress({ videos, changes }: { videos: Video[]; changes: Change
           {ordered.map((r, i) => {
             const pct = Math.round((100 * r.passed) / r.total);
             const prev = i > 0 ? Math.round((100 * ordered[i - 1].passed) / ordered[i - 1].total) : null;
-            const change = changeFor(r.version, changes);
-            const latest = i === ordered.length - 1;
+            const change = i > 0 ? changeFor(r.version, i, promoted) : undefined;
+            const latest = i === ordered.length - 1 && !awaiting;
             return (
               <div key={r.version} className={`barcol ${latest ? "latest" : ""}`}>
                 <div className="barval">
@@ -60,8 +80,8 @@ export function Progress({ videos, changes }: { videos: Video[]; changes: Change
                   <span className="vname">v{i}</span>
                   <code>{r.version.slice(0, 7)}</code>
                 </div>
-                <div className="barnote" title={change?.title}>
-                  {i === 0 ? "starting skills" : change ? change.title : "—"}
+                <div className="barnote" title={change ? changeTitle(change) : undefined}>
+                  {i === 0 ? "starting skills" : change ? changeTitle(change) : "—"}
                 </div>
                 <div className="dim small">
                   {r.passed}/{r.total} clips
@@ -69,13 +89,32 @@ export function Progress({ videos, changes }: { videos: Video[]; changes: Change
               </div>
             );
           })}
+          {awaiting && (
+            <div className="barcol awaiting latest">
+              <div className="barval">
+                <strong className="dim">–</strong>
+              </div>
+              <div className="bartrack" />
+              <div className="barlabel">
+                <span className="vname">v{ordered.length}</span>
+                <code>{awaiting.slice(0, 7)}</code>
+              </div>
+              <div className="barnote">
+                {(() => {
+                  const c = changeFor(awaiting, ordered.length, promoted);
+                  return c ? changeTitle(c) : "current version";
+                })()}
+              </div>
+              <div className="small awaiting-note">current · no clips yet</div>
+            </div>
+          )}
           <div className="barcol ghost" aria-hidden>
             <div className="barval">
               <strong className="dim">?</strong>
             </div>
             <div className="bartrack" />
             <div className="barlabel">
-              <span className="vname dim">v{ordered.length}</span>
+              <span className="vname dim">v{ordered.length + (awaiting ? 1 : 0)}</span>
             </div>
             <div className="barnote">the Auditor's next promoted change</div>
             <div className="small">&nbsp;</div>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import "./Versions.css";
 import { api, type AuditStatus, type Change, type Video } from "./api";
-import { Progress } from "./Progress";
+import { Progress, changeTitle } from "./Progress";
 import { usePoll } from "./usePoll";
 
 const STAMP: Record<Change["status"], string> = {
@@ -250,7 +250,7 @@ function ChangeCard({ change }: { change: Change }) {
         <span className={`stamp ${change.status}`}>{STAMP[change.status]}</span>
         <span className="dim small change-time">{new Date(change.created_at * 1000).toLocaleTimeString()}</span>
       </header>
-      <h3>{change.title}</h3>
+      <h3 title={change.title}>{changeTitle(change)}</h3>
       {cluster && (
         <p className="cluster">
           <span className="dim">Pattern:</span> {cluster}
@@ -294,7 +294,7 @@ export function Versions({ videos }: { videos: Video[] }) {
   return (
     <div className="versions">
       <div className="evo">
-        <Progress videos={videos} changes={data.changes} />
+        <Progress videos={videos} changes={data.changes} current={data.current.creator} />
         <AuditorPanel />
       </div>
 
