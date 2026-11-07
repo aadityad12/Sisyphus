@@ -17,20 +17,15 @@ const samePrefix = (a: string, b: string) => {
 };
 
 /**
- * The promoted change that produced Creator version `index`. The merge hash the engine records is
- * not always the version the agent reports, so this falls back to order: the nth promotion made vn.
+ * The promoted change that produced a Creator version, if one did. Our own commits to the Creator's
+ * code also make new versions, so a version with no matching change gets no Auditor credit: there is
+ * deliberately no fallback by position.
  */
-function changeFor(
-  version: string,
-  index: number,
-  promoted: Change[],
-  known: Record<string, number>,
-): Change | undefined {
+function changeFor(version: string, promoted: Change[], known: Record<string, number>): Change | undefined {
   const id = Object.entries(known).find(([v]) => samePrefix(v, version))?.[1];
   return (
     promoted.find((c) => c.id === id) ??
-    promoted.find((c) => typeof c.results?.merged === "string" && samePrefix(c.results.merged, version)) ??
-    promoted[index - 1]
+    promoted.find((c) => typeof c.results?.merged === "string" && samePrefix(c.results.merged, version))
   );
 }
 
@@ -78,8 +73,8 @@ export function Progress({
           {ordered.map((r, i) => {
             const pct = Math.round((100 * r.passed) / r.total);
             const prev = i > 0 ? Math.round((100 * ordered[i - 1].passed) / ordered[i - 1].total) : null;
-            const change = i > 0 ? changeFor(r.version, i, promoted, known) : undefined;
-            const latest = i === ordered.length - 1 && !awaiting;
+            const change = i > 0 ? changeFor(r.version, promoted, known) : undefined;
+            const latest = current ? samePrefix(r.version, current) : i === ordered.length - 1;
             return (
               <div key={r.version} className={`barcol ${latest ? "latest" : ""}`}>
                 <div className="barval">
@@ -99,7 +94,7 @@ export function Progress({
                   <code>{r.version.slice(0, 7)}</code>
                 </div>
                 <div className="barnote" title={change ? changeTitle(change) : undefined}>
-                  {i === 0 ? "starting skills" : change ? changeTitle(change) : "—"}
+                  {i === 0 ? "starting skills" : change ? changeTitle(change) : "not an Auditor change"}
                 </div>
                 <div className="dim small">
                   {r.passed}/{r.total} clips
@@ -119,7 +114,7 @@ export function Progress({
               </div>
               <div className="barnote">
                 {(() => {
-                  const c = changeFor(awaiting, ordered.length, promoted, known);
+                  const c = changeFor(awaiting, promoted, known);
                   return c ? changeTitle(c) : "current version";
                 })()}
               </div>

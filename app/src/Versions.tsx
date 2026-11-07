@@ -110,16 +110,29 @@ function verdict(v: Video): "pass" | "fail" | "pending" {
   return ok === null ? "pending" : ok ? "pass" : "fail";
 }
 
-function Clip({ video }: { video: Video | undefined }) {
+function Clip({ video, onVoted }: { video: Video | undefined; onVoted: () => void }) {
   const [src, setSrc] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+  const [voteError, setVoteError] = useState<string | null>(null);
   useEffect(() => {
     if (video?.plan) api.videoUrl(video.id).then(setSrc);
   }, [video?.id, video?.plan]);
   if (!video) return <div className="abclip empty" />;
   const v = verdict(video);
   // A human vote overrides the Reviewer for this clip, and can decide the A/B.
-  const vote = (liked: boolean) =>
-    api.feedback(video.id, { liked: video.human_liked === liked ? null : liked });
+  async function vote(liked: boolean) {
+    if (!video || pending) return;
+    setPending(true);
+    setVoteError(null);
+    try {
+      await api.feedback(video.id, { liked: video.human_liked === liked ? null : liked });
+      onVoted();
+    } catch (e) {
+      setVoteError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPending(false);
+    }
+  }
   return (
     <div className={`abclip ${v}`}>
       {src ? <video src={src} controls preload="metadata" /> : <div className="placeholder busy">{video.status}</div>}
@@ -130,21 +143,28 @@ function Clip({ video }: { video: Video | undefined }) {
       {video.review_reason && <p className="dim small">{video.review_reason}</p>}
       {video.plan && (
         <div className="row">
-          <button className={video.human_liked === true ? "vote on up" : "vote"} onClick={() => vote(true)}>
+          <button className={video.human_liked === true ? "vote on up" : "vote"}
+            disabled={pending}
+            onClick={() => vote(true)}
+          >
             ▲
           </button>
-          <button className={video.human_liked === false ? "vote on down" : "vote"} onClick={() => vote(false)}>
+          <button className={video.human_liked === false ? "vote on down" : "vote"}
+            disabled={pending}
+            onClick={() => vote(false)}
+          >
             ▼
           </button>
         </div>
       )}
+      {voteError && <p className="error">Vote not saved: {voteError}</p>}
     </div>
   );
 }
 
 /** Held-out clips, current version beside the candidate, one row per (footage, brief). */
 function ABClips({ changeId }: { changeId: number }) {
-  const { data } = usePoll(() => api.experimentVideos(changeId), 3000);
+  const { data, refresh } = usePoll(() => api.experimentVideos(changeId), 3000);
   if (!data || data.length === 0) return null;
   const rows = new Map<string, { control?: Video; candidate?: Video; brief: string }>();
   for (const v of [...data].reverse()) {
@@ -161,8 +181,8 @@ function ABClips({ changeId }: { changeId: number }) {
       {[...rows.entries()].map(([key, row]) => (
         <div key={key} className="abrow">
           <p className="small">“{row.brief}”</p>
-          <Clip video={row.control} />
-          <Clip video={row.candidate} />
+          <Clip video={row.control} onVoted={refresh} />
+          <Clip video={row.candidate} onVoted={refresh} />
         </div>
       ))}
     </div>

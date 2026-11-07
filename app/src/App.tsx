@@ -33,6 +33,12 @@ function App() {
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
   const [openedAt] = useState(Date.now);
+  // A poll that keeps failing with the same error doesn't re-render, so wake once when "starting" ends.
+  const [, setWoken] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setWoken(true), 20_500);
+    return () => clearTimeout(t);
+  }, []);
   const health = usePoll(api.health, 3000);
   const videos = usePoll(() => api.videos(), 2000);
   const audit = usePoll(api.auditStatus, 2000);
