@@ -31,6 +31,12 @@ MODEL_API_KEY=...
 
 Footage goes in `footage/` (gitignored), with an optional `footage/manifest.json` listing each file's title, speaker and a suggested brief. The Auditor's shadow A/B draws its held-out work from that manifest. Transcripts, renders and the SQLite database go in `runs/` (gitignored). `SISYPHUS_FOOTAGE_DIR` and `SISYPHUS_RUNS_DIR` override both folders, for example to share one footage folder with a second checkout.
 
+On a Mac, transcribe the footage on the GPU before the first run. The engine's faster-whisper has no Metal backend and takes minutes per talk on the CPU. `scripts/prewarm_transcripts.py` runs the same small.en model through whisper.cpp and writes each transcript where the engine looks for it. It did a 15-minute talk in 47 s on an M3, where faster-whisper took 282 s (2026-11-07). It needs `brew install whisper-cpp`, and the first run downloads the 466 MB model into `runs/models/`:
+
+```sh
+cd engine && uv run python ../scripts/prewarm_transcripts.py   # every file in footage/manifest.json not yet cached
+```
+
 ## Development: in the browser, no Rust
 
 Develop the whole day in the browser. Nothing compiles. Run these in two terminals:
