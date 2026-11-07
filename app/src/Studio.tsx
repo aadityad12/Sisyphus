@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import "./Studio.css";
 import { api, type Footage, type Video } from "./api";
 import { shortVersion, VideoCard } from "./VideoCard";
+import { NewStyleForm, StyleLibrary, StylePicker } from "./Styles";
+import { usePoll } from "./usePoll";
 
 /** A finished clip stays in the Studio this long, so the verdict landing is visible where the job started. */
 const RECENT_S = 15 * 60;
@@ -79,6 +81,11 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   const [creator, setCreator] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  // Editing styles (#13). An engine without GET /styles answers 404: then there is no picker and jobs run as before.
+  const library = usePoll(api.styles, 15000);
+  const styles = library.data ?? [];
+  const [picked, setPicked] = useState<string[]>([]);
+  const [adding, setAdding] = useState(false);
   // A held Ctrl+Enter fires before the re-render that disables the button; each repeat would be a paid job.
   const startingRef = useRef(false);
 
@@ -120,7 +127,12 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
     setError(null);
     setStarting(true);
     try {
-      await api.createJob(file, brief);
+      // A style removed from the library since it was picked is dropped rather than sent.
+      await api.createJob(
+        file,
+        brief,
+        picked.filter((n) => styles.some((s) => s.name === n)),
+      );
       refresh();
     } catch (e) {
       setError(String(e));
@@ -221,12 +233,47 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
           placeholder="A 30-second clip on …"
         />
 
+        {library.data && (
+          <>
+            <div className="st-step">
+              <span className="st-num">3</span>
+              <span className="st-label">Pick a style</span>
+              {!adding && (
+                <button className="link st-add-style" onClick={() => setAdding(true)}>
+                  + New style
+                </button>
+              )}
+            </div>
+            {adding ? (
+              <NewStyleForm
+                onCancel={() => setAdding(false)}
+                onCreated={async (name) => {
+                  setAdding(false);
+                  await library.refresh();
+                  setPicked([name]);
+                }}
+              />
+            ) : (
+              <StylePicker styles={styles} value={picked} onChange={setPicked} />
+            )}
+          </>
+        )}
+
         <div className="st-go">
           <button className="primary" disabled={!file || !brief.trim() || starting} onClick={start}>
             {starting ? "Starting…" : "Make clip →"}
           </button>
           {error && <p className="error">{error}</p>}
         </div>
+
+        {styles.length > 0 && (
+          <details className="st-library">
+            <summary>
+              Style library <span className="dim">· what the Creator and the Reviewer are told for each</span>
+            </summary>
+            <StyleLibrary styles={styles} />
+          </details>
+        )}
       </section>
 
       <section>

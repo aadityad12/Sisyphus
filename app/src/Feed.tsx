@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { Video } from "./api";
 import { VideoCard } from "./VideoCard";
+import { stylesIn, stylesOf } from "./Styles";
 import "./Feed.css";
 
 type SortMode = "unvoted" | "newest";
@@ -20,8 +21,23 @@ function sortVideos(videos: Video[], sort: SortMode) {
 }
 
 /** The Reviewer's verdicts: approved clips (Feed) or sent-back clips (Rejected), for humans to agree or disagree. */
-export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" | "rejected"; refresh: () => void }) {
+export function Feed({
+  videos: allVideos,
+  mode,
+  refresh,
+}: {
+  videos: Video[];
+  mode: "feed" | "rejected";
+  refresh: () => void;
+}) {
   const [sort, setSort] = useState<SortMode>("unvoted");
+  // Style filter (#13). It narrows what is shown and counted, never the order: the order below is kept over every
+  // clip, so switching the filter doesn't reshuffle cards. A style no clip has any more falls back to all.
+  const styleOptions = stylesIn(allVideos);
+  const [styleFilter, setStyleFilter] = useState<string | null>(null);
+  const style = styleFilter && styleOptions.includes(styleFilter) ? styleFilter : null;
+  const inStyle = (video: Video) => !style || stylesOf(video).includes(style);
+  const videos = style ? allVideos.filter(inStyle) : allVideos;
   const agreed = videos.filter(
     (video) =>
       video.human_liked !== null && video.review_approved !== null && video.human_liked === video.review_approved,
@@ -32,16 +48,16 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
   ).length;
   const unvoted = videos.filter((video) => video.human_liked === null).length;
   const order = useRef<{ sort: SortMode; ids: number[] }>({ sort, ids: [] });
-  const videosById = new Map(videos.map((video) => [video.id, video]));
+  const videosById = new Map(allVideos.map((video) => [video.id, video]));
 
   // Only a deliberate sort change may move existing cards. Newly finished clips join at the top;
   // polling still supplies fresh video objects, so votes and comments update without moving anything.
   if (order.current.sort !== sort) {
-    order.current = { sort, ids: sortVideos(videos, sort).map((video) => video.id) };
+    order.current = { sort, ids: sortVideos(allVideos, sort).map((video) => video.id) };
   } else {
     const known = new Set(order.current.ids);
     const added = sortVideos(
-      videos.filter((video) => !known.has(video.id)),
+      allVideos.filter((video) => !known.has(video.id)),
       sort,
     ).map((video) => video.id);
     order.current.ids = [...added, ...order.current.ids.filter((id) => videosById.has(id))];
@@ -49,7 +65,8 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
 
   const sorted = order.current.ids
     .map((id) => videosById.get(id))
-    .filter((video): video is Video => video !== undefined);
+    .filter((video): video is Video => video !== undefined)
+    .filter(inStyle);
 
   return (
     <div className="feed-view">
@@ -70,6 +87,20 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
           </select>
         </label>
       </div>
+
+      {styleOptions.length > 0 && (
+        <div className="style-filter" role="group" aria-label="Filter by editing style">
+          Style
+          <button className={style === null ? "on" : ""} aria-pressed={style === null} onClick={() => setStyleFilter(null)}>
+            All
+          </button>
+          {styleOptions.map((s) => (
+            <button key={s} className={style === s ? "on" : ""} aria-pressed={style === s} onClick={() => setStyleFilter(s)}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
 
       {videos.length > 0 && (
         <section className="feed-summary" aria-label="Human feedback summary">
