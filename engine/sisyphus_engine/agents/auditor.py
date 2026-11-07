@@ -47,8 +47,9 @@ CONTROLS = {
     "16:9 frame across the top 404 px, readable at full width, and a tall crop at crop_x filling the 876 px below, "
     "the usual choice for a slide with the speaker beside it); zoom (1-4) magnifies the crop, and crop_y (0 top, "
     "1 bottom) places a zoomed crop vertically, which frames a small speaker inset; track_face (true/false) has "
-    "the renderer find the speaker's face in each segment and centre and size the crop on it, overriding crop_x, "
-    "crop_y and zoom wherever a face is found), caption_style "
+    "the renderer split each segment at camera cuts, centre and size the crop on the face in each shot "
+    "(overriding crop_x, crop_y and zoom), and show any shot without a face, such as a slide or B-roll, whole "
+    "as in fit), caption_style "
     "(karaoke, plain, none) and caption_words (words on screen at once).",
     "reviewer": "The Reviewer's skills are its standards: what makes a clip good enough to approve. A Reviewer "
     "change is judged by how often its verdicts agree with human votes, so fix where it disagreed with people, "
