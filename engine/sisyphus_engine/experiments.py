@@ -97,7 +97,8 @@ def run_audit(agent: str = "creator") -> int | None:
             diff=versioning.diff(base, commit),
             failure_ids=top["video_ids"],
             status="testing",
-            results={"base": base[:8], "candidate": commit[:8], "cluster": top["label"]},
+            # "candidate" becomes the arm tally once the A/B is decided; "candidate_ref" keeps the commit.
+            results={"base": base[:8], "candidate": commit[:8], "candidate_ref": commit[:8], "cluster": top["label"]},
         )
 
         if agent == "reviewer":
@@ -116,11 +117,21 @@ def run_audit(agent: str = "creator") -> int | None:
             results={**(change["results"] or {}), "reviewer_ref": reviewer_ref[:8], "expected": 2 * len(work)},
         )
         _set("testing", f"{branch}: {len(work)} held-out clips × 2 arms")
-        for w in work:
-            for arm, ref in (("control", base[:12]), ("candidate", branch)):
-                jobs.submit(
-                    w["footage"], w["brief"], skills_ref=ref, experiment_id=change_id, arm=arm, reviewer_ref=reviewer_ref
-                )
+        submitted = 0
+        try:
+            for w in work:
+                for arm, ref in (("control", base[:12]), ("candidate", branch)):
+                    jobs.submit(
+                        w["footage"], w["brief"], skills_ref=ref, experiment_id=change_id, arm=arm, reviewer_ref=reviewer_ref
+                    )
+                    submitted += 1
+        except Exception:
+            # Without this the A/B would wait forever for clips that were never submitted
+            # (hearty-ermine and clear-cloak, 2026-11-07): decide on the clips that do exist.
+            change = next(c for c in store.list_changes() if c["id"] == change_id)
+            store.update_change(change_id, results={**(change["results"] or {}), "expected": submitted})
+            maybe_decide(change_id)
+            raise
         return change_id
     except Exception as exc:
         _set("error", str(exc))

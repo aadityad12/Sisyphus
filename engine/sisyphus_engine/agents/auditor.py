@@ -164,4 +164,8 @@ def propose(agent: str, cluster: dict, failures: list[dict], rolled_back: list[d
             changed[f"skills/{agent}/{name}"] = content
     if not changed:
         raise ValueError("Auditor proposed no effective change")
-    return {"title": out["title"].strip(), "rationale": out["rationale"].strip(), "files": changed}
+    title = out["title"].strip()
+    # The model sometimes names the file it edited ("editing.md"); the Versions and Showcase tabs show this title.
+    if title.lower().endswith(".md") or len(title.split()) < 3:
+        title = cluster["label"].strip()
+    return {"title": title, "rationale": out["rationale"].strip(), "files": changed}
