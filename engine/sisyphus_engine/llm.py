@@ -20,7 +20,8 @@ def client() -> OpenAI:
     key = os.environ.get("MODEL_API_KEY")
     if not key:
         raise RuntimeError("MODEL_API_KEY is not set (put it in engine/.env)")
-    return OpenAI(base_url=BASE_URL, api_key=key, timeout=600)
+    # A hung call once blocked a job worker for 10+ min; 600 s x 3 attempts could block it for 30.
+    return OpenAI(base_url=BASE_URL, api_key=key, timeout=180, max_retries=3)
 
 
 def image_part(path: Path) -> dict:
