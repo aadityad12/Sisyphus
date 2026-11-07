@@ -90,5 +90,113 @@
     "source_url": "https://www.youtube.com/watch?v=AYFcmnQrZCg",
     "kind": "talk",
     "brief": "30s clip on why AI agents will change investing more than coding"
+  },
+  {
+    "id": "5SRjPT2Eo7A",
+    "file": "aie-willbrown-train-own-models.mp4",
+    "title": "Your Company Should Train Its Own AI Models",
+    "speaker": "Will Brown (Prime Intellect)",
+    "source_url": "https://www.youtube.com/watch?v=5SRjPT2Eo7A",
+    "kind": "talk",
+    "brief": "30s clip on why agents relearn everything each session and companies should train models on their own traces"
+  },
+  {
+    "id": "zLc8zeGeNaY",
+    "file": "aie-cameronwolfe-netflix-evals.mp4",
+    "title": "How Netflix Evaluates AI When There's No Right Answer",
+    "speaker": "Cameron Wolfe (Netflix)",
+    "source_url": "https://www.youtube.com/watch?v=zLc8zeGeNaY",
+    "kind": "talk",
+    "brief": "30s clip on why human evaluation is the north star for evals when there is no right answer"
+  },
+  {
+    "id": "EtZwTYahfek",
+    "file": "aie-philippschmid-ai-coworker.mp4",
+    "title": "7 Things Your AI Coworker Needs",
+    "speaker": "Philipp Schmid (Google DeepMind)",
+    "source_url": "https://www.youtube.com/watch?v=EtZwTYahfek",
+    "kind": "talk",
+    "brief": "30s clip on the seven things an autonomous AI coworker needs, from a brain to its own computer"
+  },
+  {
+    "id": "y9Sg--RDtks",
+    "file": "aie-ryolu-know-what-we-want.mp4",
+    "title": "When We Can Do Anything, Do We Still Know What We Want?",
+    "speaker": "Ryo Lu (ex-Cursor)",
+    "source_url": "https://www.youtube.com/watch?v=y9Sg--RDtks",
+    "kind": "talk",
+    "brief": "30s clip on a service counter vs a workbench: how to design AI tools that keep you in control"
+  },
+  {
+    "id": "5bxp78i96S8",
+    "file": "yc-paulgraham-startups-ambition.mp4",
+    "title": "Paul Graham On Startups, Ambition, and Great Founders",
+    "speaker": "Paul Graham (interviewed by Vivian Shen)",
+    "source_url": "https://www.youtube.com/watch?v=5bxp78i96S8",
+    "kind": "interview",
+    "brief": "30s clip on what makes a founder formidable, per Paul Graham"
+  },
+  {
+    "id": "X_JsIHUfUjc",
+    "file": "yc-self-improving-company.mp4",
+    "title": "How to Build a Self-Improving Company with AI",
+    "speaker": "Tom Blomfield (Y Combinator)",
+    "source_url": "https://www.youtube.com/watch?v=X_JsIHUfUjc",
+    "kind": "talk",
+    "brief": "30s clip on building recursive self-improving AI loops so a company improves while you sleep"
+  },
+  {
+    "id": "uUWTeEvqiQI",
+    "file": "lex-dhh-ai-programming.mp4",
+    "title": "How AI changed programming",
+    "speaker": "DHH (with Lex Fridman)",
+    "source_url": "https://www.youtube.com/watch?v=uUWTeEvqiQI",
+    "kind": "interview",
+    "brief": "30s clip on how AI changed the way DHH programs"
+  },
+  {
+    "id": "5d6y3poKwK4",
+    "file": "yc-collison-lean-startup.mp4",
+    "title": "Patrick Collison: Is AI Breaking the Lean Startup Playbook? (first 20 min)",
+    "speaker": "Patrick Collison (Stripe)",
+    "source_url": "https://www.youtube.com/watch?v=5d6y3poKwK4",
+    "kind": "interview",
+    "brief": "30s clip on why knowledge still matters in the age of AI, per Patrick Collison"
+  },
+  {
+    "id": "lXUZvyajciY",
+    "file": "pod-karpathy-agi-decade.mp4",
+    "title": "Andrej Karpathy: AGI Is Still a Decade Away (first 20 min)",
+    "speaker": "Andrej Karpathy (interviewed by Dwarkesh Patel)",
+    "source_url": "https://www.youtube.com/watch?v=lXUZvyajciY",
+    "kind": "interview",
+    "brief": "30s clip on why Karpathy says AGI is still a decade away and why we are summoning ghosts, not building animals"
+  },
+  {
+    "id": "ZesOukBjPmI",
+    "file": "pod-matan-grinberg-dark-factory.mp4",
+    "title": "Factory's Matan Grinberg: The Coming Dark Factory Where Software Builds Itself (first 20 min)",
+    "speaker": "Matan Grinberg (Factory, interviewed by Sequoia Capital)",
+    "source_url": "https://www.youtube.com/watch?v=ZesOukBjPmI",
+    "kind": "interview",
+    "brief": "30s clip on why Factory refunded nearly all its revenue to customers when developers weren't obsessed with the product"
+  },
+  {
+    "id": "AwuTTOJGEi0",
+    "file": "pod-brockman-cyber-drug-discovery.mp4",
+    "title": "The Changing Physics of Cybersecurity and Drug Development with Greg Brockman (first 20 min)",
+    "speaker": "Greg Brockman (OpenAI, with Sarah Guo and Elad Gil)",
+    "source_url": "https://www.youtube.com/watch?v=AwuTTOJGEi0",
+    "kind": "interview",
+    "brief": "30s clip on AI agents solving nearly 400 century-old math problems and what that means for scientific discovery"
+  },
+  {
+    "id": "n1E9IZfvGMA",
+    "file": "pod-dario-end-of-exponential.mp4",
+    "title": "Dario Amodei: We Are Near the End of the Exponential (first 20 min)",
+    "speaker": "Dario Amodei (Anthropic, interviewed by Dwarkesh Patel)",
+    "source_url": "https://www.youtube.com/watch?v=n1E9IZfvGMA",
+    "kind": "interview",
+    "brief": "30s clip on Dario's case that we are a few years from a country of geniuses in a data center and what exactly we are scaling"
   }
 ]
