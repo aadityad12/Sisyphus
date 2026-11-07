@@ -1,0 +1,72 @@
+[
+  {
+    "id": "SUqQlvyI3N8",
+    "file": "sparsh-jain-same-mistakes.mp4",
+    "title": "Your AI Agent Keeps Making the Same Mistakes",
+    "speaker": "Sparsh Jain, CentralAgent AI",
+    "brief": "30s clip on why agents repeat the same mistakes and how to stop it"
+  },
+  {
+    "id": "4VmugsE-iP0",
+    "file": "milind-shah-41-to-97.mp4",
+    "title": "How We Took an AI Agent From 41% to 97% Accurate",
+    "speaker": "Milind Sunil Shah, Brainbase Labs",
+    "brief": "30s clip on the single change that moved their agent's accuracy the most"
+  },
+  {
+    "id": "zLc8zeGeNaY",
+    "file": "cameron-wolfe-netflix-evals.mp4",
+    "title": "How Netflix Evaluates AI When There's No Right Answer",
+    "speaker": "Cameron Wolfe, Netflix",
+    "brief": "30s clip on how to evaluate AI output when there is no single right answer"
+  },
+  {
+    "id": "7WUzHIF32vA",
+    "file": "ramakrishnan-lokanathan-eval-100.mp4",
+    "title": "If Your AI Scores 100%, Your Eval Is Wrong",
+    "speaker": "Ramakrishnan Lokanathan, eslams.com",
+    "brief": "30s clip on why a perfect eval score is a warning sign"
+  },
+  {
+    "id": "pz74r-4dGfQ",
+    "file": "ben-holmes-hiding-mistakes.mp4",
+    "title": "Your AI Agent Is Hiding Its Mistakes From You",
+    "speaker": "Ben Holmes, Warp",
+    "brief": "30s clip on how agents hide their mistakes and how to catch them"
+  },
+  {
+    "id": "EtZwTYahfek",
+    "file": "philipp-schmid-ai-coworker.mp4",
+    "title": "7 Things Your AI Coworker Needs",
+    "speaker": "Philipp Schmid, Google DeepMind",
+    "brief": "30s clip on the most important thing an AI coworker needs"
+  },
+  {
+    "id": "T-42NrYjwxM",
+    "file": "alexander-shevchenko-ramp-small-model.mp4",
+    "title": "Our Smaller Model Beat Opus on Finance Tasks",
+    "speaker": "Alexander Shevchenko, Ramp",
+    "brief": "30s clip on how a smaller model beat a frontier model"
+  },
+  {
+    "id": "Ok6QdZHCcI8",
+    "file": "david-abitbol-revolut-self-hosted.mp4",
+    "title": "How Revolut Cut AI Coding Costs 90% With Self-Hosted Open Models",
+    "speaker": "David Abitbol, Revolut",
+    "brief": "30s clip on how Revolut cut AI coding costs by 90%"
+  },
+  {
+    "id": "8vDzncmzxyg",
+    "file": "killian-carlsen-phelan-new-hire.mp4",
+    "title": "Your AI Agent Starts Every Session Like a New Hire",
+    "speaker": "Killian Carlsen-Phelan, Sonar",
+    "brief": "30s clip on why agents need memory between sessions"
+  },
+  {
+    "id": "AYFcmnQrZCg",
+    "file": "frank-long-coatue-investing.mp4",
+    "title": "AI Agents Will Upend Investing Even More Than Coding",
+    "speaker": "Frank Long, Coatue",
+    "brief": "30s clip on why AI agents will change investing more than coding"
+  }
+]
