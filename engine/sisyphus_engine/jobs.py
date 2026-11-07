@@ -1,6 +1,7 @@
 """Background jobs: create a video, then hand it to the Reviewer."""
 
 import json
+import os
 import logging
 import traceback
 from concurrent.futures import ThreadPoolExecutor
@@ -11,7 +12,8 @@ from .agents import creator, reviewer
 from .transcribe import transcribe
 
 log = logging.getLogger(__name__)
-executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="job")
+# Jobs mostly wait on the model API; a render takes ~10 s of CPU.
+executor = ThreadPoolExecutor(max_workers=int(os.environ.get("SISYPHUS_WORKERS", "2")), thread_name_prefix="job")
 
 
 def video_dir(video_id: int) -> Path:
