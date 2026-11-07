@@ -79,7 +79,7 @@ def test_falls_back_to_stills_when_model_rejects_video(clip, monkeypatch):
         if "video_url" in seen[-1]:
             resp = httpx.Response(400, request=httpx.Request("POST", "http://x"))
             raise BadRequestError("video not supported", response=resp, body=None)
-        return {"approved": True, "tags": [], "reason": "Good."}
+        return {"approved": True, "tags": [], "reason": "Good hook and a clean ending."}
 
     monkeypatch.setattr(reviewer.llm, "complete_json", fake)
     r = reviewer.review(clip, "brief")
@@ -105,3 +105,16 @@ def test_record_review_stores_tags(tmp_path, monkeypatch):
     assert v["review_reason"] == "Slow start."
     assert v["review_tags"] == ["hook", "pacing"]
     assert v["reviewer_version"] == "abcdef123456"
+
+
+def test_a_bare_tag_as_the_reason_is_asked_again(clip, monkeypatch):
+    monkeypatch.setattr(reviewer, "load_skills", lambda agent, ref=None: "")
+    answers = iter([
+        {"approved": False, "tags": ["framing"], "reason": "framing"},
+        {"approved": False, "tags": ["framing"], "reason": "At 0:08 the speaker's inset is cut off on the right; fit the frame."},
+    ])
+    seen = []
+    monkeypatch.setattr(reviewer.llm, "complete_json", lambda s, u, sc, n, model=None: seen.append(u) or next(answers))
+    r = reviewer.review(clip, "brief")
+    assert r.reason.startswith("At 0:08") and len(seen) == 2
+    assert "A tag name alone is not a reason" in seen[1][-1]["text"]
