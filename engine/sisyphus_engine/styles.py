@@ -101,6 +101,8 @@ def create(name: str, how_to_edit: str, what_good_looks_like: str) -> dict:
         raise ValueError("a style needs a name with letters or digits")
     if name in names():
         raise FileExistsError(name)
+    if any((SKILLS_DIR / agent / f"{name}.md").exists() for agent in AGENTS):
+        raise ValueError(f"{name} is the name of a shared skill file; pick another")
     how, good = how_to_edit.strip(), what_good_looks_like.strip()
     if not how or not good:
         raise ValueError("a style needs both how to edit and what a good one looks like")

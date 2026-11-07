@@ -127,7 +127,10 @@ def _fit(texts: list[str], size: int, caps: bool) -> str:
     room = WIDTH - 100  # the Cap style's 50 px side margins
     per_char = 0.72 if caps else 0.6  # average advance, in font sizes
     longest = max((len(t) for t in texts), default=0) * per_char * size
-    return "" if longest <= room else f"{{\\fs{int(size * room / longest)}}}"
+    if longest <= room:
+        return ""
+    fs = int(size * room / longest)
+    return f"{{\\fs{fs}\\bord{round(5 * fs / 62)}}}"  # the outline scales with the font, as in the Cap style
 
 
 def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dict]]:
@@ -215,7 +218,8 @@ def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src
         framed.append((a, b, face, plan.layout if face else "fit"))
     if len(framed) == 1:
         _, _, face, layout = framed[0]
-        return _chain(plan, layout, f"raw{i}", f"v{i}", str(i), face, src_w, src_h, seg.punch)
+        # A shot with no face is shown whole, so it takes no punch-in either.
+        return _chain(plan, layout, f"raw{i}", f"v{i}", str(i), face, src_w, src_h, seg.punch if face else 1.0)
     labels = "".join(f"[sh{i}_{k}]" for k in range(len(framed)))
     parts = [f"[raw{i}]split={len(framed)}{labels}"]
     for k, (a, b, face, layout) in enumerate(framed):
@@ -223,7 +227,7 @@ def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src
         # [raw{i}] is already retimed to plan.speed, so the shot bounds (source seconds) are scaled to match.
         s, e = a / plan.speed, b / plan.speed
         parts.append(f"[sh{tag}]trim=start={s:.3f}:end={e:.3f},setpts=PTS-STARTPTS[st{tag}]")
-        parts.extend(_chain(plan, layout, f"st{tag}", f"sv{tag}", tag, face, src_w, src_h, seg.punch))
+        parts.extend(_chain(plan, layout, f"st{tag}", f"sv{tag}", tag, face, src_w, src_h, seg.punch if face else 1.0))
     parts.append("".join(f"[sv{i}_{k}]" for k in range(len(framed))) + f"concat=n={len(framed)}:v=1:a=0[v{i}]")
     return parts
 

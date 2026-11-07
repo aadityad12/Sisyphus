@@ -172,3 +172,14 @@ def test_camera_shots_are_trimmed_in_sped_up_time(ffmpeg_call, monkeypatch):
     args, _ = ffmpeg_call(make("tracked", speed=1.2))
     g = graph(args)
     assert "trim=start=0.000:end=1.000" in g and "trim=start=1.000:end=" in g
+
+
+def test_a_shot_with_no_face_takes_no_punch(ffmpeg_call, monkeypatch):
+    # A faceless shot is shown whole (fit), so a punch-in would crop the slide it is there to show.
+    monkeypatch.setattr(render.faces, "shots", lambda footage, a, b: [(0.0, 1.0), (1.0, b - a)])
+    monkeypatch.setattr(render.faces, "locate", lambda footage, a, b: (520.0, 260.0, 120.0) if a < 1.0 else None)
+    args, _ = ffmpeg_call(make("tracked", punch=(2.0, 2.0)))
+    g = graph(args)
+    assert "[sh0_1]" in g and "crop=iw/2.000:ih/2.000" in g
+    faceless = [p for p in g.split(";") if "[sv0_1]" in p and "overlay" in p]
+    assert faceless and "crop=iw/2.000" not in faceless[0]

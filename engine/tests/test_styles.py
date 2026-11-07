@@ -127,3 +127,9 @@ def test_style_file_named_without_its_folder_is_still_the_style(repo, monkeypatc
     })
     out = auditor.propose("creator", {"label": "l", "root_cause": "c", "video_ids": [], "kind": "style", "style": "simple"}, [], [])
     assert list(out["files"]) == ["skills/creator/styles/simple.md"]
+
+
+def test_a_style_cant_share_a_name_with_a_shared_skill_file(repo):
+    (repo / "skills" / "creator" / "editing.md").write_text("# Editing\n", encoding="utf-8")
+    with pytest.raises(ValueError):
+        styles.create("editing", "a", "b")
