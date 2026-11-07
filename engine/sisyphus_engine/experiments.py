@@ -12,8 +12,10 @@ import os
 import re
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
-from . import FOOTAGE_DIR, jobs, reviewer_ab, showcase, store, versioning
+from . import FOOTAGE_DIR, compare, jobs, reviewer_ab, showcase, store, versioning
 from .agents import auditor
 
 log = logging.getLogger(__name__)
@@ -95,7 +97,8 @@ def run_audit(agent: str = "creator") -> int | None:
             diff=versioning.diff(base, commit),
             failure_ids=top["video_ids"],
             status="testing",
-            results={"base": base[:8], "candidate": commit[:8], "cluster": top["label"]},
+            # "candidate" becomes the arm tally once the A/B is decided; "candidate_ref" keeps the commit.
+            results={"base": base[:8], "candidate": commit[:8], "candidate_ref": commit[:8], "cluster": top["label"]},
         )
 
         if agent == "reviewer":
@@ -107,13 +110,28 @@ def run_audit(agent: str = "creator") -> int | None:
         # A Creator change is judged by a frozen copy of the current Reviewer (VISION.md).
         reviewer_ref = versioning.full_ref(versioning.agent_version("reviewer"))
         change = next(c for c in store.list_changes() if c["id"] == change_id)
-        store.update_change(change_id, results={**(change["results"] or {}), "reviewer_ref": reviewer_ref[:8]})
+        # "expected" lets a decision tell "every clip has a verdict" from "not every clip exists yet": the
+        # first clip can finish before the last one is submitted (exotic-dragonfly's repro, 2026-11-07).
+        store.update_change(
+            change_id,
+            results={**(change["results"] or {}), "reviewer_ref": reviewer_ref[:8], "expected": 2 * len(work)},
+        )
         _set("testing", f"{branch}: {len(work)} held-out clips × 2 arms")
-        for w in work:
-            for arm, ref in (("control", base[:12]), ("candidate", branch)):
-                jobs.submit(
-                    w["footage"], w["brief"], skills_ref=ref, experiment_id=change_id, arm=arm, reviewer_ref=reviewer_ref
-                )
+        submitted = 0
+        try:
+            for w in work:
+                for arm, ref in (("control", base[:12]), ("candidate", branch)):
+                    jobs.submit(
+                        w["footage"], w["brief"], skills_ref=ref, experiment_id=change_id, arm=arm, reviewer_ref=reviewer_ref
+                    )
+                    submitted += 1
+        except Exception:
+            # Without this the A/B would wait forever for clips that were never submitted
+            # (hearty-ermine and clear-cloak, 2026-11-07): decide on the clips that do exist.
+            change = next(c for c in store.list_changes() if c["id"] == change_id)
+            store.update_change(change_id, results={**(change["results"] or {}), "expected": submitted})
+            maybe_decide(change_id)
+            raise
         return change_id
     except Exception as exc:
         _set("error", str(exc))
@@ -133,6 +151,29 @@ def maybe_decide(change_id: int) -> None:
     """Once every A/B clip has a verdict, promote the winner and roll back the loser."""
     with _decide_lock:  # called from job workers and request threads at once
         _decide(change_id)
+
+
+def _compare_pairs(videos: list[dict], reviewer_ref: str | None) -> list[dict]:
+    """Head-to-head per held-out (footage, brief) where both arms rendered. A failed comparison counts as same."""
+    by_work: dict[tuple, dict] = {}
+    for v in videos:
+        if v["video_path"] and v["status"] != "failed":
+            by_work.setdefault((v["footage"], v["brief"]), {})[v["arm"]] = v
+    work = [(k, arms) for k, arms in by_work.items() if "control" in arms and "candidate" in arms]
+    full_ref = versioning.full_ref(reviewer_ref) if reviewer_ref else None
+
+    def one(item):
+        (footage, brief), arms = item
+        try:
+            r = compare.prefer(Path(arms["control"]["video_path"]), Path(arms["candidate"]["video_path"]), brief, full_ref)
+        except Exception as exc:
+            log.exception("head-to-head failed for %s", footage)
+            r = {"winner": "same", "reason": f"comparison failed: {exc}"}
+        return {"footage": footage, "brief": brief, "control_id": arms["control"]["id"],
+                "candidate_id": arms["candidate"]["id"], **r}
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        return list(pool.map(one, work))
 
 
 def _decide(change_id: int) -> None:
@@ -158,11 +199,22 @@ def _decide(change_id: int) -> None:
         if v["human_liked"] is not None:
             a["human_total"] += 1
             a["human_agree"] += int(v["human_liked"])
+    missing = (change["results"] or {}).get("expected", 0) - len(videos)
+    pending += max(0, missing)
     results = {**(change["results"] or {}), **arms, "pending": pending}
     if pending:
         store.update_change(change_id, results=results)
         return
-    won = arms["candidate"]["approved"] > arms["control"]["approved"]
+    c_pass, k_pass = arms["candidate"]["approved"], arms["control"]["approved"]
+    won = c_pass > k_pass
+    if c_pass == k_pass:
+        # Pass/fail can't separate them: the frozen Reviewer compares each pair head to head.
+        pairs = _compare_pairs(videos, results.get("reviewer_ref"))
+        wins = sum(p["winner"] == "candidate" for p in pairs)
+        losses = sum(p["winner"] == "control" for p in pairs)
+        results["pairs"] = pairs
+        results["head_to_head"] = {"candidate": wins, "control": losses, "same": len(pairs) - wins - losses}
+        won = wins > losses
     try:
         if won:
             results["merged"] = versioning.promote(change["branch"])[:8]

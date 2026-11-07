@@ -7,6 +7,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from . import faces
 from .media import ffmpeg
 from .plan import EditPlan, Segment
 from .transcribe import words as all_words
@@ -102,6 +103,71 @@ def timeline(plan: EditPlan, words: list[dict]) -> tuple[list[Segment], list[dic
     return segs, out
 
 
+def _crop(plan: EditPlan, out_w: int, out_h: int) -> str:
+    """An ffmpeg crop with the output's aspect ratio: height = source height / zoom, placed at crop_x, crop_y."""
+    h = f"ih/{plan.zoom:.3f}"
+    w = f"min(iw\\,{h}*{out_w}/{out_h})"  # escaped comma: a bare one would end the filter
+    return f"crop={w}:{h}:(iw-{w})*{plan.crop_x:.3f}:(ih-{h})*{plan.crop_y:.3f}"
+
+
+def _chain(plan: EditPlan, layout: str, src: str, out: str, tag: str, face, src_w: int, src_h: int) -> list[str]:
+    """Filters that turn [src] into a 720x1280 [out] in `layout`. `face` (or None) centres the crop."""
+    def pane_crop(out_w: int, out_h: int, face_share: float) -> str:
+        if face and src_w and src_h:
+            w, h, x, y = faces.crop_on_face(face, src_w, src_h, out_w, out_h, face_share)
+            return f"crop={w}:{h}:{x}:{y}"
+        return _crop(plan, out_w, out_h)
+
+    if layout == "split":
+        # Whole frame across the top (slides stay readable), a tall crop on the speaker below.
+        top_h = 404
+        bottom_h = HEIGHT - top_h
+        return [
+            f"[{src}]split[ts{tag}][bs{tag}]",
+            f"[ts{tag}]scale={WIDTH}:{top_h}[top{tag}]",
+            f"[bs{tag}]{pane_crop(WIDTH, bottom_h, 0.32)},scale={WIDTH}:{bottom_h}[bot{tag}]",
+            f"[top{tag}][bot{tag}]vstack,setsar=1[{out}]",
+        ]
+    if layout == "fit":
+        # Whole frame, full width, centred over a blurred, zoomed copy of itself.
+        crop_w = f"ih*{WIDTH}/{HEIGHT}"
+        return [
+            f"[{src}]split[bgs{tag}][fgs{tag}]",
+            f"[bgs{tag}]crop={crop_w}:ih:(iw-{crop_w})/2:0,scale={WIDTH // 4}:{HEIGHT // 4},boxblur=8:2,"
+            f"scale={WIDTH}:{HEIGHT},eq=brightness=-0.12[bg{tag}]",
+            f"[fgs{tag}]scale={WIDTH}:-2[fg{tag}]",
+            f"[bg{tag}][fg{tag}]overlay=0:(H-h)/2,setsar=1[{out}]",
+        ]
+    return [f"[{src}]{pane_crop(WIDTH, HEIGHT, 0.2)},scale={WIDTH}:{HEIGHT},setsar=1[{out}]"]
+
+
+def _layout(plan: EditPlan, i: int, footage: Path, seg: Segment, src_w: int, src_h: int) -> list[str]:
+    """Filter chains that turn segment i's [raw{i}] into a 720x1280 [v{i}].
+
+    With track_face, the segment is split at camera cuts and each shot is framed on its own: centred on
+    the face it shows, or, if it shows none (a slide, B-roll, a wide or empty shot), fitted whole. One crop
+    for a whole segment put an empty desk on screen whenever the edit cut away from the speaker.
+    """
+    if not (plan.track_face and src_w and src_h):
+        return _chain(plan, plan.layout, f"raw{i}", f"v{i}", str(i), None, src_w, src_h)
+    shots = faces.shots(footage, round(seg.start, 2), round(seg.end, 2))
+    framed = []
+    for a, b in shots:
+        face = faces.locate(footage, round(seg.start + a, 2), round(seg.start + b, 2))
+        framed.append((a, b, face, plan.layout if face else "fit"))
+    if len(framed) == 1:
+        _, _, face, layout = framed[0]
+        return _chain(plan, layout, f"raw{i}", f"v{i}", str(i), face, src_w, src_h)
+    labels = "".join(f"[sh{i}_{k}]" for k in range(len(framed)))
+    parts = [f"[raw{i}]split={len(framed)}{labels}"]
+    for k, (a, b, face, layout) in enumerate(framed):
+        tag = f"{i}_{k}"
+        parts.append(f"[sh{tag}]trim=start={a:.3f}:end={b:.3f},setpts=PTS-STARTPTS[st{tag}]")
+        parts.extend(_chain(plan, layout, f"st{tag}", f"sv{tag}", tag, face, src_w, src_h))
+    parts.append("".join(f"[sv{i}_{k}]" for k in range(len(framed))) + f"concat=n={len(framed)}:v=1:a=0[v{i}]")
+    return parts
+
+
 def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width: int, src_height: int) -> Path:
     workdir = out.parent
     workdir.mkdir(parents=True, exist_ok=True)
@@ -121,27 +187,15 @@ def render(plan: EditPlan, footage: Path, transcript: dict, out: Path, src_width
     parts = []
     for i, s in enumerate(segs):
         d = s.end - s.start
-        parts.append(f"[{i}:v]setpts=PTS-STARTPTS,fps=30[v{i}]")
+        # The layout is applied per segment, so a tracked crop can follow the speaker across camera cuts.
+        parts.append(f"[{i}:v]setpts=PTS-STARTPTS,fps=30[raw{i}]")
+        parts.extend(_layout(plan, i, footage, s, src_width, src_height))
         parts.append(
             f"[{i}:a]asetpts=PTS-STARTPTS,aresample=48000,afade=t=in:d={FADE},afade=t=out:st={max(0, d - FADE):.3f}:d={FADE}[a{i}]"
         )
     concat_in = "".join(f"[v{i}][a{i}]" for i in range(len(segs)))
-    crop_w = f"ih*{WIDTH}/{HEIGHT}"
     parts.append(f"{concat_in}concat=n={len(segs)}:v=1:a=1[cv][ca]")
-    if plan.layout == "fit":
-        # Whole frame, full width, centered over a blurred, zoomed copy of itself.
-        parts.append("[cv]split[bgsrc][fgsrc]")
-        parts.append(
-            f"[bgsrc]crop={crop_w}:ih:(iw-{crop_w})/2:0,scale={WIDTH // 4}:{HEIGHT // 4},boxblur=8:2,"
-            f"scale={WIDTH}:{HEIGHT},eq=brightness=-0.12[bg]"
-        )
-        parts.append(f"[fgsrc]scale={WIDTH}:-2[fg]")
-        parts.append("[bg][fg]overlay=0:(H-h)/2,setsar=1,subtitles=captions.ass:fontsdir=fonts[vout]")
-    else:
-        parts.append(
-            f"[cv]crop={crop_w}:ih:(iw-{crop_w})*{plan.crop_x:.3f}:0,scale={WIDTH}:{HEIGHT},setsar=1,"
-            f"subtitles=captions.ass:fontsdir=fonts[vout]"
-        )
+    parts.append("[cv]subtitles=captions.ass:fontsdir=fonts[vout]")
     args += [
         "-filter_complex", ";".join(parts),
         "-map", "[vout]", "-map", "[ca]",

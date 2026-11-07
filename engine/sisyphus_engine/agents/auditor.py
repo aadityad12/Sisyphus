@@ -43,7 +43,13 @@ if it does better there. So:
 CONTROLS = {
     "creator": "What the Creator can control (its edit plan): which source ranges to keep and their order, the "
     "on-screen hook text (shown for the first 3 seconds), the layout (crop: a 9:16 slice of the frame positioned "
-    "by crop_x, 0 = left edge, 1 = right edge; fit: the whole 16:9 frame over a blurred fill), caption_style "
+    "by crop_x, 0 = left edge, 1 = right edge; fit: the whole 16:9 frame over a blurred fill; split: the whole "
+    "16:9 frame across the top 404 px, readable at full width, and a tall crop at crop_x filling the 876 px below, "
+    "the usual choice for a slide with the speaker beside it); zoom (1-4) magnifies the crop, and crop_y (0 top, "
+    "1 bottom) places a zoomed crop vertically, which frames a small speaker inset; track_face (true/false) has "
+    "the renderer split each segment at camera cuts, centre and size the crop on the face in each shot "
+    "(overriding crop_x, crop_y and zoom), and show any shot without a face, such as a slide or B-roll, whole "
+    "as in fit), caption_style "
     "(karaoke, plain, none) and caption_words (words on screen at once).",
     "reviewer": "The Reviewer's skills are its standards: what makes a clip good enough to approve. A Reviewer "
     "change is judged by how often its verdicts agree with human votes, so fix where it disagreed with people, "
@@ -158,4 +164,8 @@ def propose(agent: str, cluster: dict, failures: list[dict], rolled_back: list[d
             changed[f"skills/{agent}/{name}"] = content
     if not changed:
         raise ValueError("Auditor proposed no effective change")
-    return {"title": out["title"].strip(), "rationale": out["rationale"].strip(), "files": changed}
+    title = out["title"].strip()
+    # The model sometimes names the file it edited ("editing.md"); the Versions and Showcase tabs show this title.
+    if title.lower().endswith(".md") or len(title.split()) < 3:
+        title = cluster["label"].strip()
+    return {"title": title, "rationale": out["rationale"].strip(), "files": changed}

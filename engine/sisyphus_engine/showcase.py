@@ -11,16 +11,22 @@ commit, so a re-run reproduces that version and not whatever is checked out now.
 
 import json
 import logging
+import threading
 
 from . import FOOTAGE_DIR, jobs, store, versioning
 
 log = logging.getLogger(__name__)
+_render_lock = threading.Lock()
 
 
 def entries() -> list[dict]:
     manifest = FOOTAGE_DIR / "manifest.json"
     items = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []
     return [m for m in items if m.get("showcase") and m.get("brief") and (FOOTAGE_DIR / m["file"]).exists()]
+
+
+def is_showcase(footage: str, brief: str) -> bool:
+    return any(m["file"] == footage and m["brief"].strip() == brief.strip() for m in entries())
 
 
 def _videos() -> list[dict]:
@@ -30,7 +36,11 @@ def _videos() -> list[dict]:
 def render(version: str | None = None) -> list[int]:
     """Render every showcase brief at `version` (default: the current Creator version), skipping ones
     already rendered or in flight at that version. A failed render is retried. Returns the new video ids."""
-    version = version or versioning.agent_version("creator")
+    with _render_lock:
+        return _render(version or versioning.agent_version("creator"))
+
+
+def _render(version: str) -> list[int]:
     have = {(v["footage"], v["brief"]) for v in _videos() if v["creator_version"] == version and v["status"] != "failed"}
     ids = []
     for m in entries():
@@ -55,8 +65,10 @@ def _change_for(version: str, changes: list[dict]) -> dict | None:
         if c["agent"] != "creator" or c["status"] != "promoted":
             continue
         r = c["results"] or {}
-        refs = [r.get("candidate"), r.get("merged"), c["branch"]]
-        if any(ref and (ref.startswith(version) or version.startswith(ref)) for ref in refs):
+        # results["candidate"] starts as the change's commit but becomes the arm's tally when decided,
+        # so match on the merge commit and on the change branch's own commit (kept after a promote).
+        refs = [r.get("merged"), versioning._git("rev-parse", "--short=12", c["branch"])]
+        if any(isinstance(ref, str) and ref and (ref.startswith(version) or version.startswith(ref)) for ref in refs):
             return c
     return None
 
