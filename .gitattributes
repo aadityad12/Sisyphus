@@ -1,4 +1,6 @@
+# Teammates clone on macOS and Windows; keep text files LF everywhere.
 * text=auto eol=lf
+*.jpg binary
 *.png binary
 *.ico binary
 *.icns binary
