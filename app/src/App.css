@@ -608,6 +608,7 @@ td.down {
 .h2h .down {
   color: var(--red);
   font-weight: 600;
+}
 
 /* Transcript view: what the Creator kept and cut (Transcript.tsx) */
 .transcript {

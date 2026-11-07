@@ -3,8 +3,8 @@ import json
 import pytest
 
 from sisyphus_engine import cuts
-from sisyphus_engine.plan import EditPlan
-from sisyphus_engine.render import timeline
+from sisyphus_engine.plan import EditPlan, Segment
+from sisyphus_engine.render import plays, timeline
 from sisyphus_engine.transcribe import words as all_words
 
 
@@ -96,3 +96,23 @@ def test_for_video_never_transcribes(monkeypatch, tmp_path):
     monkeypatch.setattr(cuts, "_cache_path", lambda path: tmp_path / "missing.json")
     with pytest.raises(cuts.NotCached):
         cuts.for_video(STORED)
+
+
+def test_stored_rendered_segments_win_over_resnapping(monkeypatch, tmp_path):
+    # As if snapping changed after this clip was rendered: the stored cut points still decide.
+    cache = tmp_path / "cache.json"
+    cache.write_text(json.dumps(synthetic()))
+    monkeypatch.setattr(cuts, "FOOTAGE_DIR", tmp_path)
+    monkeypatch.setattr(cuts, "_cache_path", lambda path: cache)
+    stored = {"footage": "talk.mp4", "plan": STORED["plan"] | {"rendered_segments": [{"start": 9.95, "end": 11.0}]}}
+    block = cuts.for_video(stored)["segments"][0]
+    assert (block["start"], block["end"]) == (9.95, 11.0)
+    assert kept_by(block) == ["w20", "w21"]  # w22 (11.0-11.4) is past the stored end
+    assert cuts.for_video(STORED)["segments"][0]["end"] == 12.0  # no field: snapped from the plan
+
+
+def test_plays_is_whole_word_containment():
+    seg = Segment(start=10.0, end=12.0)
+    assert plays({"start": 10.0, "end": 12.0}, seg)
+    assert not plays({"start": 9.99, "end": 10.3}, seg)
+    assert not plays({"start": 11.8, "end": 12.01}, seg)
