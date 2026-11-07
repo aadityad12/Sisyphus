@@ -159,21 +159,39 @@ export function VideoCard({
 }) {
   const [src, setSrc] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  // One feedback request at a time: a double-click or a held Enter must not send it twice.
+  const [pending, setPending] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
+  const [showComments, setShowComments] = useState(video.comments.length > 0);
 
   useEffect(() => {
     if (video.plan) api.videoUrl(video.id).then(setSrc);
   }, [video.id, video.plan]);
 
-  async function vote(liked: boolean) {
-    await api.feedback(video.id, { liked: video.human_liked === liked ? null : liked });
-    onChange();
+  async function feedback(body: { liked?: boolean | null; comment?: string }): Promise<boolean> {
+    if (pending) return false;
+    setPending(true);
+    setFailed(null);
+    try {
+      await api.feedback(video.id, body);
+      onChange();
+      return true;
+    } catch (e) {
+      setFailed(`Couldn't save that: ${e instanceof Error ? e.message : String(e)}`);
+      return false;
+    } finally {
+      setPending(false);
+    }
+  }
+
+  function vote(liked: boolean) {
+    feedback({ liked: video.human_liked === liked ? null : liked });
   }
 
   async function send() {
-    if (!comment.trim()) return;
-    await api.feedback(video.id, { comment: comment.trim() });
-    setComment("");
-    onChange();
+    const text = comment.trim();
+    if (!text) return;
+    if (await feedback({ comment: text })) setComment("");
   }
 
   const duration = video.plan?.segments.reduce((t, s) => t + (s.end - s.start), 0) ?? 0;
@@ -184,120 +202,130 @@ export function VideoCard({
 
   return (
     <article className={`vcard v-${video.status}`}>
-      <div className="vc-frame">
-        {src ? (
-          <video src={src} controls preload="metadata" playsInline />
-        ) : (
-          <div className={`vc-empty ${busy ? "busy" : ""}`}>{STATUS_LABEL[video.status]}</div>
-        )}
-      </div>
-
-      <div className="vc-body">
-        <Verdict video={video} />
-
-        <div className="vc-what">
-          <h3 title={video.plan?.title ?? video.brief}>{video.plan?.title ?? video.brief}</h3>
-          {video.plan?.title && <p className="vc-brief" title={video.brief}>Brief: “{video.brief}”</p>}
-          <p className="vc-facts">
-            {video.creator_version && (
-              <span className="vc-maker">
-                Made by Creator <code>{shortVersion(video.creator_version)}</code>
-              </span>
-            )}
-            {video.arm && <span className={`chip arm-${video.arm}`}>A/B {video.arm}</span>}
-            <span className="dim">
-              {video.footage}
-              {video.plan && ` · ${fmt(duration)} · ${video.plan.segments.length} cuts`}
-            </span>
-          </p>
+      <div className="vc-inner">
+        <div className="vc-frame">
+          {src ? (
+            <video src={src} controls preload="metadata" playsInline />
+          ) : (
+            <div className={`vc-empty ${busy ? "busy" : ""}`}>{STATUS_LABEL[video.status]}</div>
+          )}
         </div>
 
-        {video.failed_agents.length > 0 && (
-          <p className="vc-blame">
-            Counted as a failure of the{" "}
-            {video.failed_agents.map((a, i) => (
-              <span key={a}>
-                {i > 0 && " and "}
-                <span className="chip fail">{a}</span>
+        <div className="vc-body">
+          <Verdict video={video} />
+
+          <div className="vc-what">
+            <h3 title={video.plan?.title ?? video.brief}>{video.plan?.title ?? video.brief}</h3>
+            {video.plan?.title && (
+              <p className="vc-brief" title={video.brief}>
+                Brief: “{video.brief}”
+              </p>
+            )}
+            <p className="vc-facts">
+              {video.creator_version && (
+                <span className="vc-maker">
+                  Made by Creator <code>{shortVersion(video.creator_version)}</code>
+                </span>
+              )}
+              {video.arm && <span className={`chip arm-${video.arm}`}>A/B {video.arm}</span>}
+              <span className="dim">
+                {video.footage}
+                {video.plan && ` · ${fmt(duration)} · ${video.plan.segments.length} cuts`}
               </span>
-            ))}
-          </p>
-        )}
+            </p>
+          </div>
 
-        {video.plan && (
-          <div className="vc-you">
-            <span className="vc-label">Your call</span>
-            <div className="vc-votes">
-              <button
-                className={video.human_liked === true ? "vote on up" : "vote"}
-                aria-pressed={video.human_liked === true}
-                onClick={() => vote(true)}
-              >
-                ▲ {mode === "rejected" ? "Actually good" : "Good clip"}
-              </button>
-              <button
-                className={video.human_liked === false ? "vote on down" : "vote"}
-                aria-pressed={video.human_liked === false}
-                onClick={() => vote(false)}
-              >
-                ▼ {mode === "feed" ? "Not good" : "Bad clip"}
-              </button>
+          {video.failed_agents.length > 0 && (
+            <p className="vc-blame">
+              Counted as a failure of the{" "}
+              {video.failed_agents.map((a, i) => (
+                <span key={a}>
+                  {i > 0 && " and "}
+                  <span className="chip fail">{a}</span>
+                </span>
+              ))}
+            </p>
+          )}
+
+          {video.plan && (
+            <div className="vc-you">
+              <span className="vc-label">Your call</span>
+              <div className="vc-votes">
+                <button
+                  className={video.human_liked === true ? "vote on up" : "vote"}
+                  aria-pressed={video.human_liked === true}
+                  disabled={pending}
+                  onClick={() => vote(true)}
+                >
+                  ▲ {mode === "rejected" ? "Actually good" : "Good clip"}
+                </button>
+                <button
+                  className={video.human_liked === false ? "vote on down" : "vote"}
+                  aria-pressed={video.human_liked === false}
+                  disabled={pending}
+                  onClick={() => vote(false)}
+                >
+                  ▼ {mode === "feed" ? "Not good" : "Bad clip"}
+                </button>
+              </div>
+              {agree && <p className={`vc-agree ${agree.cls}`}>{agree.text}</p>}
+              {failed && <p className="vc-failed">{failed}</p>}
             </div>
-            {agree && <p className={`vc-agree ${agree.cls}`}>{agree.text}</p>}
-          </div>
-        )}
+          )}
 
-        {video.plan && (
-          <div className="vc-more">
-            <details>
-              <summary>
-                Edit plan <span className="dim">· {video.plan.segments.length} cuts</span>
-              </summary>
-              <div className="vc-plan">
-                <p>
-                  <strong>Hook:</strong> {video.plan.hook || <em>none</em>}
-                </p>
-                <ol>
-                  {video.plan.segments.map((s, i) => (
-                    <li key={i}>
-                      {fmt(s.start)} → {fmt(s.end)} <span className="dim">({fmt(s.end - s.start)})</span>
-                    </li>
-                  ))}
-                </ol>
-                <p className="dim small">
-                  crop {video.plan.crop_x.toFixed(2)} · captions {video.plan.caption_style} ×{video.plan.caption_words}
-                </p>
-                {video.plan.rationale && <p className="small">{video.plan.rationale}</p>}
-              </div>
-            </details>
-
-            {/* More disclosures (the Transcript from #8) go here, as further <details>. */}
-
-            <details open={video.comments.length > 0 || undefined}>
-              <summary>
-                Comments <span className="dim">· {video.comments.length}</span>
-              </summary>
-              <div className="vc-comments">
-                {video.comments.map((c) => (
-                  <p key={c.id} className="vc-comment">
-                    {c.text}
+          {video.plan && (
+            <div className="vc-more">
+              <details>
+                <summary>
+                  Edit plan <span className="dim">· {video.plan.segments.length} cuts</span>
+                </summary>
+                <div className="vc-plan">
+                  <p>
+                    <strong>Hook:</strong> {video.plan.hook || <em>none</em>}
                   </p>
-                ))}
-                <div className="vc-compose">
-                  <input
-                    value={comment}
-                    placeholder="Tell the Creator what to do differently…"
-                    onChange={(e) => setComment(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && send()}
-                  />
-                  <button onClick={send} disabled={!comment.trim()}>
-                    Send
-                  </button>
+                  <ol>
+                    {video.plan.segments.map((s, i) => (
+                      <li key={i}>
+                        {fmt(s.start)} → {fmt(s.end)} <span className="dim">({fmt(s.end - s.start)})</span>
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="dim small">
+                    crop {video.plan.crop_x.toFixed(2)} · captions {video.plan.caption_style} ×
+                    {video.plan.caption_words}
+                  </p>
+                  {video.plan.rationale && <p className="small">{video.plan.rationale}</p>}
                 </div>
-              </div>
-            </details>
-          </div>
-        )}
+              </details>
+
+              {/* More disclosures (the Transcript from #8) go here, as further <details>. */}
+
+              <details open={showComments} onToggle={(e) => setShowComments(e.currentTarget.open)}>
+                <summary>
+                  Comments <span className="dim">· {video.comments.length}</span>
+                </summary>
+                <div className="vc-comments">
+                  {video.comments.map((c) => (
+                    <p key={c.id} className="vc-comment">
+                      {c.text}
+                    </p>
+                  ))}
+                  <div className="vc-compose">
+                    <input
+                      value={comment}
+                      placeholder="Tell the Creator what to do differently…"
+                      onChange={(e) => setComment(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && send()}
+                    />
+                    <button onClick={send} disabled={pending || !comment.trim()}>
+                      {pending ? "Sending…" : "Send"}
+                    </button>
+                  </div>
+                </div>
+              </details>
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );

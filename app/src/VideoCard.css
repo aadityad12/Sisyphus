@@ -1,8 +1,9 @@
 /* Video cards: a 9:16 frame on the left, the loop (verdict, who made it, your call) on the right. */
 
+/* The card is a size container, so it stacks by its own width, not the window's: a 460px grid cell
+   leaves too little room beside a full-size frame. */
 .vcard {
-  display: flex;
-  gap: 16px;
+  container-type: inline-size;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -19,16 +20,21 @@
   border-color: color-mix(in srgb, var(--red) 35%, var(--line));
 }
 
+.vc-inner {
+  display: flex;
+  gap: 16px;
+}
+
 /* The vertical frame. Shorts are 9:16, so the frame is too, whatever the video inside. */
 .vc-frame {
-  flex: 0 0 216px;
+  flex: 0 0 clamp(150px, 38%, 216px);
   align-self: flex-start;
 }
 
 .vc-frame video,
 .vc-empty {
   display: block;
-  width: 216px;
+  width: 100%;
   aspect-ratio: 9 / 16;
   border-radius: var(--radius-sm);
   background: #000;
@@ -306,8 +312,16 @@
 
 .vc-votes .vote {
   flex: 1;
-  padding: 8px 12px;
+  padding: 8px 10px;
   font-weight: 600;
+  white-space: nowrap;
+}
+
+@container (max-width: 520px) {
+  .vc-votes .vote {
+    padding: 7px 6px;
+    font-size: 13px;
+  }
 }
 
 .vc-votes .vote.on.up {
@@ -444,13 +458,16 @@
   }
 }
 
-/* Narrow grid cells: stack the frame above the body. */
-@media (max-width: 560px) {
-  .vcard {
+/* Too narrow for frame and body side by side: stack the frame above the body. */
+@container (max-width: 420px) {
+  .vc-inner {
     flex-direction: column;
   }
 
   .vc-frame {
+    flex-basis: auto;
+    width: 216px;
+    max-width: 100%;
     align-self: center;
   }
 }
@@ -461,4 +478,9 @@
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
+}
+
+.vc-failed {
+  font-size: 12px;
+  color: var(--red);
 }
