@@ -3,6 +3,7 @@ import "./Versions.css";
 import { api, type AuditStatus, type Change, type Video } from "./api";
 import { Progress, changeTitle } from "./Progress";
 import { usePoll } from "./usePoll";
+import { plural } from "./Loop";
 
 const STAMP: Record<Change["status"], string> = {
   proposed: "PROPOSED",
@@ -49,8 +50,7 @@ function ABResult({ change }: { change: Change }) {
   const control = (results.control ?? {}) as ArmResult;
   const candidate = (results.candidate ?? {}) as ArmResult;
   const reviewerChange = change.agent === "reviewer";
-  const rate = (a: ArmResult) =>
-    a.total ? (reviewerChange ? (a.agree ?? 0) : (a.approved ?? 0)) / a.total : null;
+  const rate = (a: ArmResult) => (a.total ? (reviewerChange ? (a.agree ?? 0) : (a.approved ?? 0)) / a.total : null);
   const count = (a: ArmResult) => (reviewerChange ? a.agree : a.approved) ?? 0;
   const a = rate(control);
   const b = rate(candidate);
@@ -67,10 +67,12 @@ function ABResult({ change }: { change: Change }) {
   const h2h = results.head_to_head !== undefined ? " on the head-to-head tiebreak" : "";
   if (change.status === "promoted")
     decision = `Promoted: the change won${h2h}${typeof results.merged === "string" ? ` and was merged as ${results.merged.slice(0, 7)}` : ""}.`;
-  else if (change.status === "rolled_back") decision = h2h
+  else if (change.status === "rolled_back")
+    decision = h2h
       ? "Rolled back: tied on passes, and it did not win head to head."
       : "Rolled back: it did not beat the version without it.";
-  else if (typeof results.waiting_for_votes === "string") decision = `Waiting for human votes: ${results.waiting_for_votes}.`;
+  else if (typeof results.waiting_for_votes === "string")
+    decision = `Waiting for human votes: ${results.waiting_for_votes}.`;
   else if (pending) decision = `Testing: ${pending} held-out clip${pending > 1 ? "s" : ""} still to be judged.`;
   else if (!control.total && !candidate.total)
     decision = reviewerChange
@@ -146,13 +148,15 @@ function Clip({ video, onVoted }: { video: Video | undefined; onVoted: () => voi
       {video.review_reason && <p className="dim small">{video.review_reason}</p>}
       {video.plan && (
         <div className="row">
-          <button className={video.human_liked === true ? "vote on up" : "vote"}
+          <button
+            className={video.human_liked === true ? "vote on up" : "vote"}
             disabled={pending}
             onClick={() => vote(true)}
           >
             ▲
           </button>
-          <button className={video.human_liked === false ? "vote on down" : "vote"}
+          <button
+            className={video.human_liked === false ? "vote on down" : "vote"}
             disabled={pending}
             onClick={() => vote(false)}
           >
@@ -240,8 +244,8 @@ function AuditorPanel() {
         </div>
       </div>
       <p className="dim small">
-        A failure is a clip the Reviewer sent back, or one where a human's vote disagreed with the Reviewer. The Auditor groups them, writes one
-        change to the skills, and A/B tests it on held-out work before adopting it.
+        A failure is a clip the Reviewer sent back, or one where a human's vote disagreed with the Reviewer. The Auditor
+        groups them, writes one change to the skills, and A/B tests it on held-out work before adopting it.
       </p>
       <button className="primary" disabled={busy} onClick={run}>
         {busy ? `${AUDIT_STATE[state]}…` : "Run Auditor"}
@@ -270,7 +274,9 @@ function HeadToHead({ results }: { results: Record<string, unknown> }) {
       <ul>
         {pairs.map((p) => (
           <li key={p.footage + p.brief} className="small">
-            <span className={`chip ${p.winner === "candidate" ? "arm-candidate" : p.winner === "control" ? "fail" : ""}`}>
+            <span
+              className={`chip ${p.winner === "candidate" ? "arm-candidate" : p.winner === "control" ? "fail" : ""}`}
+            >
               {label[p.winner]}
             </span>{" "}
             {p.reason}
@@ -280,8 +286,6 @@ function HeadToHead({ results }: { results: Record<string, unknown> }) {
     </div>
   );
 }
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 function diffStat(diff: string) {
   let add = 0;
@@ -299,7 +303,9 @@ function ChangeCard({ change }: { change: Change }) {
   const cluster = typeof change.results?.cluster === "string" ? change.results.cluster : null;
   // The engine stores the rationale as "<cluster>: <why>"; the cluster is shown on its own line.
   const rationale =
-    cluster && change.rationale?.startsWith(`${cluster}: `) ? change.rationale.slice(cluster.length + 2) : change.rationale;
+    cluster && change.rationale?.startsWith(`${cluster}: `)
+      ? change.rationale.slice(cluster.length + 2)
+      : change.rationale;
   const stat = change.diff ? diffStat(change.diff) : null;
   return (
     <article className={`change ${change.status}`}>
@@ -367,7 +373,7 @@ export function Versions({ videos }: { videos: Video[] }) {
           {changes.length > 0 && (
             <span className="dim small">
               {plural(changes.length, "change")} · {promoted} promoted · {rolledBack} rolled back
-              {testing > 0 && ` · ${testing} testing`}
+              {testing > 0 && ` · ${testing} in progress`}
             </span>
           )}
         </div>

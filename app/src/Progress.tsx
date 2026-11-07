@@ -1,4 +1,5 @@
 import type { Change, Video } from "./api";
+import { samePrefix } from "./Loop";
 
 type Row = { version: string; passed: number; total: number; first: number };
 
@@ -10,11 +11,6 @@ export function changeTitle(c: Change): string {
   const cluster = typeof c.results?.cluster === "string" ? c.results.cluster : null;
   return /^[\w./-]+\.md$/.test(c.title.trim()) && cluster ? `Fix: ${cluster}` : c.title;
 }
-
-const samePrefix = (a: string, b: string) => {
-  const n = Math.min(a.length, b.length);
-  return n >= 7 && a.slice(0, n) === b.slice(0, n);
-};
 
 /**
  * The promoted change that produced a Creator version, if one is found. Our own commits to the
@@ -69,10 +65,10 @@ export function Progress({
         <h2>Creator pass rate by version</h2>
         <span className="dim small">a human vote where there is one, else the Reviewer's verdict</span>
       </div>
-      {ordered.length === 1 && (
+      {ordered.length === 1 && !awaiting && (
         <p className="dim small evo-note">
-          Only one Creator version has verdicts so far, so there is no improvement to measure yet. A version the
-          Auditor promotes gets its own bar once clips are made with it.
+          Only one Creator version has verdicts so far, so there is no improvement to measure yet. A version the Auditor
+          promotes gets its own bar once clips are made with it.
         </p>
       )}
       {ordered.length === 0 ? (
@@ -131,17 +127,17 @@ export function Progress({
             </div>
           )}
           {!awaiting && (
-          <div className="barcol ghost" aria-hidden>
-            <div className="barval">
-              <strong className="dim">?</strong>
+            <div className="barcol ghost" aria-hidden>
+              <div className="barval">
+                <strong className="dim">?</strong>
+              </div>
+              <div className="bartrack" />
+              <div className="barlabel">
+                <span className="vname dim">v{ordered.length + (awaiting ? 1 : 0)}</span>
+              </div>
+              <div className="barnote">appears when the Auditor promotes a change</div>
+              <div className="small">&nbsp;</div>
             </div>
-            <div className="bartrack" />
-            <div className="barlabel">
-              <span className="vname dim">v{ordered.length + (awaiting ? 1 : 0)}</span>
-            </div>
-            <div className="barnote">appears when the Auditor promotes a change</div>
-            <div className="small">&nbsp;</div>
-          </div>
           )}
         </div>
       )}

@@ -1,5 +1,11 @@
 import type { AuditStatus, Video } from "./api";
 
+/** Two commit hashes name the same commit when the shorter is a prefix of the longer (7+ characters). */
+export const samePrefix = (a: string, b: string) => {
+  const n = Math.min(a.length, b.length);
+  return n >= 7 && a.slice(0, n) === b.slice(0, n);
+};
+
 type Verdicted = { version: string; passed: number; total: number; first: number };
 
 /** Pass rate (human vote, else Reviewer) of the first and the latest Creator version on regular work. */
@@ -54,7 +60,11 @@ function Node({
   onClick: () => void;
 }) {
   return (
-    <button className={`loop-node ${agent} ${active ? "active" : ""} ${warn ? "warn" : ""}`} onClick={onClick} title={`Go to ${agent}`}>
+    <button
+      className={`loop-node ${agent} ${active ? "active" : ""} ${warn ? "warn" : ""}`}
+      onClick={onClick}
+      title={`Go to ${agent}`}
+    >
       <span className="loop-dot" />
       <span className="loop-text">
         <span className="loop-name">
@@ -73,7 +83,7 @@ type Pool = "regular" | "ab" | "showcase";
 const poolOf = (v: Video): Pool => (v.experiment_id !== null ? "ab" : v.showcase ? "showcase" : "regular");
 const POOL_TAB: Record<Pool, Tab> = { regular: "Studio", ab: "Versions", showcase: "Showcase" };
 const POOL_WORD: Record<Pool, string> = { regular: "", ab: "A/B ", showcase: "showcase " };
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Where most of the work in `videos` lives, so clicking an agent opens the tab that shows it. */
 function busiest(videos: Video[]): Pool | null {

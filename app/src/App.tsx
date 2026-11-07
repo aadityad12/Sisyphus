@@ -6,7 +6,7 @@ import { Feed } from "./Feed";
 import { Versions } from "./Versions";
 import { Showcase } from "./Showcase";
 import { usePoll } from "./usePoll";
-import { Loop, passRates } from "./Loop";
+import { Loop, passRates, samePrefix } from "./Loop";
 
 const TABS = ["Studio", "Feed", "Rejected", "Versions", "Showcase"] as const;
 type Tab = (typeof TABS)[number];
@@ -56,6 +56,17 @@ function App() {
   };
 
   const rates = passRates(all);
+  // When the Creator has moved past the newest measured version, say how the current one is doing.
+  const current = health.data?.versions.creator;
+  let currentLine: string | null = null;
+  if (rates && current && current !== "unknown" && !samePrefix(current, rates.lastVersion)) {
+    const judged = all.filter(
+      (v) =>
+        v.creator_version && samePrefix(v.creator_version, current) && (v.human_liked ?? v.review_approved) !== null,
+    );
+    const passed = judged.filter((v) => v.human_liked ?? v.review_approved).length;
+    currentLine = `current ${current.slice(0, 7)}: ${judged.length ? `${passed}/${judged.length} clips` : "no verdicts yet"}`;
+  }
   // Before the first answer the engine may still be starting (the desktop app launches it).
   const engine = health.data
     ? health.error
@@ -75,7 +86,10 @@ function App() {
           <span className="tagline">One must imagine SIsyphus editing.</span>
         </div>
         <Loop videos={videos.data ?? []} versions={health.data?.versions} audit={audit.data} go={setTab} />
-        <div className="headline" title="Share of the Creator's clips that passed (a human vote, else the Reviewer), first version against the latest">
+        <div
+          className="headline"
+          title="Share of the Creator's clips that passed (a human vote, else the Reviewer), first version against the latest"
+        >
           <span className="headline-label">Creator pass rate</span>
           {rates ? (
             <span className="headline-value">
@@ -86,8 +100,12 @@ function App() {
                 </>
               )}
               <strong
-                className={rates.versions > 1 ? (rates.last > rates.first ? "up" : rates.last < rates.first ? "down" : "") : ""}
-              >{rates.last}%</strong>
+                className={
+                  rates.versions > 1 ? (rates.last > rates.first ? "up" : rates.last < rates.first ? "down" : "") : ""
+                }
+              >
+                {rates.last}%
+              </strong>
             </span>
           ) : (
             <span className="headline-value dim">no verdicts yet</span>
@@ -95,10 +113,7 @@ function App() {
           <span className="headline-sub">
             {rates ? `${rates.lastVersion.slice(0, 7)}: ${rates.passed}/${rates.clips} clips` : "\u00a0"}
           </span>
-          {rates && health.data && !health.data.versions.creator.startsWith(rates.lastVersion.slice(0, 7)) &&
-            !rates.lastVersion.startsWith(health.data.versions.creator.slice(0, 7)) && (
-              <span className="headline-sub">current {health.data.versions.creator.slice(0, 7)}: no clips yet</span>
-            )}
+          {currentLine && <span className="headline-sub">{currentLine}</span>}
         </div>
         <span className={`engine ${engine}`} title={`Engine ${engine}`}>
           <span className="engine-dot" />
@@ -117,8 +132,8 @@ function App() {
 
       {(engine === "down" || engine === "lost") && (
         <div className="banner">
-          <strong>The engine isn't answering.</strong> The app shows the last data it had. In development, start it
-          with <code>cd engine && uv run python -m sisyphus_engine</code>; the desktop app starts it by itself.
+          <strong>The engine isn't answering.</strong> The app shows the last data it had. In development, start it with{" "}
+          <code>cd engine && uv run python -m sisyphus_engine</code>; the desktop app starts it by itself.
         </div>
       )}
 
