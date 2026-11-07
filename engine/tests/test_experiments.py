@@ -147,3 +147,12 @@ def test_compare_maps_shuffled_labels_back_to_arms(monkeypatch, tmp_path):
         r = compare.prefer(tmp_path / "k.mp4", tmp_path / "c.mp4", "b", None, rng=random.Random(seed))
         assert r["winner"] == ("candidate" if seen["a_is_candidate"] else "control")
         assert r["reason"].startswith("the " + ("candidate" if seen["a_is_candidate"] else "current"))
+
+
+def test_waits_for_clips_not_yet_submitted(db):
+    cid = store.add_change("creator", "si/creator/1-x", "x", status="testing", results={"expected": 4})
+    _arm(cid, "control", False)  # the first clip finished before the rest were submitted
+    experiments.maybe_decide(cid)
+    change = _status(cid)
+    assert change["status"] == "testing"
+    assert change["results"]["pending"] == 3
