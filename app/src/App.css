@@ -1,17 +1,41 @@
 :root {
-  font-family: Inter, system-ui, sans-serif;
-  --bg: #0f0f12;
-  --panel: #16161b;
-  --card: #1c1c22;
+  /* Design tokens: every area's stylesheet uses these, so the app reads as one system. */
+  --font: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --bg: #0c0c0f;
+  --panel: #141418;
+  --card: #1b1b21;
+  --card-hover: #22222a;
+  --sunken: #101013;
   --line: #2a2a32;
-  --text: #e8e8ea;
-  --dim: #8b8b96;
+  --line-strong: #3d3d48;
+  --text: #ececef;
+  --dim: #8d8d99;
+  --faint: #5f5f6b;
+
   --gold: #f5b942;
+  --gold-soft: rgba(245, 185, 66, 0.14);
   --green: #5fd38d;
+  --green-soft: rgba(95, 211, 141, 0.14);
   --red: #f07a7a;
+  --red-soft: rgba(240, 122, 122, 0.14);
   --blue: #7aa7f0;
+  --blue-soft: rgba(122, 167, 240, 0.14);
+
+  /* One colour per agent, used wherever an agent is named. */
+  --creator: #7aa7f0;
+  --reviewer: #c39af5;
+  --auditor: #f5b942;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 8px 24px rgba(0, 0, 0, 0.35);
+
+  font-family: var(--font);
   color: var(--text);
   background: var(--bg);
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -33,13 +57,13 @@ select {
 button {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 6px 12px;
   cursor: pointer;
 }
 
 button:hover {
-  border-color: #44444f;
+  border-color: var(--line-strong);
 }
 
 button:disabled {
@@ -63,9 +87,9 @@ button.link {
 
 input,
 select {
-  background: #121216;
+  background: var(--sunken);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   width: 100%;
 }
@@ -121,13 +145,13 @@ h3 {
 }
 
 .pill.ok {
-  background: #1f3d2a;
-  color: #7ee2a0;
+  background: var(--green-soft);
+  color: var(--green);
 }
 
 .pill.down {
-  background: #3d1f1f;
-  color: #f08a8a;
+  background: var(--red-soft);
+  color: var(--red);
 }
 
 .tabs {
@@ -142,7 +166,7 @@ h3 {
 
 .count {
   margin-left: 8px;
-  background: #2b2b33;
+  background: var(--card-hover);
   border-radius: 999px;
   padding: 0 7px;
   font-size: 12px;
@@ -151,7 +175,7 @@ h3 {
 .panel {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px 20px 24px;
   min-height: 400px;
 }
@@ -192,7 +216,7 @@ h3 {
 .placeholder {
   width: 200px;
   aspect-ratio: 9 / 16;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   background: #000;
   display: block;
 }
@@ -226,24 +250,24 @@ h3 {
   letter-spacing: 0.05em;
   padding: 2px 8px;
   border-radius: 6px;
-  background: #2b2b33;
+  background: var(--card-hover);
 }
 
 .badge.approved {
-  background: #1f3d2a;
+  background: var(--green-soft);
   color: var(--green);
 }
 
 .badge.rejected,
 .badge.failed {
-  background: #3d1f1f;
+  background: var(--red-soft);
   color: var(--red);
 }
 
 .badge.creating,
 .badge.reviewing,
 .badge.queued {
-  background: #3a3220;
+  background: var(--gold-soft);
   color: var(--gold);
 }
 
@@ -251,17 +275,17 @@ h3 {
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 6px;
-  background: #24242c;
+  background: var(--card-hover);
   color: var(--dim);
 }
 
 .chip.fail {
-  background: #3d1f1f;
+  background: var(--red-soft);
   color: var(--red);
 }
 
 .chip.arm-candidate {
-  background: #1f2c3d;
+  background: var(--blue-soft);
   color: var(--blue);
 }
 
