@@ -107,3 +107,8 @@ def roll_back(branch: str) -> None:
     """Discard a change. A tag keeps its commit so the history of what was tried is never lost."""
     _git_env("tag", "-f", f"rolled-back/{branch}", branch)
     _git_env("branch", "-D", branch)
+
+
+def full_ref(ref: str) -> str:
+    """Expand a short hash or branch name to a full commit id, so a frozen ref can't move."""
+    return _git_env("rev-parse", "--verify", f"{ref}^{{commit}}")

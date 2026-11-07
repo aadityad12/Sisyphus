@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import FOOTAGE_DIR, experiments, jobs, store, versioning
+from . import FOOTAGE_DIR, experiments, jobs, reviewer_ab, store, versioning
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="SIsyphus engine")
@@ -109,6 +109,7 @@ def feedback(video_id: int, body: FeedbackIn) -> dict:
     if body.comment:
         store.add_comment(video_id, body.comment)
     jobs._settle(video_id)  # a human vote can decide a shadow A/B
+    reviewer_ab.on_vote()  # ... or a Reviewer change waiting for human votes
     return store.get_video(video_id)
 
 

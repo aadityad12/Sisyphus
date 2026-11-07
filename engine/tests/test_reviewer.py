@@ -93,7 +93,7 @@ def test_no_video_when_disabled(clip, calls, monkeypatch):
     assert "video_url" not in _types(calls[0]["user"])
 
 
-def test_record_review_keeps_tags_in_reason_without_a_column(tmp_path, monkeypatch):
+def test_record_review_stores_tags(tmp_path, monkeypatch):
     from sisyphus_engine import jobs, store
 
     monkeypatch.setattr(store, "DB_PATH", tmp_path / "t.db")
@@ -102,5 +102,6 @@ def test_record_review_keeps_tags_in_reason_without_a_column(tmp_path, monkeypat
     jobs.record_review(vid, False, "Slow start.", tags=["hook", "pacing"], reviewer_version="abcdef1234567890")
     v = store.get_video(vid)
     assert v["status"] == "rejected" and v["review_approved"] is False
-    assert v["review_reason"] == "[hook, pacing] Slow start."
+    assert v["review_reason"] == "Slow start."
+    assert v["review_tags"] == ["hook", "pacing"]
     assert v["reviewer_version"] == "abcdef123456"

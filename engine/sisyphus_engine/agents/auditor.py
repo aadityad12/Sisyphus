@@ -21,7 +21,7 @@ dislike and comment.
 You are given failures: clips that were sent back, or that humans disliked, with the reasons. Group them \
 into clusters of failures that share one root cause the Creator could fix. A cluster's label names the \
 cause (for example "hook comes too late" or "speaker cropped out of frame"), not the topic of the clip. \
-Put each failure in at most one cluster. Leave out failures that share a cause with no other failure.
+Reviewer tags, when present, are a strong hint: failures sharing a tag usually share a cause. Put each failure in at most one cluster. Leave out failures that share a cause with no other failure.
 
 """
 
@@ -36,11 +36,19 @@ if it does better there. So:
 - Prefer editing an existing skill file, or adding one short new file named for the lesson.
 - Keep each file concise and concrete: numbers and checks beat adjectives.
 
-What the {agent} can control (its edit plan): which source ranges to keep and their order, the on-screen \
-hook text (shown for the first 3 seconds), crop_x (the horizontal position of the 9:16 crop window, 0 = left \
-edge, 1 = right edge), caption_style (karaoke, plain, none) and caption_words (words on screen at once).
+{controls}
 
 """
+
+CONTROLS = {
+    "creator": "What the Creator can control (its edit plan): which source ranges to keep and their order, the "
+    "on-screen hook text (shown for the first 3 seconds), the layout (crop: a 9:16 slice of the frame positioned "
+    "by crop_x, 0 = left edge, 1 = right edge; fit: the whole 16:9 frame over a blurred fill), caption_style "
+    "(karaoke, plain, none) and caption_words (words on screen at once).",
+    "reviewer": "The Reviewer's skills are its standards: what makes a clip good enough to approve. A Reviewer "
+    "change is judged by how often its verdicts agree with human votes, so fix where it disagreed with people, "
+    "in either direction: approving clips people disliked, or sending back clips people liked.",
+}
 
 CLUSTER_SCHEMA = {
     "type": "object",
@@ -88,6 +96,8 @@ PROPOSAL_SCHEMA = {
 
 def _describe(f: dict) -> str:
     bits = [f"#{f['video_id']} brief: {f['brief']}"]
+    if f.get("review_tags"):
+        bits.append(f"tags: {', '.join(f['review_tags'])}")
     if f.get("review_reason"):
         bits.append(f"reviewer: {f['review_reason']}")
     if f.get("human_liked") is not None:
@@ -136,7 +146,7 @@ def propose(agent: str, cluster: dict, failures: list[dict], rolled_back: list[d
             "Do not repeat them:\n" + "\n".join(f"- {c['title']}: {c['rationale']}" for c in rolled_back)
         )
     out = llm.complete_json(
-        PROPOSE_SYSTEM.format(agent=agent) + load_skills("auditor"), "\n".join(parts), PROPOSAL_SCHEMA, "change"
+        PROPOSE_SYSTEM.format(agent=agent, controls=CONTROLS.get(agent, "")) + load_skills("auditor"), "\n".join(parts), PROPOSAL_SCHEMA, "change"
     )
     changed = {}
     for f in out["files"]:

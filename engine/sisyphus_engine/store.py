@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS videos (
     video_path TEXT,
     review_approved INTEGER,
     review_reason TEXT,
+    review_tags TEXT,                        -- JSON list from the Reviewer: hook, pacing, framing, ...
+    reviewer_ref TEXT,                       -- git ref the Reviewer is frozen at (shadow A/B), null = live
     human_liked INTEGER,                     -- null until a human votes
     error TEXT,
     experiment_id INTEGER,
@@ -67,14 +69,23 @@ def conn():
             c.close()
 
 
+# Columns added after the first databases were created: (table, column, type).
+MIGRATIONS = [("videos", "review_tags", "TEXT"), ("videos", "reviewer_ref", "TEXT")]
+
+
 def init() -> None:
     with conn() as c:
         c.executescript(SCHEMA)
+        for table, column, kind in MIGRATIONS:
+            have = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
+            if column not in have:
+                c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
 
 
 def _video(row: sqlite3.Row, comments: list[dict] | None = None) -> dict:
     v = dict(row)
     v["plan"] = json.loads(v["plan"]) if v["plan"] else None
+    v["review_tags"] = json.loads(v["review_tags"]) if v.get("review_tags") else []
     for k in ("review_approved", "human_liked"):
         v[k] = None if v[k] is None else bool(v[k])
     v["failed_agents"] = (
@@ -142,6 +153,7 @@ def failures() -> list[dict]:
             "agents": v["failed_agents"],
             "brief": v["brief"],
             "review_reason": v["review_reason"],
+            "review_tags": v["review_tags"],
             "human_liked": v["human_liked"],
             "comments": [c["text"] for c in v["comments"]],
             "creator_version": v["creator_version"],
