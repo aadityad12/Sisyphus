@@ -204,6 +204,34 @@ function AuditorPanel() {
   );
 }
 
+type Pair = { footage: string; brief: string; winner: "control" | "candidate" | "same"; reason: string };
+
+/** When pass counts tie, the frozen Reviewer compares each pair head to head (engine/compare.py). */
+function HeadToHead({ results }: { results: Record<string, unknown> }) {
+  const score = results.head_to_head as { candidate: number; control: number; same: number } | undefined;
+  const pairs = (results.pairs ?? []) as Pair[];
+  if (!score) return null;
+  return (
+    <div className="h2h">
+      <p className="small">
+        <strong>Pass counts tied</strong>, so the frozen Reviewer compared each pair head to head:{" "}
+        <span className="up">candidate {score.candidate}</span> · <span className="down">current {score.control}</span>
+        {score.same > 0 && <span className="dim"> · same {score.same}</span>}
+      </p>
+      <ul>
+        {pairs.map((p) => (
+          <li key={p.footage + p.brief} className="small">
+            <span className={`chip ${p.winner === "candidate" ? "arm-candidate" : p.winner === "control" ? "fail" : ""}`}>
+              {p.winner === "control" ? "current" : p.winner}
+            </span>{" "}
+            {p.reason}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ChangeCard({ change }: { change: Change }) {
   return (
     <article className={`change ${change.status}`}>
@@ -225,6 +253,7 @@ function ChangeCard({ change }: { change: Change }) {
       )}
       {typeof change.results?.error === "string" && <p className="error">{change.results.error}</p>}
       {change.results && <ABTable results={change.results} />}
+      {change.results && <HeadToHead results={change.results} />}
       <ABClips changeId={change.id} />
     </article>
   );
