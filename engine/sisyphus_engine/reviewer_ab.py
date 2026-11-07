@@ -33,6 +33,7 @@ def held_out(exclude_ids: set[int], limit: int = MAX_VIDEOS) -> list[dict]:
         v
         for v in store.list_videos()
         if v["human_liked"] is not None
+        and not v.get("showcase")
         and v["id"] not in exclude_ids
         and v["video_path"]
         and Path(v["video_path"]).exists()

@@ -20,6 +20,7 @@ export type EditPlan = {
   title: string;
   hook: string;
   segments: Segment[];
+  rendered_segments?: Segment[]; // the cut points the renderer used, after snapping
   crop_x: number;
   caption_style: "karaoke" | "plain" | "none";
   caption_words: number;
@@ -45,6 +46,8 @@ export type Video = {
   error: string | null;
   experiment_id: number | null;
   arm: "control" | "candidate" | null;
+  review_tags?: string | string[] | null;
+  showcase?: number | null;
   failed_agents: string[];
   comments: Comment[];
   created_at: number;
@@ -93,6 +96,22 @@ export type TranscriptView = {
 
 export type AuditStatus = { state: "idle" | "clustering" | "proposing" | "testing" | "error"; detail: string };
 
+export type ShowcaseVersion = {
+  version: string;
+  label: string;
+  first_at: number;
+  change: { id: number; title: string; rationale: string | null } | null;
+};
+export type ShowcaseRow = {
+  footage: string;
+  brief: string;
+  title: string;
+  speaker?: string | null;
+  listed: boolean;
+  cells: Record<string, Video>;
+};
+export type ShowcaseTable = { versions: ShowcaseVersion[]; rows: ShowcaseRow[]; current: string };
+
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getEngineUrl();
   const res = await fetch(`${base}${path}`, {
@@ -118,6 +137,8 @@ export const api = {
   failures: () => req<Failure[]>("/failures"),
   auditStatus: () => req<AuditStatus>("/audit"),
   runAudit: () => req<AuditStatus>("/audit", { method: "POST" }),
+  showcase: () => req<ShowcaseTable>("/showcase"),
+  renderShowcase: () => req<{ queued: number[] }>("/showcase", { method: "POST" }),
   transcript: (id: number) => req<TranscriptView>(`/videos/${id}/transcript`),
   videoUrl: async (id: number) => `${await getEngineUrl()}/videos/${id}/file`,
 };
