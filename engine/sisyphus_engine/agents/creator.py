@@ -19,8 +19,12 @@ vertical short-form clip (9:16) that answers a one-line brief.
 You do not touch pixels. You write an edit plan: source time ranges to keep, in play order, plus an on-screen \
 hook, caption settings and a layout. A fixed renderer cuts the footage, makes it 9:16 and burns in \
 word-by-word captions from the transcript. Layouts: "crop" fills the vertical frame with a 9:16 slice of the \
-source, positioned by crop_x; "fit" shows the whole 16:9 frame across the middle over a blurred fill. All times are in seconds of the source video and must come \
-from the timestamped transcript you are given.
+source, positioned by crop_x; "fit" shows the whole 16:9 frame across the middle over a blurred fill; "split" \
+puts the whole frame across the top and a crop at crop_x below. The look is yours too: caption_size, \
+caption_color, caption_position (lower, middle, upper), caption_caps (all capitals or the speaker's case), \
+color_filter (none, warm, cool, bw, film, vivid), speed (0.75-1.5, applied to the whole clip and its sound) and \
+each segment's punch (1-2, an extra zoom on that segment; alternating 1 and 1.3 between cuts reads as a punch-in). \
+All times are in seconds of the source video and must come from the timestamped transcript you are given.
 
 The frames you see are evenly spaced stills from the source, so you can choose the layout and crop_x.
 
