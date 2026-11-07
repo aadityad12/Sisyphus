@@ -37,6 +37,9 @@ def _project(project_id: str) -> dict:
     return p
 
 
+ALL_PROJECTS = "*"
+
+
 @app.get("/projects")
 def project_list() -> list[dict]:
     """Every project with its video and footage counts. Default first, then oldest first."""
@@ -74,10 +77,10 @@ def project_delete(project_id: str) -> dict:
     _project(project_id)
     if project_id == projects.DEFAULT:
         raise HTTPException(409, "the default project can't be deleted")
-    n = store.count_videos(project_id)
-    if n:
+    # One statement checks for clips and deletes, so a clip started meanwhile can't be orphaned.
+    if not store.delete_project_if_empty(project_id):
+        n = store.count_videos(project_id)
         raise HTTPException(409, f"project {project_id} still has {n} video{'s' if n != 1 else ''}; delete them first")
-    store.delete_project(project_id)
     return {"deleted": project_id}
 
 
@@ -146,10 +149,13 @@ def add_style(body: StyleIn) -> dict:
 def videos(
     status: str | None = None, experiment_id: int | None = None, style: str | None = None, project: str = projects.DEFAULT
 ) -> list[dict]:
-    """The project's videos. Asked for by experiment_id, an A/B's clips come from every project:
+    """The project's videos, or every project's with `project=*` (the agents' activity and the shared
+    learning views span projects). Asked for by experiment_id, an A/B's clips come from every project:
     A/B work is shared machinery, not one project's (VISION.md, Projects)."""
-    _project(project)
-    return store.list_videos(status, experiment_id, style, project=None if experiment_id is not None else project)
+    if project != ALL_PROJECTS:
+        _project(project)
+    every = project == ALL_PROJECTS or experiment_id is not None
+    return store.list_videos(status, experiment_id, style, project=None if every else project)
 
 
 @app.get("/videos/{video_id}")

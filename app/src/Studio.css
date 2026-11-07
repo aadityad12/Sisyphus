@@ -302,3 +302,21 @@
   font-weight: 600;
   color: var(--text-2);
 }
+
+.st-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.88;
+  transition:
+    opacity 300ms var(--ease),
+    transform 400ms var(--ease);
+  animation: fade-in 300ms var(--ease) both;
+}
+.st-source:hover .st-thumb img,
+.st-source.on .st-thumb img {
+  opacity: 1;
+  transform: scale(1.03);
+}

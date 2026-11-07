@@ -116,6 +116,22 @@ def test_videos_are_filtered_by_project(client):
     assert [v["id"] for v in client.get("/videos", params={"project": "x", "experiment_id": 7}).json()] == [ab]
     assert client.get("/videos", params={"project": "nope"}).status_code == 404
     assert client.get(f"/videos/{b}").json()["project"] == "x"
+    # `*` lists every project's clips, for the views that span projects.
+    assert {v["id"] for v in client.get("/videos", params={"project": "*"}).json()} == {a, b, ab}
+
+
+def test_reserved_windows_names_are_refused(client):
+    for name in ("CON", "nul", "Com1"):
+        assert client.post("/projects", json={"name": name}).status_code == 422
+    assert [p["id"] for p in client.get("/projects").json()] == ["default"]
+
+
+def test_delete_refuses_a_project_with_clips(client):
+    store.add_project("x", "X")
+    store.add_video("b.mp4", "brief", project="x")
+    assert client.delete("/projects/x").status_code == 409
+    assert store.delete_project_if_empty("x") is False
+    assert store.get_project("x") is not None
 
 
 def test_footage_is_listed_and_served_per_project(client):

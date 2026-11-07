@@ -209,6 +209,9 @@ export const api = {
   footage: () => req<Footage[]>(inProject("/footage")),
   footageUrl: async (file: string) => `${await getEngineUrl()}${inProject(`/footage/${encodeURIComponent(file)}/file`)}`,
   videos: (status?: string) => req<Video[]>(inProject(`/videos${status ? `?status=${status}` : ""}`)),
+  // Every project's clips: the agents' activity and the shared learning (versions, styles) span projects. An engine
+  // without projects ignores the parameter and answers with every clip anyway.
+  allVideos: () => req<Video[]>("/videos?project=*"),
   // No styles (or none picked) means Auto: the Creator picks from the library.
   createJob: (footage: string, brief: string, styles: string[] = []) =>
     req<{ id: number }>("/jobs", {

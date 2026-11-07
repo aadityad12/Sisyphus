@@ -229,7 +229,7 @@ export function Showcase() {
 
       {listed.length === 0 && (
         <Empty icon={<Columns2 size={18} />} title={all.length ? "No active briefs." : "Set the starting point."}>
-          Mark two or three entries in <code>footage/manifest.json</code> with <code>"showcase": true</code> to compare the same work across versions.{all.length > 0 && " Historical renders remain below, outside the scores."}
+          Mark two or three entries in this project's <code>manifest.json</code> (in its footage folder) with <code>"showcase": true</code> to compare the same work across versions.{all.length > 0 && " Historical renders remain below, outside the scores."}
         </Empty>
       )}
 

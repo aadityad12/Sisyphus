@@ -15,6 +15,8 @@ from pathlib import Path
 from . import FOOTAGE_DIR, store
 
 DEFAULT = store.DEFAULT_PROJECT
+# Windows device names: a folder called any of these can't be created (2026-11-07).
+RESERVED = {"con", "prn", "aux", "nul", *(f"com{i}" for i in range(1, 10)), *(f"lpt{i}" for i in range(1, 10))}
 
 
 def slug(name: str) -> str:
@@ -78,6 +80,8 @@ def create(name: str) -> dict:
     pid = slug(name)
     if not pid:
         raise ValueError("a project needs a name with at least one letter or digit")
+    if pid in RESERVED:
+        raise ValueError(f"{pid} can't be a project id: Windows reserves it as a device name")
     store.add_project(pid, name.strip())  # raises FileExistsError
     footage_dir(pid).mkdir(parents=True, exist_ok=True)  # somewhere to put the footage
     return summary(store.get_project(pid))

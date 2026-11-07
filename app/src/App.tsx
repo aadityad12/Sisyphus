@@ -93,7 +93,8 @@ function App() {
     return () => clearTimeout(t);
   }, []);
   const health = usePoll(api.health, 3000);
-  const videos = usePoll(() => api.videos(), 2000);
+  // One poll of every project's clips; each view filters what it shows.
+  const videos = usePoll(api.allVideos, 2000);
   const audit = usePoll(api.auditStatus, 2000);
 
   const switchProject = useCallback(
@@ -109,21 +110,24 @@ function App() {
     if (projects && !projects.some((p) => p.id === projectId) && projects[0]) switchProject(projects[0].id);
   }, [projects, projectId, switchProject]);
 
-  // A poll that left before a project switch can land after it; show only this project's clips.
-  const inProject = (videos.data ?? []).filter((v) => v.project === undefined || v.project === project.id);
+  // Every clip, A/B and showcase included: the agents are busy with all of them, in every project.
+  const every = videos.data ?? [];
   // A/B clips and showcase renders are not regular work: they stay out of Studio, Feed, Rejected and the pass rate.
-  const all = inProject.filter((v) => v.experiment_id === null && !v.showcase);
+  const regular = every.filter((v) => v.experiment_id === null && !v.showcase);
+  // Skills are shared, so a Creator version's pass rate (top bar, Versions, Styles) counts every project's clips.
+  // The work views show only this project's; an engine without projects sends no `project`, which is the default.
+  const all = regular.filter((v) => (v.project ?? "default") === project.id);
 
   const approved = all.filter((v) => v.status === "approved");
   const rejected = all.filter((v) => v.status === "rejected");
   const inFlight = all.filter((v) => ["queued", "creating", "reviewing"].includes(v.status)).length;
 
-  const rates = passRates(all);
+  const rates = passRates(regular);
   // When the Creator has moved past the newest measured version, say how the current one is doing.
   const current = health.data?.versions.creator;
   let currentLine: string | null = null;
   if (rates && current && current !== "unknown" && !samePrefix(current, rates.lastVersion)) {
-    const judged = all.filter(
+    const judged = regular.filter(
       (v) =>
         v.creator_version && samePrefix(v.creator_version, current) && (v.human_liked ?? v.review_approved) !== null,
     );
@@ -273,7 +277,7 @@ function App() {
         switchProject={switchProject}
         openDialog={setDialog}
         openPalette={() => setPalette(true)}
-        videos={inProject}
+        videos={every}
         versions={health.data?.versions}
         audit={audit.data}
         engine={engine}
@@ -347,8 +351,8 @@ function App() {
             {tab === "Studio" && <Studio videos={all} refresh={videos.refresh} project={project} />}
             {tab === "Feed" && <Feed videos={approved} mode="feed" refresh={videos.refresh} />}
             {tab === "Rejected" && <Feed videos={rejected} mode="rejected" refresh={videos.refresh} />}
-            {tab === "Versions" && <Versions videos={all} />}
-            {tab === "Styles" && <StylesTab videos={all} />}
+            {tab === "Versions" && <Versions videos={regular} />}
+            {tab === "Styles" && <StylesTab videos={regular} />}
             {tab === "Showcase" && <Showcase />}
           </div>
         </div>

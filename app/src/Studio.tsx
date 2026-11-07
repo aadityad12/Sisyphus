@@ -34,23 +34,86 @@ function splitSpeaker(speaker: string): [string, string | null] {
 }
 
 /**
- * A still from the footage: the browser fetches only the metadata and one frame (the file server answers range
- * requests). A third of the way in is usually the speaker, not a title card.
+ * Stills from the footage. Each is one <video> that fetches the metadata and one frame (the file server answers
+ * range requests), drawn to a JPEG, after which the video is unmounted so its connection closes. They load one at
+ * a time: a dozen open video requests would take every connection the webview allows to the engine and stall the
+ * app's polls. Stills are kept for the session, so coming back to the Studio shows them at once.
  */
+const stills = new Map<string, string>();
+let queue: Promise<void> = Promise.resolve();
+function inTurn(job: () => Promise<void>) {
+  queue = queue.then(job, job);
+}
+
 function Thumb({ f }: { f: Footage }) {
+  const [still, setStill] = useState(() => stills.get(f.file) ?? null);
   const [src, setSrc] = useState<string | null>(null);
-  const [ok, setOk] = useState(false);
+  const done = useRef<(() => void) | null>(null);
+  const video = useRef<HTMLVideoElement>(null);
+
   useEffect(() => {
+    if (stills.has(f.file)) return;
     let live = true;
-    api.footageUrl(f.file).then((u) => live && setSrc(`${u}#t=${Math.round((f.duration_s ?? 300) / 3)}`));
+    inTurn(
+      () =>
+        new Promise<void>((resolve) => {
+          if (!live) return resolve();
+          // Give up on a file that doesn't answer, so one bad file doesn't hold the rest.
+          const t = setTimeout(() => finish(), 10000);
+          const finish = () => {
+            clearTimeout(t);
+            if (live) setSrc(null);
+            resolve();
+          };
+          done.current = finish;
+          // A third of the way in is usually the speaker, not a title card.
+          api.footageUrl(f.file).then(
+            (u) => (live ? setSrc(`${u}#t=${Math.round((f.duration_s ?? 300) / 3)}`) : finish()),
+            finish,
+          );
+        }),
+    );
     return () => {
       live = false;
+      done.current?.();
     };
   }, [f.file, f.duration_s]);
+
+  function grab() {
+    const v = video.current;
+    if (v && v.videoWidth) {
+      try {
+        const c = document.createElement("canvas");
+        c.width = 384;
+        c.height = Math.round((384 * v.videoHeight) / v.videoWidth);
+        c.getContext("2d")?.drawImage(v, 0, 0, c.width, c.height);
+        const url = c.toDataURL("image/jpeg", 0.8);
+        stills.set(f.file, url);
+        setStill(url);
+      } catch {
+        // A cross-origin frame without CORS can't be read back; the tile keeps its placeholder.
+      }
+    }
+    done.current?.();
+  }
+
   return (
-    <span className={`st-thumb ${ok ? "ready" : ""}`}>
-      {src && <video src={src} preload="metadata" muted playsInline onLoadedData={() => setOk(true)} tabIndex={-1} />}
-      {!ok && <Film size={18} className="st-thumb-icon" />}
+    <span className={`st-thumb ${still ? "ready" : ""}`}>
+      {still && <img src={still} alt="" />}
+      {!still && src && (
+        <video
+          ref={video}
+          src={src}
+          crossOrigin="anonymous"
+          preload="auto"
+          muted
+          playsInline
+          onLoadedData={grab}
+          onError={() => done.current?.()}
+          tabIndex={-1}
+        />
+      )}
+      {!still && <Film size={18} className="st-thumb-icon" />}
       {minutes(f.duration_s) && <span className="st-dur">{minutes(f.duration_s)}</span>}
     </span>
   );
@@ -159,6 +222,7 @@ export function Studio({ videos, refresh, project }: { videos: Video[]; refresh:
             setFile(f[0].file);
             setBrief(f[0].brief ?? "");
           }
+          poll();
           api
             .health()
             .then((h) => setCreator(h.versions.creator ?? null))
@@ -169,9 +233,31 @@ export function Studio({ videos, refresh, project }: { videos: Video[]; refresh:
         }
       }
     }
+    // After the first answer, list the folder again every few seconds: footage dropped into a project's folder
+    // shows up without a reload. The picked file and the brief stay as they are.
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    function poll() {
+      timer = setTimeout(async () => {
+        if (stop) return;
+        try {
+          const f = await api.footage();
+          if (stop) return;
+          setFootage((old) => (old && JSON.stringify(old) === JSON.stringify(f) ? old : f));
+          setFile((cur) => {
+            if (cur || !f[0]) return cur;
+            setBrief(f[0].brief ?? "");
+            return f[0].file;
+          });
+        } catch {
+          // the engine is busy or restarting; try again next time
+        }
+        poll();
+      }, 5000);
+    }
     load();
     return () => {
       stop = true;
+      clearTimeout(timer);
     };
   }, []);
 

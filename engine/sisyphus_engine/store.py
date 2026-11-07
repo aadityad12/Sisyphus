@@ -255,6 +255,16 @@ def delete_project(project_id: str) -> None:
         c.execute("DELETE FROM projects WHERE id=?", (project_id,))
 
 
+def delete_project_if_empty(project_id: str) -> bool:
+    """Deletes the project only if it has no videos, in one statement. True if it was deleted."""
+    with conn() as c:
+        cur = c.execute(
+            "DELETE FROM projects WHERE id=? AND NOT EXISTS (SELECT 1 FROM videos WHERE project=?)",
+            (project_id, project_id),
+        )
+        return cur.rowcount > 0
+
+
 def count_videos(project_id: str) -> int:
     with conn() as c:
         return c.execute("SELECT COUNT(*) FROM videos WHERE project=?", (project_id,)).fetchone()[0]
