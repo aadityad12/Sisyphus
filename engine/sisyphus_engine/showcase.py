@@ -7,56 +7,63 @@ A/B work (experiments._held_out skips them), and stay out of the Feed and Reject
 They are rendered once at the starting version (POST /showcase) and again each time a Creator change
 is promoted (experiments calls on_promote). Each render uses the Creator's skills at that version's
 commit, so a re-run reproduces that version and not whatever is checked out now.
+
+Each project has its own showcase: the entries in its own manifest, rendered into that project. A
+promotion renders every project's, since the Creator's skills are shared across projects.
 """
 
-import json
 import logging
 import threading
 
-from . import FOOTAGE_DIR, jobs, store, versioning
+from . import jobs, projects, store, versioning
 
 log = logging.getLogger(__name__)
 _render_lock = threading.Lock()
 
 
-def entries() -> list[dict]:
-    manifest = FOOTAGE_DIR / "manifest.json"
-    items = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []
-    return [m for m in items if m.get("showcase") and m.get("brief") and (FOOTAGE_DIR / m["file"]).exists()]
+def entries(project: str = projects.DEFAULT) -> list[dict]:
+    folder = projects.footage_dir(project)
+    return [m for m in projects.manifest(project) if m.get("showcase") and m.get("brief") and (folder / m["file"]).exists()]
 
 
-def is_showcase(footage: str, brief: str) -> bool:
-    return any(m["file"] == footage and m["brief"].strip() == brief.strip() for m in entries())
+def is_showcase(footage: str, brief: str, project: str = projects.DEFAULT) -> bool:
+    return any(m["file"] == footage and m["brief"].strip() == brief.strip() for m in entries(project))
 
 
-def _videos() -> list[dict]:
-    return [v for v in store.list_videos() if v.get("showcase")]
+def _videos(project: str = projects.DEFAULT) -> list[dict]:
+    return [v for v in store.list_videos(project=project) if v.get("showcase")]
 
 
-def render(version: str | None = None) -> list[int]:
-    """Render every showcase brief at `version` (default: the current Creator version), skipping ones
-    already rendered or in flight at that version. A failed render is retried. Returns the new video ids."""
+def render(version: str | None = None, project: str = projects.DEFAULT) -> list[int]:
+    """Render every showcase brief of `project` at `version` (default: the current Creator version),
+    skipping ones already rendered or in flight at that version. A failed render is retried. Returns
+    the new video ids."""
     with _render_lock:
-        return _render(version or versioning.agent_version("creator"))
+        return _render(version or versioning.agent_version("creator"), project)
 
 
-def _render(version: str) -> list[int]:
-    have = {(v["footage"], v["brief"]) for v in _videos() if v["creator_version"] == version and v["status"] != "failed"}
+def _render(version: str, project: str) -> list[int]:
+    have = {
+        (v["footage"], v["brief"])
+        for v in _videos(project)
+        if v["creator_version"] == version and v["status"] != "failed"
+    }
     ids = []
-    for m in entries():
+    for m in entries(project):
         if (m["file"], m["brief"]) in have:
             continue
-        ids.append(jobs.submit(m["file"], m["brief"], skills_ref=version, showcase=1))
-    log.info("showcase: %d renders queued at %s", len(ids), version)
+        ids.append(jobs.submit(m["file"], m["brief"], skills_ref=version, project=project, showcase=1))
+    log.info("showcase: %d renders queued at %s in project %s", len(ids), version, project)
     return ids
 
 
 def on_promote(version: str) -> None:
     """Called after a Creator change is promoted. Never lets a showcase problem undo a promotion."""
-    try:
-        render(version)
-    except Exception:
-        log.exception("showcase render after promote failed")
+    for p in store.list_projects():
+        try:
+            render(version, p["id"])
+        except Exception:
+            log.exception("showcase render after promote failed in project %s", p["id"])
 
 
 def _change_for(version: str, changes: list[dict]) -> dict | None:
@@ -73,9 +80,10 @@ def _change_for(version: str, changes: list[dict]) -> dict | None:
     return None
 
 
-def table() -> dict:
-    """Rows are showcase briefs, columns are Creator versions in the order they first rendered."""
-    vids = sorted(_videos(), key=lambda v: v["created_at"])
+def table(project: str = projects.DEFAULT) -> dict:
+    """Rows are the project's showcase briefs, columns are Creator versions in the order they first rendered."""
+    vids = sorted(_videos(project), key=lambda v: v["created_at"])
+    listed_entries = entries(project)
     changes = store.list_changes()
     versions: list[dict] = []
     seen: set[str] = set()
@@ -92,9 +100,9 @@ def table() -> dict:
             "change": None if c is None else {"id": c["id"], "title": c["title"], "rationale": c["rationale"]},
         })
     rows = []
-    listed = {(m["file"], m["brief"]) for m in entries()}
-    keys = list(dict.fromkeys([(m["file"], m["brief"]) for m in entries()] + [(v["footage"], v["brief"]) for v in vids]))
-    meta = {(m["file"], m["brief"]): m for m in entries()}
+    listed = {(m["file"], m["brief"]) for m in listed_entries}
+    keys = list(dict.fromkeys([(m["file"], m["brief"]) for m in listed_entries] + [(v["footage"], v["brief"]) for v in vids]))
+    meta = {(m["file"], m["brief"]): m for m in listed_entries}
     for footage, brief in keys:
         cells = {}
         for v in vids:  # newest render per version wins

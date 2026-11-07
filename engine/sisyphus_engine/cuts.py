@@ -8,7 +8,7 @@ marked kept are the words the video plays.
 
 import json
 
-from . import FOOTAGE_DIR
+from . import projects
 from .plan import EditPlan, Segment, load as load_plan, load_segments
 from .render import plays, timeline
 from .transcribe import _cache_path
@@ -58,7 +58,8 @@ def for_video(video: dict, context: float = CONTEXT_S) -> dict:
     gone and NotCached if it has no transcript.
     """
     plan = load_plan(video["plan"])
-    cache = _cache_path(FOOTAGE_DIR / video["footage"])  # stats the footage: FileNotFoundError if gone
+    # Stats the footage: FileNotFoundError if gone.
+    cache = _cache_path(projects.footage_path(video.get("project"), video["footage"]))
     if not cache.exists():
         raise NotCached(video["footage"])
     rendered = load_segments(video["plan"].get("rendered_segments") or [])

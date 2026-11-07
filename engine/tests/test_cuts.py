@@ -85,7 +85,7 @@ def test_for_video_reads_the_cached_transcript(monkeypatch, tmp_path):
     cache = tmp_path / "cache.json"
     cache.write_text(json.dumps(synthetic()))
     seen = []
-    monkeypatch.setattr(cuts, "FOOTAGE_DIR", tmp_path)
+    monkeypatch.setattr(cuts.projects, "FOOTAGE_DIR", tmp_path)
     monkeypatch.setattr(cuts, "_cache_path", lambda path: seen.append(path) or cache)
     view = cuts.for_video(STORED)
     assert seen == [tmp_path / "talk.mp4"]
@@ -102,7 +102,7 @@ def test_stored_rendered_segments_win_over_resnapping(monkeypatch, tmp_path):
     # As if snapping changed after this clip was rendered: the stored cut points still decide.
     cache = tmp_path / "cache.json"
     cache.write_text(json.dumps(synthetic()))
-    monkeypatch.setattr(cuts, "FOOTAGE_DIR", tmp_path)
+    monkeypatch.setattr(cuts.projects, "FOOTAGE_DIR", tmp_path)
     monkeypatch.setattr(cuts, "_cache_path", lambda path: cache)
     stored = {"footage": "talk.mp4", "plan": STORED["plan"] | {"rendered_segments": [{"start": 9.95, "end": 11.0}]}}
     block = cuts.for_video(stored)["segments"][0]

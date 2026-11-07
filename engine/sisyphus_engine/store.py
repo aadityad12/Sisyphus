@@ -10,6 +10,7 @@ from . import RUNS_DIR
 from .failures import attribute_failure
 
 DB_PATH = RUNS_DIR / "sisyphus.db"
+DEFAULT_PROJECT = "default"  # the work from before projects existed (issue #14)
 _lock = threading.RLock()
 
 SCHEMA = """
@@ -33,6 +34,11 @@ CREATE TABLE IF NOT EXISTS videos (
     arm TEXT,                                -- 'control' or 'candidate' in a shadow A/B
     created_at REAL NOT NULL,
     updated_at REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS projects (
+    id TEXT PRIMARY KEY,                     -- slug [a-z0-9-]+; also the footage subfolder name
+    name TEXT NOT NULL,
+    created_at REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,6 +81,7 @@ MIGRATIONS = [
     ("videos", "reviewer_ref", "TEXT"),
     ("videos", "showcase", "INTEGER"),  # 1 = a showcase render: the demo's yardstick, never Auditor input
     ("videos", "styles_requested", "TEXT"),  # JSON list of style names the job asked for; empty or null = Auto
+    ("videos", "project", f"TEXT NOT NULL DEFAULT '{DEFAULT_PROJECT}'"),  # existing videos join the default project
 ]
 
 
@@ -85,6 +92,8 @@ def init() -> None:
             have = {r["name"] for r in c.execute(f"PRAGMA table_info({table})")}
             if column not in have:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+        # created_at 0 keeps it first in any ordering by age.
+        c.execute("INSERT OR IGNORE INTO projects (id, name, created_at) VALUES (?, 'Default', 0)", (DEFAULT_PROJECT,))
 
 
 def _video(row: sqlite3.Row, comments: list[dict] | None = None) -> dict:
@@ -132,8 +141,14 @@ def get_video(video_id: int) -> dict | None:
         return _video(row, comments)
 
 
-def list_videos(status: str | None = None, experiment_id: int | None = None, style: str | None = None) -> list[dict]:
+def list_videos(
+    status: str | None = None, experiment_id: int | None = None, style: str | None = None, project: str | None = None
+) -> list[dict]:
+    """Videos, newest first. `project` None means every project: the Auditor and the A/Bs learn from all of them."""
     q, args = "SELECT * FROM videos WHERE 1=1", []
+    if project is not None:
+        q += " AND project=?"
+        args.append(project)
     if status:
         q += " AND status=?"
         args.append(status)
@@ -204,3 +219,42 @@ def list_changes() -> list[dict]:
             d["results"] = json.loads(d["results"]) if d["results"] else None
             out.append(d)
         return out
+
+
+def list_projects() -> list[dict]:
+    """Default first, then oldest first."""
+    with conn() as c:
+        rows = c.execute(
+            "SELECT * FROM projects ORDER BY id != ?, created_at, id", (DEFAULT_PROJECT,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_project(project_id: str) -> dict | None:
+    with conn() as c:
+        row = c.execute("SELECT * FROM projects WHERE id=?", (project_id,)).fetchone()
+        return None if row is None else dict(row)
+
+
+def add_project(project_id: str, name: str) -> None:
+    """Raises FileExistsError if the id is taken."""
+    with conn() as c:
+        try:
+            c.execute("INSERT INTO projects (id, name, created_at) VALUES (?,?,?)", (project_id, name, time.time()))
+        except sqlite3.IntegrityError:
+            raise FileExistsError(project_id) from None
+
+
+def rename_project(project_id: str, name: str) -> None:
+    with conn() as c:
+        c.execute("UPDATE projects SET name=? WHERE id=?", (name, project_id))
+
+
+def delete_project(project_id: str) -> None:
+    with conn() as c:
+        c.execute("DELETE FROM projects WHERE id=?", (project_id,))
+
+
+def count_videos(project_id: str) -> int:
+    with conn() as c:
+        return c.execute("SELECT COUNT(*) FROM videos WHERE project=?", (project_id,)).fetchone()[0]

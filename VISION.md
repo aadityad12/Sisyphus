@@ -92,6 +92,17 @@ Each proposed change runs **side by side with the current version on new work**.
 
 The winner becomes the new standard, and the loser is rolled back.
 
+### Projects
+
+A **project** is a named workspace the user organizes work into: one per event, client or series, or just to keep things apart (issue #14). Decided 2026-11-07:
+
+- **A project organizes work only:** footage, jobs and videos, and so the feed, the rejected-videos tab, the Studio and the Showcase. **Skills, versions, styles, failures, the Auditor and its A/B tests are shared** across projects, so what the system learns in one carries over to all. The cost is that a change tuned on one kind of video affects every project; the A/B on held-out work is what guards against that.
+- **A new project starts from the current shared skills**, because there are no per-project skills.
+- **A video belongs to exactly one project, and footage lives in one project's folder.** To use the same footage in two projects, copy the file.
+- **The work from before projects is the project `default`**, so nothing is lost. Its footage stays at the root of `footage/`; any other project's is in `footage/<project-id>/`, with its own optional `manifest.json`.
+- **A/B clips are shared machinery.** The Creator A/B draws its held-out work from the default project's manifest and files its clips there. Each project's Showcase is the showcase entries in its own manifest, and a promoted Creator change renders every project's Showcase, since the skills are shared.
+- **Styles (#13) stay separate:** a style is how a clip is cut, a project is where the work lives. A project could later carry a default style.
+
 ## Stack
 
 | Layer | Choice | Why |
