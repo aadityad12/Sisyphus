@@ -75,3 +75,20 @@ def test_experiment_clips_are_not_auditor_failures(db):
     cid = _change()
     _arm(cid, "control", False)
     assert store.failures() == []
+
+
+def test_held_out_prefers_the_failing_kind(db, tmp_path, monkeypatch):
+    import json
+
+    for name in ("talk1.mp4", "talk2.mp4", "pod1.mp4", "pod2.mp4"):
+        (tmp_path / name).write_bytes(b"")
+    manifest = [
+        {"file": "talk1.mp4", "brief": "b", "kind": "talk"},
+        {"file": "talk2.mp4", "brief": "b", "kind": "talk"},
+        {"file": "pod1.mp4", "brief": "b", "kind": "interview"},
+        {"file": "pod2.mp4", "brief": "b", "kind": "interview"},
+    ]
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+    monkeypatch.setattr(experiments, "FOOTAGE_DIR", tmp_path)
+    picked = experiments._held_out({"pod1.mp4"}, 2)
+    assert [p["footage"] for p in picked] == ["pod2.mp4", "talk1.mp4"]

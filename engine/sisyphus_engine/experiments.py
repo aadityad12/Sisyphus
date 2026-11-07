@@ -42,11 +42,19 @@ def _consumed_failure_ids() -> set[int]:
 
 
 def _held_out(exclude_footage: set[str], n: int) -> list[dict]:
-    """New work for the A/B: footage the failure cluster didn't come from, with its suggested brief."""
+    """New work for the A/B: footage the failure cluster didn't come from, with its suggested brief.
+
+    It prefers footage of the same kind as the failures (the manifest's "kind": talk, interview, ...): the
+    first A/B on 2026-11-07 tested a fix for interview framing on slide talks only, where both versions
+    already passed, so the result said nothing about the change. Then footage no clip has used yet.
+    """
     manifest = FOOTAGE_DIR / "manifest.json"
     items = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else []
     items = [m for m in items if m.get("brief") and (FOOTAGE_DIR / m["file"]).exists()]
+    kinds = {m.get("kind") for m in items if m["file"] in exclude_footage} - {None}
+    used = {v["footage"] for v in store.list_videos()}
     fresh = [m for m in items if m["file"] not in exclude_footage]
+    fresh.sort(key=lambda m: (bool(kinds) and m.get("kind") not in kinds, m["file"] in used))
     picked = (fresh or items)[:n]
     return [{"footage": m["file"], "brief": m["brief"]} for m in picked]
 
