@@ -23,6 +23,7 @@ class EditPlan(BaseModel):
         "split: whole frame on top, a crop at crop_x filling the bottom",
     )
     crop_x: float = Field(0.5, ge=0, le=1, description="Horizontal position of the 9:16 crop: 0 left, 0.5 center, 1 right")
+    track_face: bool = Field(False, description="Centre and size the crop on the speaker's face, per segment")
     zoom: float = Field(1.0, ge=1, le=4, description="Crop magnification: 1 uses the full source height, 3 a third of it")
     crop_y: float = Field(0.5, ge=0, le=1, description="Vertical position of a zoomed crop: 0 top, 1 bottom")
     caption_style: Literal["karaoke", "plain", "none"] = "karaoke"
@@ -39,7 +40,7 @@ def json_schema() -> dict:
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["title", "hook", "segments", "layout", "crop_x", "zoom", "crop_y", "caption_style", "caption_words", "rationale"],
+        "required": ["title", "hook", "segments", "layout", "track_face", "crop_x", "zoom", "crop_y", "caption_style", "caption_words", "rationale"],
         "properties": {
             "title": {"type": "string"},
             "hook": {"type": "string"},
@@ -55,6 +56,7 @@ def json_schema() -> dict:
             "layout": {"type": "string", "enum": ["crop", "fit", "split"]},
             "crop_x": num,
             "zoom": num,
+            "track_face": {"type": "boolean"},
             "crop_y": num,
             "caption_style": {"type": "string", "enum": ["karaoke", "plain", "none"]},
             "caption_words": {"type": "integer"},
