@@ -20,7 +20,13 @@ const TAB_HINT: Record<Tab, string> = {
 };
 
 function App() {
-  const [tab, setTab] = useState<Tab>("Studio");
+  // The tab lives in the URL hash, so a reload (or the dev server's) keeps you where you were.
+  const fromHash = () => TABS.find((t) => `#${t.toLowerCase()}` === window.location.hash) ?? "Studio";
+  const [tab, setTabState] = useState<Tab>(fromHash);
+  const setTab = (t: Tab) => {
+    setTabState(t);
+    window.history.replaceState(null, "", `#${t.toLowerCase()}`);
+  };
   const [openedAt] = useState(Date.now);
   const health = usePoll(api.health, 3000);
   const videos = usePoll(() => api.videos(), 2000);
