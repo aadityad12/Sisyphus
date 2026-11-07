@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Video } from "./api";
 import { VideoCard } from "./VideoCard";
 import "./Feed.css";
@@ -49,8 +49,18 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
       video.human_liked !== null && video.review_approved !== null && video.human_liked !== video.review_approved,
   ).length;
   const unvoted = videos.filter((video) => video.human_liked === null).length;
-  const reviewerWrong = videos.filter((video) => video.human_liked === true).length;
-  const sorted = sortVideos(videos, sort);
+  const clipSet = videos
+    .map((video) => video.id)
+    .sort((a, b) => a - b)
+    .join(",");
+
+  // A vote must not move a card out from under the human. Re-sort only for a new clip set or sort mode,
+  // then map the frozen id order to the latest polled objects so the cards still show fresh votes and comments.
+  const orderedIds = useMemo(() => sortVideos(videos, sort).map((video) => video.id), [clipSet, sort]);
+  const videosById = new Map(videos.map((video) => [video.id, video]));
+  const sorted = orderedIds
+    .map((id) => videosById.get(id))
+    .filter((video): video is Video => video !== undefined);
 
   return (
     <div className="feed-view">
@@ -59,7 +69,7 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
           <h2 className="feed-heading">{mode === "feed" ? "Approved clips" : "Sent-back clips"}</h2>
           <p className="feed-description">
             {mode === "feed"
-              ? "The Reviewer approved these. Your vote tells the Auditor whether it was right."
+              ? "The Reviewer approved these. Your vote checks its decision."
               : "The Reviewer sent these back. Like a good one to flag a Reviewer mistake."}
           </p>
         </div>
@@ -84,8 +94,11 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
               <dt>You agreed</dt>
               <dd>{agreed}</dd>
             </div>
-            <div className="feed-stat disagree" title="Your vote contradicts the Reviewer's verdict">
-              <dt>You disagreed</dt>
+            <div
+              className="feed-stat disagree"
+              title={mode === "rejected" ? "You liked a clip the Reviewer sent back" : "Your vote contradicts the Reviewer's verdict"}
+            >
+              <dt>{mode === "rejected" ? "Reviewer wrong" : "You disagreed"}</dt>
               <dd>{disagreed}</dd>
             </div>
             <div className="feed-stat unvoted" title="These clips still need your vote">
@@ -94,12 +107,9 @@ export function Feed({ videos, mode, refresh }: { videos: Video[]; mode: "feed" 
             </div>
           </dl>
           <p className="feed-note">
-            {mode === "rejected" && (
-              <>
-                Reviewer wrong on <strong>{reviewerWrong}</strong> {reviewerWrong === 1 ? "clip" : "clips"}.{" "}
-              </>
-            )}
-            Every vote trains the Auditor.
+            {mode === "feed"
+              ? "A disagreement with the Reviewer becomes a failure the Auditor learns from."
+              : "Liking a sent-back clip counts against the Reviewer."}
           </p>
         </section>
       )}
