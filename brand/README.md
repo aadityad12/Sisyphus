@@ -32,7 +32,10 @@ sides. Cropping into that margin crowds the logo.
 The brush texture on the boulder and the play button is drawn as dense paths, so the lockup and
 mark SVGs are about 0.8 MB each (the wordmark SVGs about 40 KB). The PNGs are 20 to 60 KB.
 
-Not yet checked: how the mark reads below 512 px, for example as a favicon.
+The app's favicon (`app/public/favicon.png`, 64 px, and `apple-touch-icon.png`, 180 px) is the
+on-black mark scaled down. At 64 px the figure, boulder and orange play button still read
+(2026-11-07); the transparent variants vanish on a dark browser tab, so the favicon keeps its
+black square.
 
 ## Accent
 
