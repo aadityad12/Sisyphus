@@ -1,0 +1,500 @@
+/* Video cards: a 9:16 frame on the left, the loop (verdict, who made it, your call) on the right. */
+
+/* The card is a size container, so it stacks by its own width, not the window's: a 460px grid cell
+   leaves too little room beside a full-size frame. */
+.vcard {
+  container-type: inline-size;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+}
+
+.vcard.v-approved {
+  border-color: color-mix(in srgb, var(--green) 35%, var(--line));
+}
+
+.vcard.v-rejected,
+.vcard.v-failed {
+  border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+}
+
+.vc-inner {
+  display: flex;
+  gap: 16px;
+}
+
+/* The vertical frame. Shorts are 9:16, so the frame is too, whatever the video inside. */
+.vc-frame {
+  flex: 0 0 clamp(150px, 38%, 216px);
+  align-self: flex-start;
+}
+
+.vc-frame video,
+.vc-empty {
+  display: block;
+  width: 100%;
+  aspect-ratio: 9 / 16;
+  border-radius: var(--radius-sm);
+  background: #000;
+  object-fit: contain;
+  outline: 1px solid var(--line);
+  outline-offset: -1px;
+}
+
+.vc-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  color: var(--faint);
+  font-size: 13px;
+  text-align: center;
+  background: var(--sunken);
+}
+
+.vc-empty.busy {
+  color: var(--dim);
+  background: linear-gradient(110deg, var(--sunken) 30%, var(--card-hover) 50%, var(--sunken) 70%);
+  background-size: 200% 100%;
+  animation: vc-shimmer 1.6s linear infinite;
+}
+
+@keyframes vc-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.vc-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vc-body p {
+  margin: 0;
+}
+
+/* Verdict: the Reviewer's decision and its reason, in the Reviewer's colour. */
+.vc-verdict {
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--sunken);
+  border-left: 3px solid var(--line-strong);
+}
+
+.vc-verdict.ok {
+  background: var(--green-soft);
+  border-left-color: var(--green);
+}
+
+.vc-verdict.no {
+  background: var(--red-soft);
+  border-left-color: var(--red);
+}
+
+.vc-verdict-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.vc-verdict.ok .vc-verdict-head {
+  color: var(--green);
+}
+
+.vc-verdict.no .vc-verdict-head {
+  color: var(--red);
+}
+
+.vc-verdict .icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--bg);
+  background: var(--dim);
+}
+
+.vc-verdict.ok .icon {
+  background: var(--green);
+}
+
+.vc-verdict.no .icon {
+  background: var(--red);
+}
+
+.vc-ver {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  padding: 1px 6px;
+  border-radius: 6px;
+  color: var(--reviewer);
+  background: color-mix(in srgb, var(--reviewer) 14%, transparent);
+}
+
+.vc-verdict blockquote {
+  margin: 8px 0 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid color-mix(in srgb, var(--reviewer) 60%, transparent);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.45;
+  font-style: italic;
+}
+
+.vc-verdict blockquote.clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+.vc-moreless {
+  margin-top: 2px;
+  padding: 2px 0 0 12px;
+  font-size: 12px;
+}
+
+.vc-verdict blockquote::before {
+  content: "Reviewer: ";
+  font-style: normal;
+  font-weight: 600;
+  color: var(--reviewer);
+}
+
+.vc-error {
+  margin: 8px 0 0;
+  color: var(--red);
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* Steps: Queued → Creator editing → Reviewer watching → Verdict. */
+.vc-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 5px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  font-size: 12px;
+}
+
+.vc-steps li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+.vc-steps li + li::before {
+  content: "";
+  width: 8px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.vc-steps .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+
+.vc-steps li.done {
+  color: var(--dim);
+}
+
+.vc-steps li.done .dot {
+  background: currentColor;
+}
+
+.vc-steps li.active {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.vc-steps li.active .dot {
+  background: currentColor;
+  animation: vc-pulse 1.2s ease-in-out infinite;
+}
+
+.vc-steps li.stuck {
+  color: var(--red);
+  font-weight: 600;
+}
+
+@keyframes vc-pulse {
+  50% {
+    box-shadow: 0 0 0 4px var(--gold-soft);
+  }
+}
+
+/* What the clip is and who made it. */
+.vc-what h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.vc-brief {
+  color: var(--dim);
+  font-size: 13px;
+}
+
+.vc-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 6px !important;
+  font-size: 12px;
+}
+
+.vc-maker {
+  color: var(--creator);
+}
+
+.vc-maker code {
+  font-family: var(--mono);
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--creator) 14%, transparent);
+}
+
+.vc-blame {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+/* Your call: the human verdict. */
+.vc-you {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.vc-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.vc-votes {
+  display: flex;
+  gap: 8px;
+}
+
+.vc-votes .vote {
+  flex: 1;
+  padding: 8px 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+@container (max-width: 520px) {
+  .vc-votes .vote {
+    padding: 7px 6px;
+    font-size: 13px;
+  }
+}
+
+.vc-votes .vote.on.up {
+  background: var(--green-soft);
+}
+
+.vc-votes .vote.on.down {
+  background: var(--red-soft);
+}
+
+.vc-agree {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.vc-agree.disagree {
+  color: var(--auditor);
+}
+
+/* Details behind disclosures: plan, transcript, comments. */
+.vc-more {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vc-more details {
+  border-radius: var(--radius-sm);
+}
+
+.vc-more details[open] {
+  background: var(--sunken);
+}
+
+.vc-more summary {
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  list-style-position: inside;
+}
+
+.vc-more summary:hover {
+  background: var(--card-hover);
+}
+
+.vc-plan,
+.vc-comments {
+  padding: 4px 12px 10px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vc-plan ol {
+  margin: 0;
+  padding-left: 20px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.vc-comment {
+  background: var(--card);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+.vc-compose {
+  display: flex;
+  gap: 6px;
+}
+
+/* A clip with no plan yet: one row of brief, stepper and elapsed time. */
+.vrow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.vrow.v-failed {
+  border-color: color-mix(in srgb, var(--red) 35%, var(--line));
+}
+
+.vrow-what {
+  flex: 1;
+  min-width: 0;
+}
+
+.vrow-what p {
+  margin: 0;
+}
+
+.vrow-brief {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vrow-facts {
+  margin-top: 2px !important;
+  font-size: 12px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vrow .vc-error {
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vrow-time {
+  flex: 0 0 64px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--dim);
+}
+
+@media (max-width: 760px) {
+  .vrow {
+    flex-wrap: wrap;
+  }
+}
+
+/* Too narrow for frame and body side by side: stack the frame above the body. */
+@container (max-width: 420px) {
+  .vc-inner {
+    flex-direction: column;
+  }
+
+  .vc-frame {
+    flex-basis: auto;
+    width: 216px;
+    max-width: 100%;
+    align-self: center;
+  }
+}
+
+.vc-brief {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.vc-failed {
+  font-size: 12px;
+  color: var(--red);
+}
+
+/* A clip the Reviewer failed on: the human gives the verdict instead. */
+.vc-stuck {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.vc-stuck-head {
+  font-size: 13px;
+  color: var(--text);
+}
