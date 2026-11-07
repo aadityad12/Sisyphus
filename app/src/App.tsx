@@ -85,16 +85,20 @@ function App() {
                   <span className="dim"> → </span>
                 </>
               )}
-              <strong className={rates.versions > 1 && rates.last > rates.first ? "up" : ""}>{rates.last}%</strong>
+              <strong
+                className={rates.versions > 1 ? (rates.last > rates.first ? "up" : rates.last < rates.first ? "down" : "") : ""}
+              >{rates.last}%</strong>
             </span>
           ) : (
             <span className="headline-value dim">no verdicts yet</span>
           )}
           <span className="headline-sub">
-            {rates
-              ? `latest: ${rates.passed}/${rates.clips} clips${rates.versions > 1 ? ` · ${rates.versions} versions` : ""}`
-              : "\u00a0"}
+            {rates ? `${rates.lastVersion.slice(0, 7)}: ${rates.passed}/${rates.clips} clips` : "\u00a0"}
           </span>
+          {rates && health.data && !health.data.versions.creator.startsWith(rates.lastVersion.slice(0, 7)) &&
+            !rates.lastVersion.startsWith(health.data.versions.creator.slice(0, 7)) && (
+              <span className="headline-sub">current {health.data.versions.creator.slice(0, 7)}: no clips yet</span>
+            )}
         </div>
         <span className={`engine ${engine}`} title={`Engine ${engine}`}>
           <span className="engine-dot" />

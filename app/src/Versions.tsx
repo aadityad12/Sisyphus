@@ -240,7 +240,7 @@ function AuditorPanel() {
         </div>
       </div>
       <p className="dim small">
-        A failure is a clip a human disagreed with, or one the Reviewer sent back. The Auditor groups them, writes one
+        A failure is a clip the Reviewer sent back, or one where a human's vote disagreed with the Reviewer. The Auditor groups them, writes one
         change to the skills, and A/B tests it on held-out work before adopting it.
       </p>
       <button className="primary" disabled={busy} onClick={run}>
@@ -280,6 +280,8 @@ function HeadToHead({ results }: { results: Record<string, unknown> }) {
     </div>
   );
 }
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 function diffStat(diff: string) {
   let add = 0;
@@ -351,6 +353,7 @@ export function Versions({ videos }: { videos: Video[] }) {
   const changes = [...data.changes].sort((a, b) => b.created_at - a.created_at);
   const promoted = changes.filter((c) => c.status === "promoted").length;
   const rolledBack = changes.filter((c) => c.status === "rolled_back").length;
+  const testing = changes.filter((c) => c.status === "testing" || c.status === "proposed").length;
   return (
     <div className="versions">
       <div className="evo">
@@ -363,7 +366,8 @@ export function Versions({ videos }: { videos: Video[] }) {
           <h2>What the Auditor changed</h2>
           {changes.length > 0 && (
             <span className="dim small">
-              {changes.length} proposed · {promoted} promoted · {rolledBack} rolled back
+              {plural(changes.length, "change")} · {promoted} promoted · {rolledBack} rolled back
+              {testing > 0 && ` · ${testing} testing`}
             </span>
           )}
         </div>

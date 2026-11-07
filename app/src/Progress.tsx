@@ -69,6 +69,12 @@ export function Progress({
         <h2>Creator pass rate by version</h2>
         <span className="dim small">a human vote where there is one, else the Reviewer's verdict</span>
       </div>
+      {ordered.length === 1 && (
+        <p className="dim small evo-note">
+          Only one Creator version has verdicts so far, so there is no improvement to measure yet. A version the
+          Auditor promotes gets its own bar once clips are made with it.
+        </p>
+      )}
       {ordered.length === 0 ? (
         <p className="dim">No verdicts yet. Make a few clips in the Studio and the first version's bar appears here.</p>
       ) : (
@@ -118,12 +124,13 @@ export function Progress({
               <div className="barnote">
                 {(() => {
                   const c = changeFor(awaiting, promoted, known);
-                  return c ? changeTitle(c) : "current version";
+                  return c ? changeTitle(c) : "no linked change";
                 })()}
               </div>
               <div className="small awaiting-note">current · no clips yet</div>
             </div>
           )}
+          {!awaiting && (
           <div className="barcol ghost" aria-hidden>
             <div className="barval">
               <strong className="dim">?</strong>
@@ -132,9 +139,10 @@ export function Progress({
             <div className="barlabel">
               <span className="vname dim">v{ordered.length + (awaiting ? 1 : 0)}</span>
             </div>
-            <div className="barnote">the Auditor's next promoted change</div>
+            <div className="barnote">appears when the Auditor promotes a change</div>
             <div className="small">&nbsp;</div>
           </div>
+          )}
         </div>
       )}
     </section>

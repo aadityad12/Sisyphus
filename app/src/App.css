@@ -296,6 +296,10 @@ h3 {
   color: var(--green);
 }
 
+.headline-value strong.down {
+  color: var(--red);
+}
+
 .headline-value.dim {
   font-size: 14px;
   padding: 4px 0;

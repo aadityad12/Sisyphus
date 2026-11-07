@@ -20,7 +20,14 @@ export function passRates(videos: Video[]) {
   if (ordered.length === 0) return null;
   const first = ordered[0];
   const last = ordered[ordered.length - 1];
-  return { first: pct(first), last: pct(last), versions: ordered.length, passed: last.passed, clips: last.total };
+  return {
+    first: pct(first),
+    last: pct(last),
+    versions: ordered.length,
+    passed: last.passed,
+    clips: last.total,
+    lastVersion: last.version,
+  };
 }
 
 const AUDIT_LABEL: Record<AuditStatus["state"], string> = {
@@ -104,7 +111,10 @@ export function Loop({
   // A Reviewer error leaves a clip in "reviewing" with an error set: stuck, not being watched.
   const reviewing = videos.filter((v) => v.status === "reviewing" && !v.error);
   const stuck = videos.filter((v) => v.status === "reviewing" && v.error);
-  const judged = videos.filter((v) => v.status === "approved" || v.status === "rejected").length;
+  // Verdicts on regular clips match what Feed + Rejected show; A/B and showcase verdicts are counted apart.
+  const done = videos.filter((v) => v.status === "approved" || v.status === "rejected");
+  const judged = done.filter((v) => poolOf(v) === "regular").length;
+  const judgedElsewhere = done.length - judged;
   const state = audit?.state ?? "idle";
 
   const creatorActivity = creating.length
@@ -116,8 +126,8 @@ export function Loop({
     ? describe("watching", reviewing)
     : stuck.length
       ? `${plural(stuck.length, "clip")} need${stuck.length === 1 ? "s" : ""} a verdict`
-      : judged
-        ? `${plural(judged, "verdict")} given`
+      : done.length
+        ? `${plural(judged, "verdict")}${judgedElsewhere ? ` · ${judgedElsewhere} on tests` : ""}`
         : "idle";
   const creatorPool = busiest([...creating, ...queued]);
   const reviewerPool = busiest(reviewing.length ? reviewing : stuck);
