@@ -133,3 +133,11 @@ def test_a_style_cant_share_a_name_with_a_shared_skill_file(repo):
     (repo / "skills" / "creator" / "editing.md").write_text("# Editing\n", encoding="utf-8")
     with pytest.raises(ValueError):
         styles.create("editing", "a", "b")
+
+
+def test_a_clip_tagged_with_a_renamed_style_gets_the_new_file(tmp_path, monkeypatch):
+    _write(tmp_path, "reviewer", "brain-rot-jump-cuts", "# Brain rot jump cuts\n\nFast.\n")
+    monkeypatch.setattr(styles, "SKILLS_DIR", tmp_path / "skills")
+    text = styles.for_agent("reviewer", ["brain-rot"])
+    assert "## Style: brain-rot-jump-cuts" in text and "Fast." in text
+    assert styles.current("artsy") == "cinematic-long-takes" and styles.current("new-look") == "new-look"

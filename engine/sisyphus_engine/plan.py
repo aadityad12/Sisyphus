@@ -123,6 +123,11 @@ def load(raw: dict) -> EditPlan:
     return EditPlan.model_validate(clamp_raw(dict(raw)))
 
 
+def load_segments(raw: list) -> list[Segment]:
+    """Stored segments outside a plan (a video's rendered_segments), clamped like load()."""
+    return [Segment.model_validate(s) for s in clamp_raw({"segments": list(raw)})["segments"]]
+
+
 def sanitize(plan: EditPlan, source_duration: float) -> EditPlan:
     """Clamp segments to the source and drop empty ones. Order is kept: the Creator may reorder on purpose."""
     segs = []

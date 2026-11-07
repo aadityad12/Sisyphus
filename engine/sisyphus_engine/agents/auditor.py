@@ -166,7 +166,7 @@ def cluster(failures: list[dict]) -> list[dict]:
         ids = sorted({i for i in c["video_ids"] if i in known})
         if len(ids) < MIN_CLUSTER:
             continue
-        kind, style = c.get("kind", "shared"), styles.slug(c.get("style") or "")
+        kind, style = c.get("kind", "shared"), styles.current(styles.slug(c.get("style") or ""))
         if kind == "style" and style not in library:
             kind, style = "shared", ""
         elif kind == "new_style" and style in library:

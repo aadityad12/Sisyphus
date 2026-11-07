@@ -7,7 +7,7 @@ Pick the part of the transcript that best answers the brief and keep it as one o
 All three platforms measure how many viewers swipe away in the first 3 seconds, so that is where a clip is won or lost.
 
 - The claim lands in the first 3 s: start the first segment mid-thought, with the tension already stated, not on a greeting or a run-up.
-- Something visible changes every 2-5 s: on talk footage that is a cut or a punch-in. Styles set their own pace inside that range or faster.
+- Something visible changes every few seconds: on talk footage that is a cut or a punch-in. Fast styles change every 2-5 s or quicker; slow styles hold longer takes on purpose, and their files say how long.
 - The clip stands alone: no setup it depends on is left out. It ends on the payoff, not on a call to action.
 - Unless the brief or the style says otherwise, aim for 25-60 s.
 - Keep text out of the platforms' buttons and description: caption_position middle is safe everywhere; lower sits just above the description area.

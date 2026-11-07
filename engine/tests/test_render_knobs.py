@@ -7,7 +7,7 @@ from typing import get_args
 import pytest
 
 from sisyphus_engine import render
-from sisyphus_engine.plan import EditPlan, Segment, clamp_raw, json_schema, load, sanitize
+from sisyphus_engine.plan import EditPlan, Segment, clamp_raw, json_schema, load, load_segments, sanitize
 
 # What render() handed ffmpeg at 01c6e37, before any knob existed, for these plans and this transcript;
 # the caption and hook margins since moved out of the platforms' UI bands (#26).
@@ -117,6 +117,8 @@ def test_a_stored_plan_from_before_the_punch_cap_still_loads():
     old["segments"][1]["punch"] = 1.5  # brain-rot plans punched this hard before #26
     assert [s.punch for s in load(old).segments] == [1.0, 1.3]
     assert old["segments"][1]["punch"] == 1.5  # the stored plan itself is left alone
+    # A video's rendered_segments are stored beside the plan, and the cut view loads them too.
+    assert [s.punch for s in load_segments(old["segments"])] == [1.0, 1.3]
 
 
 def test_punch_survives_sanitize_and_snapping():

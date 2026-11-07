@@ -19,6 +19,14 @@ import subprocess
 
 from . import REPO_ROOT, SKILLS_DIR, versioning
 
+# Styles renamed in #26, old name -> new. Videos keep the tags they were made with, so a clip tagged with
+# an old name is judged, and its failures clustered, under the style it became.
+RENAMED = {
+    "simple": "one-idea-plain-talking-head",
+    "polished": "broadcast-polish-invisible-cuts",
+    "brain-rot": "brain-rot-jump-cuts",
+    "artsy": "cinematic-long-takes",
+}
 SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 AGENTS = ("creator", "reviewer")
 
@@ -32,6 +40,11 @@ def _git(*args: str) -> str:
 def slug(name: str) -> str:
     """'Brain Rot' -> 'brain-rot'."""
     return re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-")
+
+
+def current(name: str) -> str:
+    """A style's name today: 'artsy' -> 'cinematic-long-takes', any other name unchanged."""
+    return RENAMED.get(name, name)
 
 
 def _files(agent: str, ref: str | None) -> dict[str, str]:
@@ -84,6 +97,8 @@ def for_agent(agent: str, wanted: list[str], ref: str | None = None) -> str:
     files = _files(agent, ref)
     parts = []
     for name in wanted:
+        if name not in files and RENAMED.get(name) in files:
+            name = RENAMED[name]
         if name in files:
             parts.append(f"## Style: {name}\n\n{files[name].strip()}")
         else:
