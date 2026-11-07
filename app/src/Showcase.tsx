@@ -120,11 +120,11 @@ function VersionHead({ version, rows, current, first, latest }: {
       </div>
       <div className={`sc-score ${result.reviewed < result.total ? "sc-incomplete" : ""}`}>
         <strong>{result.reviewed ? result.approved : "—"}</strong>
-        <span>/ {result.total}</span>
+        {result.total > 0 && <span>/ {result.total}</span>}
       </div>
       <div className="sc-score-label">Reviewer approved</div>
       <div className="sc-completion">
-        {result.reviewed} of {result.total} reviewed{result.failed > 0 ? ` · ${result.failed} need attention` : ""}
+        {result.total > 0 ? `${result.reviewed} of ${result.total} reviewed` : "No active briefs to score"}{result.failed > 0 ? ` · ${result.failed} need attention` : ""}
       </div>
       <div className="sc-change">
         <span className="sc-change-label">{version.change ? "What changed" : first ? "Baseline" : "Creator version"}</span>
@@ -142,6 +142,12 @@ export function Showcase() {
   const [renderError, setRenderError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const t = table.data;
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   async function renderNow() {
     setBusy(true);
@@ -167,8 +173,10 @@ export function Showcase() {
     </div>
   );
   const all = t.versions;
+  const listed = t.rows.filter((row) => row.listed);
   const shown = compare && all.length > 2 ? [all[0], all[all.length - 1]] : all;
   const currentRendered = all.some((version) => sameVersion(version.version, t.current));
+  const pendingAfter = all.length === 1;
 
   return (
     <div className={`showcase ${compare ? "sc-compare" : "sc-history"}`}>
@@ -182,7 +190,7 @@ export function Showcase() {
           {all.length > 2 && (
             <button onClick={() => setCompare(!compare)}>{compare ? `All ${all.length} versions` : "Before & after"}</button>
           )}
-          <button className="primary" disabled={busy || t.rows.length === 0} onClick={renderNow}>
+          <button className="primary" disabled={busy || listed.length === 0} onClick={renderNow}>
             {busy ? "Queueing renders…" : currentRendered ? "Render missing clips" : all.length === 0 ? "Render the baseline" : "Render current Creator"}
           </button>
         </div>
@@ -194,7 +202,7 @@ export function Showcase() {
         <p className="sc-pending-current">The current Creator <code>{t.current.slice(0, 8)}</code> has not been rendered here yet. Showing the latest available version.</p>
       )}
 
-      {t.rows.length === 0 && (
+      {listed.length === 0 && (
         <div className="sc-empty-state"><h3>Set the starting point.</h3><p>Mark two or three entries in <code>footage/manifest.json</code> with <code>"showcase": true</code> to compare the same work across versions.</p></div>
       )}
 
@@ -204,26 +212,37 @@ export function Showcase() {
 
       {t.rows.length > 0 && all.length > 0 && (
         <div className="sc-scroll" role="region" aria-label="Showcase version comparison" tabIndex={0}>
-          <table className="sc-table" style={{ "--sc-columns": shown.length } as CSSProperties}>
+          <table className="sc-table" style={{ "--sc-columns": shown.length + (pendingAfter ? 1 : 0) } as CSSProperties}>
             <caption className="sc-sr-only">The same briefs edited by {compare ? "the first and latest available Creator versions" : "every rendered Creator version"}.</caption>
             <thead>
               <tr>
-                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{t.rows.length} fixed brief{t.rows.length === 1 ? "" : "s"}</strong><span>Same footage.<br />Same goal.<br />Different Creator.</span></div></th>
+                <th className="sc-brief" scope="col"><div className="sc-yardstick"><span className="sc-eyebrow">The constant</span><strong>{listed.length} fixed brief{listed.length === 1 ? "" : "s"}</strong><span>Same footage.<br />Same goal.<br />Different Creator.</span></div></th>
                 {shown.map((v) => {
                   const current = sameVersion(v.version, t.current);
                   return (
                     <th key={v.version} scope="col" className={current ? "sc-current-column" : ""}>
-                      <VersionHead version={v} rows={t.rows} current={current} first={v === all[0]} latest={v === all[all.length - 1]} />
+                      <VersionHead version={v} rows={listed} current={current} first={v === all[0]} latest={v === all[all.length - 1]} />
                     </th>
                   );
                 })}
+                {pendingAfter && (
+                  <th scope="col" className="sc-pending-column">
+                    <div className="sc-head sc-after-head">
+                      <div className="sc-version-label"><span>After · {currentRendered ? "next version" : "current version"}</span></div>
+                      <strong className="sc-after-title">{currentRendered ? "The next improvement goes here." : "Ready for the comparison."}</strong>
+                      <p>{currentRendered ? "When a Creator change is promoted, its edits appear beside the baseline." : "Render the same briefs with the current Creator to see what changed."}</p>
+                      {!currentRendered && <button className="primary" disabled={busy || listed.length === 0} onClick={renderNow}>{busy ? "Queueing renders…" : "Render current Creator"}</button>}
+                    </div>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
               {t.rows.map((r) => (
-                <tr key={`${r.footage}|${r.brief}`}>
+                <tr key={`${r.footage}|${r.brief}`} className={r.listed ? "" : "sc-archived"}>
                   <th className="sc-brief sc-brief-content" scope="row">
                     <strong>{r.title}</strong>
+                    {!r.listed && <span className="sc-archived-label">Archived · not scored</span>}
                     {r.speaker && <div className="dim small">{r.speaker}</div>}
                     <p>“{r.brief}”</p>
                   </th>
@@ -232,13 +251,22 @@ export function Showcase() {
                       <Cell key={r.cells[v.version]?.id ?? "missing"} video={r.cells[v.version]} />
                     </td>
                   ))}
+                  {pendingAfter && (
+                    <td className="sc-pending-column">
+                      <div className="sc-cell empty">
+                        <span className="sc-empty-mark" aria-hidden="true">＋</span>
+                        <strong>{!r.listed ? "Archived brief" : currentRendered ? "Waiting for the next Creator" : "Not rendered yet"}</strong>
+                        <span>{!r.listed ? "Removed from the fixed set. Kept here for history." : "Same footage. Same brief. A new edit."}</span>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       )}
-      {all.length > 0 && <p className="sc-footnote">Scores show the Reviewer’s verdict at render time, not the shadow A/B used to promote a change.</p>}
+      {all.length > 0 && <p className="sc-footnote">Scores cover the active fixed briefs only. Archived briefs are kept for history, not scored. Verdicts are from render time, not the shadow A/B used to promote a change.</p>}
     </div>
   );
 }
