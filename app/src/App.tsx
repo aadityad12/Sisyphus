@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
 import { api } from "./api";
 import { Studio } from "./Studio";
@@ -27,6 +27,11 @@ function App() {
     setTabState(t);
     window.history.replaceState(null, "", `#${t.toLowerCase()}`);
   };
+  useEffect(() => {
+    const onHash = () => setTabState(fromHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   const [openedAt] = useState(Date.now);
   const health = usePoll(api.health, 3000);
   const videos = usePoll(() => api.videos(), 2000);
