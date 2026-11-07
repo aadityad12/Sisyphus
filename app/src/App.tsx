@@ -92,7 +92,7 @@ function App() {
           )}
           <span className="headline-sub">
             {rates
-              ? `${rates.passed}/${rates.clips} clips passed${rates.versions > 1 ? ` · ${rates.versions} versions` : ""}`
+              ? `latest: ${rates.passed}/${rates.clips} clips${rates.versions > 1 ? ` · ${rates.versions} versions` : ""}`
               : "\u00a0"}
           </span>
         </div>
