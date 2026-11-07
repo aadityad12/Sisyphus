@@ -1,11 +1,11 @@
 import { useState } from "react";
+import "./App.css";
 import { api } from "./api";
 import { Studio } from "./Studio";
 import { VideoCard } from "./VideoCard";
 import { Versions } from "./Versions";
 import { Showcase } from "./Showcase";
 import { usePoll } from "./usePoll";
-import "./App.css";
 
 const TABS = ["Studio", "Feed", "Rejected", "Versions", "Showcase"] as const;
 type Tab = (typeof TABS)[number];

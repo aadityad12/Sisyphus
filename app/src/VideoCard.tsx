@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./VideoCard.css";
 import { api, type Video } from "./api";
 
 const STATUS_LABEL: Record<Video["status"], string> = {

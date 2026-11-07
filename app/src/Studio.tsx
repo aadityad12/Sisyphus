@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./Studio.css";
 import { api, type Footage, type Video } from "./api";
 import { VideoCard } from "./VideoCard";
 

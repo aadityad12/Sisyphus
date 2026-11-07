@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import "./Versions.css";
 import { api, type Change, type Video } from "./api";
 import { Progress } from "./Progress";
 import { usePoll } from "./usePoll";

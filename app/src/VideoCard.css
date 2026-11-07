@@ -1,0 +1,77 @@
+.card {
+  display: flex;
+  gap: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.card.status-approved {
+  border-left: 3px solid var(--green);
+}
+
+.card.status-rejected {
+  border-left: 3px solid var(--red);
+}
+
+.meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brief {
+  margin: 0;
+  color: #c9c9d1;
+  font-size: 13px;
+}
+
+.meta p {
+  margin: 0;
+}
+
+.reason {
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #1a2a20;
+}
+
+.reason.no {
+  background: #2c1c1c;
+}
+
+.plan {
+  font-size: 13px;
+  background: #141418;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.plan ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+
+.comments {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.comment {
+  font-size: 13px;
+  background: #141418;
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+.comments .row {
+  flex-wrap: nowrap;
+}
+
+/* Versions */
