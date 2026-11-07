@@ -28,8 +28,8 @@ export function VideoCard({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (video.plan) api.videoUrl(video.id).then((u) => setSrc(`${u}?v=${video.updated_at}`));
-  }, [video.id, video.plan, video.updated_at]);
+    if (video.plan) api.videoUrl(video.id).then(setSrc);
+  }, [video.id, video.plan]);
 
   async function vote(liked: boolean) {
     await api.feedback(video.id, { liked: video.human_liked === liked ? null : liked });

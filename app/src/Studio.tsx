@@ -10,13 +10,26 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.footage().then((f) => {
-      setFootage(f);
-      if (f[0]) {
-        setFile(f[0].file);
-        setBrief(f[0].brief ?? "");
+    let stop = false;
+    async function load() {
+      while (!stop) {
+        try {
+          const f = await api.footage();
+          setFootage(f);
+          if (f[0]) {
+            setFile(f[0].file);
+            setBrief(f[0].brief ?? "");
+          }
+          return;
+        } catch {
+          await new Promise((r) => setTimeout(r, 2000)); // engine not up yet
+        }
       }
-    });
+    }
+    load();
+    return () => {
+      stop = true;
+    };
   }, []);
 
   function pick(name: string) {

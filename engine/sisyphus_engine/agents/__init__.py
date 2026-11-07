@@ -6,7 +6,7 @@ from .. import REPO_ROOT, SKILLS_DIR
 
 
 def _git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True).stdout
+    return subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", check=True).stdout
 
 
 def load_skills(agent: str, ref: str | None = None) -> str:

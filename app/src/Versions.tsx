@@ -33,16 +33,24 @@ function DiffView({ diff }: { diff: string }) {
   );
 }
 
-type ArmResult = { approved?: number; total?: number; human_agree?: number; human_total?: number };
+type ArmResult = {
+  approved?: number;
+  total?: number;
+  agree?: number; // Reviewer changes: verdicts that matched a human vote
+  human_agree?: number;
+  human_total?: number;
+};
 
 function ABTable({ results }: { results: Record<string, unknown> }) {
   const control = (results.control ?? {}) as ArmResult;
   const candidate = (results.candidate ?? {}) as ArmResult;
-  const rate = (a: ArmResult) => (a.total ? a.approved! / a.total : null);
+  const reviewerChange = control.agree !== undefined || candidate.agree !== undefined;
+  const rate = (a: ArmResult) =>
+    a.total ? (reviewerChange ? (a.agree ?? 0) : (a.approved ?? 0)) / a.total : null;
   const rows: [string, number | null, number | null][] = [
-    ["Approval rate", rate(control), rate(candidate)],
+    [reviewerChange ? "Agrees with humans" : "Passed (Reviewer, or human vote)", rate(control), rate(candidate)],
   ];
-  if (control.human_total || candidate.human_total) {
+  if (!reviewerChange && (control.human_total || candidate.human_total)) {
     rows.push([
       "Agreement with humans",
       control.human_total ? control.human_agree! / control.human_total : null,
@@ -98,6 +106,9 @@ function Clip({ video }: { video: Video | undefined }) {
   }, [video?.id, video?.plan]);
   if (!video) return <div className="abclip empty" />;
   const v = verdict(video);
+  // A human vote overrides the Reviewer for this clip, and can decide the A/B.
+  const vote = (liked: boolean) =>
+    api.feedback(video.id, { liked: video.human_liked === liked ? null : liked });
   return (
     <div className={`abclip ${v}`}>
       {src ? <video src={src} controls preload="metadata" /> : <div className="placeholder busy">{video.status}</div>}
@@ -106,6 +117,16 @@ function Clip({ video }: { video: Video | undefined }) {
         {video.human_liked !== null && <span className="chip">human</span>}
       </div>
       {video.review_reason && <p className="dim small">{video.review_reason}</p>}
+      {video.plan && (
+        <div className="row">
+          <button className={video.human_liked === true ? "vote on up" : "vote"} onClick={() => vote(true)}>
+            ▲
+          </button>
+          <button className={video.human_liked === false ? "vote on down" : "vote"} onClick={() => vote(false)}>
+            ▼
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -198,6 +219,10 @@ function ChangeCard({ change }: { change: Change }) {
         </p>
       )}
       {change.diff && <DiffView diff={change.diff} />}
+      {typeof change.results?.waiting_for_votes === "string" && (
+        <p className="waiting">Waiting for human votes: {change.results.waiting_for_votes}</p>
+      )}
+      {typeof change.results?.error === "string" && <p className="error">{change.results.error}</p>}
       {change.results && <ABTable results={change.results} />}
       <ABClips changeId={change.id} />
     </article>

@@ -19,6 +19,7 @@ from .agents import auditor
 log = logging.getLogger(__name__)
 AB_SIZE = int(os.environ.get("SISYPHUS_AB_SIZE", "3"))
 _lock = threading.Lock()
+_decide_lock = threading.Lock()
 
 # What the Auditor is doing right now, for the UI.
 status: dict = {"state": "idle", "detail": "", "updated_at": time.time()}
@@ -67,6 +68,11 @@ def run_audit(agent: str = "creator") -> int | None:
         rolled_back = [c for c in store.list_changes() if c["agent"] == agent and c["status"] == "rolled_back"]
         proposal = auditor.propose(agent, top, failures, rolled_back)
 
+        footage_in_cluster = {v["footage"] for v in store.list_videos() if v["id"] in set(top["video_ids"])}
+        work = _held_out(footage_in_cluster, AB_SIZE)
+        if agent == "creator" and not work:
+            raise RuntimeError("no held-out footage with a brief in footage/manifest.json")
+
         base = versioning.head()
         n = len(store.list_changes()) + 1
         branch = f"si/{agent}/{n}-{_slug(proposal['title'])}"
@@ -94,8 +100,6 @@ def run_audit(agent: str = "creator") -> int | None:
         reviewer_ref = versioning.full_ref(versioning.agent_version("reviewer"))
         change = next(c for c in store.list_changes() if c["id"] == change_id)
         store.update_change(change_id, results={**(change["results"] or {}), "reviewer_ref": reviewer_ref[:8]})
-        footage_in_cluster = {v["footage"] for v in store.list_videos() if v["id"] in set(top["video_ids"])}
-        work = _held_out(footage_in_cluster, AB_SIZE)
         _set("testing", f"{branch}: {len(work)} held-out clips × 2 arms")
         for w in work:
             for arm, ref in (("control", base[:12]), ("candidate", branch)):
@@ -119,11 +123,18 @@ def _passed(v: dict) -> bool | None:
 
 def maybe_decide(change_id: int) -> None:
     """Once every A/B clip has a verdict, promote the winner and roll back the loser."""
+    with _decide_lock:  # called from job workers and request threads at once
+        _decide(change_id)
+
+
+def _decide(change_id: int) -> None:
     change = next((c for c in store.list_changes() if c["id"] == change_id), None)
     if change is None or change["status"] != "testing" or change["agent"] != "creator":
         return  # Reviewer changes are decided in reviewer_ab.py
     videos = store.list_videos(experiment_id=change_id)
-    arms: dict[str, dict] = {"control": {"approved": 0, "total": 0, "human": 0}, "candidate": {"approved": 0, "total": 0, "human": 0}}
+    arms: dict[str, dict] = {
+        arm: {"approved": 0, "total": 0, "human_agree": 0, "human_total": 0} for arm in ("control", "candidate")
+    }
     pending = 0
     for v in videos:
         if v["status"] == "failed":
@@ -136,7 +147,9 @@ def maybe_decide(change_id: int) -> None:
         a = arms[v["arm"]]
         a["total"] += 1
         a["approved"] += int(verdict)
-        a["human"] += int(v["human_liked"] is not None)
+        if v["human_liked"] is not None:
+            a["human_total"] += 1
+            a["human_agree"] += int(v["human_liked"])
     results = {**(change["results"] or {}), **arms, "pending": pending}
     if pending:
         store.update_change(change_id, results=results)

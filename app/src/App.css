@@ -557,3 +557,8 @@ td.down {
   color: var(--red);
   font-weight: 600;
 }
+
+.waiting {
+  color: var(--gold);
+  font-size: 13px;
+}

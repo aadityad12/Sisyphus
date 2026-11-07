@@ -21,7 +21,7 @@ AGENT_PATHS = {
 
 def _git(*args: str) -> str:
     try:
-        out = subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=True)
+        out = subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, encoding="utf-8", check=True)
         return out.stdout.strip()
     except (OSError, subprocess.CalledProcessError):
         return ""
@@ -99,7 +99,11 @@ def diff(base: str, ref: str, paths: list[str] | None = None) -> str:
 
 def promote(branch: str) -> str:
     """Adopt a change: merge its branch into the checked-out branch. Returns the merge commit."""
-    _git_env("merge", "--no-ff", "-m", f"Promote {branch}: it won its shadow A/B", branch)
+    try:
+        _git_env("merge", "--no-ff", "-m", f"Promote {branch}: it won its shadow A/B", branch)
+    except subprocess.CalledProcessError as exc:
+        subprocess.run(["git", "merge", "--abort"], cwd=REPO_ROOT, capture_output=True)
+        raise RuntimeError(f"merge of {branch} failed: {exc.stderr.decode('utf-8', 'replace')[-500:]}") from exc
     return head()
 
 

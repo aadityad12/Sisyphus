@@ -24,7 +24,9 @@ def snap_to_words(seg: Segment, words: list[dict]) -> Segment:
             start = w["start"]
         if w["start"] < end < w["end"]:  # ends mid-word: finish the word
             end = w["end"]
-    return Segment(start=max(0.0, start - 0.05), end=end + 0.12)
+    prev_end = max((w["end"] for w in words if w["end"] <= start), default=0.0)
+    next_start = min((w["start"] for w in words if w["start"] >= end), default=end + 0.12)
+    return Segment(start=max(0.0, prev_end, start - 0.05), end=min(end + 0.12, max(end, next_start)))
 
 
 def _ass_time(t: float) -> str:
@@ -35,7 +37,7 @@ def _ass_time(t: float) -> str:
 
 
 def _escape(text: str) -> str:
-    return text.replace("\\", "").replace("{", "(").replace("}", ")")
+    return text.replace("\\", "").replace("{", "(").replace("}", ")").replace("\r", "").replace("\n", "\\N")
 
 
 def _chunks(words: list[dict], max_words: int) -> list[list[dict]]:

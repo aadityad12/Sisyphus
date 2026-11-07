@@ -19,8 +19,8 @@ def video_dir(video_id: int) -> Path:
 
 
 def submit(footage: str, brief: str, skills_ref: str | None = None, **fields) -> int:
-    path = FOOTAGE_DIR / footage
-    if not path.exists():
+    path = (FOOTAGE_DIR / footage).resolve()
+    if path.parent != FOOTAGE_DIR.resolve() or not path.exists():
         raise FileNotFoundError(footage)
     video_id = store.add_video(
         footage,
@@ -50,6 +50,7 @@ def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None) -> No
     except Exception as exc:
         log.exception("creator failed for video %s", video_id)
         store.update_video(video_id, status="failed", error=f"{exc}\n{traceback.format_exc()[-1500:]}")
+        _settle(video_id)
         return
     run_review(video_id)
 
