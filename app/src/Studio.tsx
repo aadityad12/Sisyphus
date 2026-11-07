@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import "./Studio.css";
 import { api, type Footage, type Video } from "./api";
 import { shortVersion, VideoCard } from "./VideoCard";
-import { NewStyleForm, StyleLibrary, StylePicker } from "./Styles";
+import { NewStyleForm, StylePicker } from "./Styles";
 import { usePoll } from "./usePoll";
 
 /** A finished clip stays in the Studio this long, so the verdict landing is visible where the job started. */
@@ -267,12 +267,10 @@ export function Studio({ videos, refresh }: { videos: Video[]; refresh: () => vo
         </div>
 
         {styles.length > 0 && (
-          <details className="st-library">
-            <summary>
-              Style library <span className="dim">· what the Creator and the Reviewer are told for each</span>
-            </summary>
-            <StyleLibrary styles={styles} />
-          </details>
+          <p className="dim small st-library">
+            <a href="#styles">Style library →</a> what the Creator and the Reviewer are told for each style, and how its
+            clips are doing.
+          </p>
         )}
       </section>
 

@@ -13,9 +13,9 @@
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 999px;
-  color: #6fd3c7;
-  background: rgba(111, 211, 199, 0.12);
-  border: 1px solid rgba(111, 211, 199, 0.28);
+  color: var(--style);
+  background: var(--style-soft);
+  border: 1px solid color-mix(in srgb, var(--style) 30%, transparent);
 }
 
 .style-auto {
@@ -57,8 +57,8 @@
 }
 
 .style-option.on {
-  border-color: #6fd3c7;
-  background: rgba(111, 211, 199, 0.1);
+  border-color: var(--style);
+  background: var(--style-soft);
 }
 
 .style-option.auto.on {
@@ -188,9 +188,9 @@
 }
 
 .style-filter button.on {
-  border-color: #6fd3c7;
-  color: #6fd3c7;
-  background: rgba(111, 211, 199, 0.1);
+  border-color: var(--style);
+  color: var(--style);
+  background: var(--style-soft);
 }
 
 /* What an Auditor change targets, on its Versions card. */
@@ -200,4 +200,77 @@
   gap: 4px;
   font-size: 12px;
   color: var(--dim);
+}
+
+/* The Styles tab. */
+.styles-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.styles-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.styles-head h2 {
+  margin: 0 0 4px;
+}
+
+.styles-head p {
+  margin: 0;
+  max-width: 640px;
+}
+
+.style-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.style-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.style-card header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.style-card h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.style-card-summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.style-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-size: 13px;
+}
+
+.style-card .style-entry summary {
+  font-size: 13px;
+}
+
+.style-card .style-files {
+  grid-template-columns: 1fr;
 }

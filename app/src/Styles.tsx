@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./Styles.css";
 import { api, type Style, type Video } from "./api";
+import { usePoll } from "./usePoll";
 
 /**
  * Editing styles (#13). A style is two skill files: how the Creator edits in it, and what the Reviewer
@@ -26,7 +27,7 @@ export function StyleTags({ video }: { video: Video }) {
   return (
     <span className="style-tags" title={auto ? "Auto: the Creator picked these styles" : "Styles picked in the Studio"}>
       {styles.map((s) => (
-        <span key={s} className="style-tag">
+        <span key={s} className="chip style-tag">
           {s}
         </span>
       ))}
@@ -159,30 +160,134 @@ export function NewStyleForm({ onCreated, onCancel }: { onCreated: (name: string
   );
 }
 
-/** Every style with its two files, so you can read what the Creator and the Reviewer are told. */
-export function StyleLibrary({ styles }: { styles: Style[] }) {
+type StyleStats = { clips: number; judged: number; passed: number; auto: number };
+
+/** How each style's clips are doing on regular work: a human vote where there is one, else the Reviewer. */
+function statsByStyle(videos: Video[]): Map<string, StyleStats> {
+  const by = new Map<string, StyleStats>();
+  for (const v of videos) {
+    if (v.experiment_id !== null || v.showcase) continue;
+    const verdict = v.human_liked ?? v.review_approved;
+    for (const name of stylesOf(v)) {
+      const s = by.get(name) ?? { clips: 0, judged: 0, passed: 0, auto: 0 };
+      s.clips += 1;
+      if (verdict !== null) {
+        s.judged += 1;
+        s.passed += verdict ? 1 : 0;
+      }
+      if (autoPicked(v)) s.auto += 1;
+      by.set(name, s);
+    }
+  }
+  return by;
+}
+
+/** One style: what it is, how its clips are doing, and the two files the Creator and the Reviewer are given. */
+function StyleCard({ style, stats }: { style: Style; stats: StyleStats | undefined }) {
+  const pct = stats?.judged ? Math.round((100 * stats.passed) / stats.judged) : null;
   return (
-    <div className="style-library">
-      {styles.map((s) => (
-        <details key={s.name} className="style-entry">
-          <summary>
-            <strong>{s.title}</strong> <code className="dim small">{s.name}</code>
-            <span className="dim small style-entry-summary">{s.summary}</span>
-          </summary>
-          <div className="style-files">
-            <div>
-              <span className="agentname creator">Creator</span>
-              <code className="dim small"> skills/creator/styles/{s.name}.md</code>
-              <pre>{s.creator}</pre>
-            </div>
-            <div>
-              <span className="agentname reviewer">Reviewer</span>
-              <code className="dim small"> skills/reviewer/styles/{s.name}.md</code>
-              {s.reviewer ? <pre>{s.reviewer}</pre> : <p className="dim small">No Reviewer file yet.</p>}
-            </div>
+    <article className="style-card">
+      <header>
+        <h3>{style.title}</h3>
+        <code className="dim small">{style.name}</code>
+      </header>
+      <p className="style-card-summary">{style.summary}</p>
+      <div className="style-card-stats">
+        {stats ? (
+          <>
+            <span>
+              <strong>{stats.clips}</strong> clip{stats.clips === 1 ? "" : "s"}
+            </span>
+            <span title="A human vote where there is one, else the Reviewer's verdict">
+              <strong>{pct === null ? "–" : `${pct}%`}</strong> passed
+              {stats.judged > 0 && (
+                <span className="dim">
+                  {" "}
+                  ({stats.passed}/{stats.judged})
+                </span>
+              )}
+            </span>
+            {stats.auto > 0 && <span className="dim">{stats.auto} picked on Auto</span>}
+          </>
+        ) : (
+          <span className="dim">No clips in this style yet.</span>
+        )}
+      </div>
+      <details className="style-entry">
+        <summary>Skill files</summary>
+        <div className="style-files">
+          <div>
+            <span className="agentname creator">Creator</span>
+            <code className="dim small"> skills/creator/styles/{style.name}.md</code>
+            <pre>{style.creator}</pre>
           </div>
-        </details>
-      ))}
+          <div>
+            <span className="agentname reviewer">Reviewer</span>
+            <code className="dim small"> skills/reviewer/styles/{style.name}.md</code>
+            {style.reviewer ? <pre>{style.reviewer}</pre> : <p className="dim small">No Reviewer file yet.</p>}
+          </div>
+        </div>
+      </details>
+    </article>
+  );
+}
+
+/** The Styles tab: the library, how each style is doing, and a form to add one. */
+export function StylesTab({ videos }: { videos: Video[] }) {
+  const library = usePoll(api.styles, 15000);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState<string | null>(null);
+  const stats = statsByStyle(videos);
+
+  if (!library.data) {
+    return library.error ? (
+      <p className="dim">
+        This engine has no editing styles (GET /styles: {library.error}). They arrive with #13's engine change.
+      </p>
+    ) : (
+      <p className="dim">Loading styles…</p>
+    );
+  }
+  return (
+    <div className="styles-tab">
+      <div className="styles-head">
+        <div>
+          <h2>Editing styles</h2>
+          <p className="dim small">
+            Each style is two skill files: how the Creator edits in it, and what the Reviewer expects of a clip that
+            claims it. The Auditor improves each through its own A/B.
+          </p>
+        </div>
+        {!adding && (
+          <button className="primary" onClick={() => setAdding(true)}>
+            + New style
+          </button>
+        )}
+      </div>
+      {adding && (
+        <NewStyleForm
+          onCancel={() => setAdding(false)}
+          onCreated={async (name) => {
+            setAdding(false);
+            setAdded(name);
+            await library.refresh();
+          }}
+        />
+      )}
+      {added && !adding && (
+        <p className="dim small">
+          Added <code>{added}</code>. Pick it in the Studio.
+        </p>
+      )}
+      {library.data.length === 0 ? (
+        <p className="dim">No styles yet. Add the first one.</p>
+      ) : (
+        <div className="style-cards">
+          {library.data.map((s) => (
+            <StyleCard key={s.name} style={s} stats={stats.get(s.name)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

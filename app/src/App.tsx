@@ -5,16 +5,18 @@ import { Studio } from "./Studio";
 import { Feed } from "./Feed";
 import { Versions } from "./Versions";
 import { Showcase } from "./Showcase";
+import { StylesTab } from "./Styles";
 import { usePoll } from "./usePoll";
 import { Loop, passRates, samePrefix } from "./Loop";
 
-const TABS = ["Studio", "Feed", "Rejected", "Versions", "Showcase"] as const;
+const TABS = ["Studio", "Feed", "Rejected", "Styles", "Versions", "Showcase"] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_HINT: Record<Tab, string> = {
   Studio: "Start a clip and watch it move through the agents",
   Feed: "Clips the Reviewer approved",
   Rejected: "Clips the Reviewer sent back",
+  Styles: "The editing styles: what each asks of the Creator and the Reviewer, and how its clips do",
   Versions: "The Auditor's changes and their A/B tests",
   Showcase: "The same briefs, re-edited by every Creator version",
 };
@@ -51,6 +53,7 @@ function App() {
     Studio: all.filter((v) => ["queued", "creating", "reviewing"].includes(v.status)).length || null,
     Feed: approved.length || null,
     Rejected: rejected.length || null,
+    Styles: null,
     Versions: null,
     Showcase: null,
   };
@@ -142,6 +145,7 @@ function App() {
         {tab === "Feed" && <Feed videos={approved} mode="feed" refresh={videos.refresh} />}
         {tab === "Rejected" && <Feed videos={rejected} mode="rejected" refresh={videos.refresh} />}
         {tab === "Versions" && <Versions videos={all} />}
+        {tab === "Styles" && <StylesTab videos={all} />}
         {tab === "Showcase" && <Showcase />}
       </section>
     </main>
