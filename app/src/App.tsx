@@ -1,56 +1,38 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { useState } from "react";
+import { api } from "./api";
+import { Studio } from "./Studio";
+import { VideoCard } from "./VideoCard";
+import { Versions } from "./Versions";
+import { usePoll } from "./usePoll";
 import "./App.css";
 
-type Health = { status: string; versions: Record<string, string> };
-
-// The engine URL comes from the Rust layer. Outside Tauri (plain `npm run dev`), use the default.
-async function getEngineUrl(): Promise<string> {
-  try {
-    return await invoke<string>("engine_url");
-  } catch {
-    return "http://127.0.0.1:8765";
-  }
-}
-
-const TABS = ["Feed", "Rejected", "Versions"] as const;
+const TABS = ["Studio", "Feed", "Rejected", "Versions"] as const;
 type Tab = (typeof TABS)[number];
 
 function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("Feed");
+  const [tab, setTab] = useState<Tab>("Studio");
+  const health = usePoll(api.health, 3000);
+  const videos = usePoll(() => api.videos(), 2000);
+  const all = (videos.data ?? []).filter((v) => v.experiment_id === null);
 
-  useEffect(() => {
-    let stop = false;
-    async function poll() {
-      const url = await getEngineUrl();
-      while (!stop) {
-        try {
-          const res = await fetch(`${url}/health`);
-          setHealth(await res.json());
-          setError(null);
-        } catch {
-          setHealth(null);
-          setError("Engine not reachable yet");
-        }
-        await new Promise((r) => setTimeout(r, 2000));
-      }
-    }
-    poll();
-    return () => {
-      stop = true;
-    };
-  }, []);
+  const approved = all.filter((v) => v.status === "approved");
+  const rejected = all.filter((v) => v.status === "rejected");
+  const counts: Record<Tab, number | null> = {
+    Studio: all.filter((v) => ["queued", "creating", "reviewing"].includes(v.status)).length || null,
+    Feed: approved.length || null,
+    Rejected: rejected.length || null,
+    Versions: null,
+  };
 
   return (
     <main className="app">
       <header className="top">
         <h1>
           <span className="si">SI</span>syphus
+          <span className="tagline">One must imagine SIsyphus editing.</span>
         </h1>
-        <span className={health ? "pill ok" : "pill down"}>
-          {health ? "engine online" : error ?? "connecting…"}
+        <span className={health.data ? "pill ok" : "pill down"}>
+          {health.data ? "engine online" : "engine not reachable"}
         </span>
       </header>
 
@@ -58,27 +40,36 @@ function App() {
         {TABS.map((t) => (
           <button key={t} className={t === tab ? "active" : ""} onClick={() => setTab(t)}>
             {t}
+            {counts[t] !== null && <span className="count">{counts[t]}</span>}
           </button>
         ))}
       </nav>
 
       <section className="panel">
-        {tab === "Feed" && <p>Videos the Reviewer approved, for human feedback. (TODO)</p>}
-        {tab === "Rejected" && <p>Videos the Reviewer sent back. Humans can override. (TODO)</p>}
-        {tab === "Versions" && (
-          <div>
-            <p>Current agent versions:</p>
-            <ul>
-              {health
-                ? Object.entries(health.versions).map(([agent, v]) => (
-                    <li key={agent}>
-                      {agent}: <code>{v}</code>
-                    </li>
-                  ))
-                : null}
-            </ul>
-          </div>
+        {tab === "Studio" && <Studio videos={all} refresh={videos.refresh} />}
+        {tab === "Feed" && (
+          <>
+            <p className="dim">Clips the Reviewer approved. Your likes, dislikes and comments teach the system.</p>
+            <div className="grid">
+              {approved.map((v) => (
+                <VideoCard key={v.id} video={v} onChange={videos.refresh} mode="feed" />
+              ))}
+            </div>
+          </>
         )}
+        {tab === "Rejected" && (
+          <>
+            <p className="dim">
+              Clips the Reviewer sent back. If one is actually good, say so: that counts against the Reviewer.
+            </p>
+            <div className="grid">
+              {rejected.map((v) => (
+                <VideoCard key={v.id} video={v} onChange={videos.refresh} mode="rejected" />
+              ))}
+            </div>
+          </>
+        )}
+        {tab === "Versions" && <Versions />}
       </section>
     </main>
   );
