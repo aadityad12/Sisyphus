@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Video } from "./api";
+import { Transcript } from "./Transcript";
 
 const STATUS_LABEL: Record<Video["status"], string> = {
   queued: "Queued",
@@ -26,6 +27,7 @@ export function VideoCard({
   const [src, setSrc] = useState<string | null>(null);
   const [comment, setComment] = useState("");
   const [open, setOpen] = useState(false);
+  const [transcript, setTranscript] = useState(false);
 
   useEffect(() => {
     if (video.plan) api.videoUrl(video.id).then(setSrc);
@@ -98,8 +100,13 @@ export function VideoCard({
             <button className="link" onClick={() => setOpen(!open)}>
               {open ? "Hide plan" : "Edit plan"}
             </button>
+            <button className="link" onClick={() => setTranscript(!transcript)}>
+              {transcript ? "Hide transcript" : "Transcript"}
+            </button>
           </div>
         )}
+
+        {transcript && video.plan && <Transcript videoId={video.id} />}
 
         {open && video.plan && (
           <div className="plan">

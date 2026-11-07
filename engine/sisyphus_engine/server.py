@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from . import FOOTAGE_DIR, experiments, jobs, reviewer_ab, store, versioning
+from . import FOOTAGE_DIR, cuts, experiments, jobs, reviewer_ab, store, versioning
 
 logging.basicConfig(level=logging.INFO)
 app = FastAPI(title="SIsyphus engine")
@@ -80,6 +80,18 @@ def video_file(video_id: int):
     if v is None or not v["video_path"]:
         raise HTTPException(404)
     return FileResponse(v["video_path"], media_type="video/mp4")
+
+
+@app.get("/videos/{video_id}/transcript")
+def video_transcript(video_id: int) -> dict:
+    """The source transcript around each kept segment, for showing what the Creator kept and cut."""
+    v = store.get_video(video_id)
+    if v is None or not v["plan"]:
+        raise HTTPException(404)
+    try:
+        return cuts.for_video(v)
+    except FileNotFoundError:
+        raise HTTPException(404, f"footage {v['footage']} is missing")
 
 
 class ReviewIn(BaseModel):

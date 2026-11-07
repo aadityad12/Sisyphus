@@ -80,7 +80,18 @@ export type Failure = {
   creator_version: string | null;
 };
 
-export type AuditStatus = { state: "idle" | "clustering" | "proposing" | "testing" | "error"; detail: string };
+export type TranscriptWord = { word: string; start: number; end: number; kept: boolean; segment: number | null };
+export type TranscriptSegment = { index: number; start: number; end: number; words: TranscriptWord[] };
+export type TranscriptView = {
+  title: string;
+  hook: string;
+  context_s: number;
+  kept_s: number;
+  reordered: boolean;
+  segments: TranscriptSegment[];
+};
+
+export type AuditStatus ={ state: "idle" | "clustering" | "proposing" | "testing" | "error"; detail: string };
 
 async function req<T>(path: string, init?: RequestInit): Promise<T> {
   const base = await getEngineUrl();
@@ -107,5 +118,6 @@ export const api = {
   failures: () => req<Failure[]>("/failures"),
   auditStatus: () => req<AuditStatus>("/audit"),
   runAudit: () => req<AuditStatus>("/audit", { method: "POST" }),
+  transcript: (id: number) => req<TranscriptView>(`/videos/${id}/transcript`),
   videoUrl: async (id: number) => `${await getEngineUrl()}/videos/${id}/file`,
 };
