@@ -61,6 +61,7 @@ slots = _Slots(_clamp(int(os.environ.get("SISYPHUS_WORKERS", DEFAULT_WORKERS))))
 # Enough threads that every job allowed to run has one; queued jobs wait on `slots`, in a thread or in the pool's
 # queue. Shadow A/B scoring (reviewer_ab) also runs here, outside the limit.
 executor = ThreadPoolExecutor(max_workers=MAX_WORKERS * 2, thread_name_prefix="job")
+_settings_lock = threading.Lock()  # so two saves at once can't leave the stored value and the live one different
 
 
 def load_settings() -> None:
@@ -74,8 +75,9 @@ def set_workers(n: int) -> int:
     """Run up to `n` jobs at once from now on, and remember it across restarts."""
     if not 1 <= n <= MAX_WORKERS:
         raise ValueError(f"workers must be between 1 and {MAX_WORKERS}")
-    store.set_setting("workers", str(n))
-    slots.set(n)
+    with _settings_lock:
+        store.set_setting("workers", str(n))
+        slots.set(n)
     return n
 
 
