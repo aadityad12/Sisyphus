@@ -22,6 +22,8 @@
   --border-1: rgba(255, 255, 255, 0.06);
   --border-2: rgba(255, 255, 255, 0.1);
   --border-3: rgba(255, 255, 255, 0.16);
+  --scroll: rgba(255, 255, 255, 0.1);
+  --scroll-hover: rgba(255, 255, 255, 0.18);
 
   /* Text, four tiers. */
   --text-1: #f4f5f6;
@@ -116,6 +118,63 @@
   text-rendering: optimizeLegibility;
 }
 
+
+/*
+ * Light theme (<html data-theme="light">, set by src/theme.ts). The same tokens, re-pointed: white cards on a
+ * pale grey window, borders and fills in black at low alpha, and every text and status colour darkened until it
+ * keeps 4.5:1 on white (WCAG AA). Brand orange stays the fill; orange text uses the action tone.
+ */
+:root[data-theme="light"] {
+  --bg-0: #eceef1;
+  --bg-1: #f7f8f9;
+  --bg-2: #ffffff;
+  --bg-3: #f1f2f4;
+  --bg-4: #e4e6ea;
+  --fill-hover: rgba(15, 20, 30, 0.04);
+  --fill-active: rgba(15, 20, 30, 0.065);
+  --fill-selected: rgba(15, 20, 30, 0.09);
+  --border-1: rgba(15, 20, 30, 0.08);
+  --border-2: rgba(15, 20, 30, 0.13);
+  --border-3: rgba(15, 20, 30, 0.2);
+  --scroll: rgba(15, 20, 30, 0.16);
+  --scroll-hover: rgba(15, 20, 30, 0.28);
+
+  --text-1: #15171c; /* 17.8:1 on white */
+  --text-2: #3b4049; /* 10.4:1 */
+  --text-3: #5c626d; /* 6.2:1 */
+  --text-4: #9ba1aa; /* decorative only */
+
+  --accent-text: #c23400; /* 5.6:1 */
+  --accent-tint: rgba(234, 63, 0, 0.09);
+
+  --ok: #157347; /* 5.9:1 */
+  --ok-text: #157347;
+  --ok-tint: rgba(21, 115, 71, 0.09);
+  --err: #c42b2b; /* 5.7:1 */
+  --err-text: #c42b2b;
+  --err-tint: rgba(196, 43, 43, 0.08);
+  --warn: #8f5e00; /* 5.5:1 */
+  --warn-tint: rgba(196, 140, 0, 0.12);
+  --info: #0757b8; /* 6.9:1 */
+  --info-tint: rgba(7, 87, 184, 0.09);
+
+  --creator: #0757b8;
+  --creator-tint: rgba(7, 87, 184, 0.09);
+  --reviewer: #7246d0; /* 6.2:1 */
+  --reviewer-tint: rgba(114, 70, 208, 0.09);
+  --auditor: #8f5e00;
+  --auditor-tint: rgba(196, 140, 0, 0.12);
+  --style: #0b7465; /* 5.6:1 */
+  --style-soft: rgba(11, 116, 101, 0.09);
+
+  --shadow-sm: 0 1px 2px rgba(15, 20, 30, 0.08);
+  --shadow-md: 0 4px 24px rgba(15, 20, 30, 0.1), 0 0 0 1px var(--border-1);
+  --shadow-lg: 0 16px 48px rgba(15, 20, 30, 0.18), 0 0 0 1px var(--border-2);
+  --inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+
+  color-scheme: light;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -139,20 +198,20 @@ body {
 /* Scrollbars that stay out of the way. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+  scrollbar-color: var(--scroll) transparent;
 }
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--scroll);
   border: 3px solid transparent;
   background-clip: padding-box;
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.18);
+  background-color: var(--scroll-hover);
 }
 
 /* ---------- Type ---------- */
@@ -865,12 +924,40 @@ details > summary::-webkit-details-marker {
   user-select: none;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 6px 4px 2px;
+  color: var(--text-1);
+}
+/* The mark's canvas keeps 10% clear space on each side; the negative margin trims it so the figure sits on the
+   sidebar's edge like the wordmark. */
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  margin: 0 -4px 0 -2px;
+  flex: none;
+}
+.brand-mark.on-light,
+:root[data-theme="light"] .brand-mark.on-dark {
+  display: none;
+}
+:root[data-theme="light"] .brand-mark.on-light {
+  display: block;
+}
+.brand-word {
+  flex: none;
+  color: var(--text-1);
+}
+
 .workspace {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   width: 100%;
-  height: 40px;
+  height: 44px;
   padding: 0 8px 0 6px;
   background: transparent;
   border: 1px solid transparent;
@@ -883,15 +970,8 @@ details > summary::-webkit-details-marker {
   background: var(--fill-active);
   border-color: transparent;
 }
-.workspace-mark {
-  width: 26px;
-  height: 26px;
+.workspace .proj-chip {
   border-radius: 7px;
-  flex: none;
-  background: #000;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    0 2px 6px rgba(0, 0, 0, 0.5);
 }
 .workspace-text {
   display: flex;
@@ -902,17 +982,13 @@ details > summary::-webkit-details-marker {
   line-height: 1.2;
 }
 .workspace-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-1);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-2);
   max-width: 100%;
   overflow: hidden;
+  white-space: nowrap;
   text-overflow: ellipsis;
-}
-.workspace-sub {
-  font-size: 12px;
-  font-weight: 450;
-  color: var(--text-3);
 }
 .workspace > svg {
   color: var(--text-3);
@@ -1140,6 +1216,26 @@ details > summary::-webkit-details-marker {
 }
 .loop-node.warn .loop-activity {
   color: var(--err);
+}
+
+.sidebar-foot {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar-foot .engine {
+  flex: 1;
+  min-width: 0;
+}
+.theme-btn {
+  color: var(--text-3);
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.theme-btn:hover:not(:disabled) {
+  color: var(--text-1);
+  background: var(--fill-hover);
 }
 
 .engine {
@@ -1459,6 +1555,7 @@ details > summary::-webkit-details-marker {
   }
   .sidebar .workspace-text,
   .sidebar .workspace > svg,
+  .sidebar .brand-word,
   .sidebar .search-btn span,
   .sidebar .search-btn kbd,
   .sidebar .nav-label,
@@ -1467,6 +1564,9 @@ details > summary::-webkit-details-marker {
   .sidebar .agents,
   .sidebar .engine span {
     display: none;
+  }
+  .sidebar-foot {
+    flex-direction: column;
   }
   .page-inner {
     padding: 20px 16px 48px;

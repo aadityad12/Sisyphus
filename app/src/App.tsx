@@ -7,9 +7,12 @@ import {
   FlaskConical,
   FolderPlus,
   GitBranch,
+  Monitor,
+  Moon,
   Palette,
   Plus,
   Settings2,
+  Sun,
   Undo2,
 } from "lucide-react";
 import "./App.css";
@@ -23,6 +26,7 @@ import { usePoll } from "./usePoll";
 import { Sidebar, ProjectDialog, type Engine, type NavItem, type ProjectDialogMode } from "./Sidebar";
 import { CommandPalette, type Command } from "./CommandPalette";
 import { ProjectChip, Toasts, toast } from "./ui";
+import { setTheme } from "./theme";
 
 const TABS = ["Studio", "Feed", "Rejected", "Styles", "Versions", "Showcase"] as const;
 type Tab = (typeof TABS)[number];
@@ -185,6 +189,19 @@ function App() {
             (e) => toast(`Couldn't start the Auditor: ${e instanceof Error ? e.message : e}`, "err"),
           ),
       },
+      ...(
+        [
+          ["light", "Light theme", <Sun size={16} />],
+          ["dark", "Dark theme", <Moon size={16} />],
+          ["system", "Match the system theme", <Monitor size={16} />],
+        ] as const
+      ).map(([id, label, icon]) => ({
+        id: `theme-${id}`,
+        group: "Theme",
+        label,
+        icon,
+        run: () => setTheme(id),
+      })),
       ...TABS.map((t) => ({
         id: `go-${t}`,
         group: "Go to",

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronsUpDown, Copy, FolderOpen, Plus, Search, Settings2, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, Copy, FolderOpen, Monitor, Moon, Plus, Search, Settings2, Sun, Trash2 } from "lucide-react";
 import { api, type AuditStatus, type Project, type Video } from "./api";
 import { Loop } from "./Loop";
 import { Keys, MOD, ProjectChip, toast } from "./ui";
-import markUrl from "./assets/mark.png";
+import markWhite from "./assets/brand-mark-white.png";
+import markBlack from "./assets/brand-mark-black.png";
+import { Wordmark } from "./Wordmark";
+import { NEXT, useTheme, type ThemeChoice } from "./theme";
 
 export type NavItem = {
   id: string;
@@ -260,6 +263,13 @@ export function Sidebar({
   const canSwitch = projects !== null;
   return (
     <aside className="sidebar">
+      {/* The brand: the mark (white on dark, black on light) and the wordmark, from brand/logo. */}
+      <div className="brand">
+        <img className="brand-mark on-dark" src={markWhite} alt="" />
+        <img className="brand-mark on-light" src={markBlack} alt="" />
+        <Wordmark className="brand-word" height={19} />
+      </div>
+
       <div style={{ position: "relative" }}>
         <button
           className="workspace"
@@ -269,13 +279,9 @@ export function Sidebar({
           title={canSwitch ? "Switch project" : "This engine has no projects"}
           onClick={() => setMenu(!menu)}
         >
-          <img className="workspace-mark" src={markUrl} alt="" />
+          <ProjectChip id={project.id} name={project.name} size={28} />
           <span className="workspace-text">
-            <span className="workspace-name">SIsyphus</span>
-            <span className="workspace-sub" style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <ProjectChip id={project.id} name={project.name} size={11} />
-              {project.name}
-            </span>
+            <span className="workspace-name">{project.name}</span>
           </span>
           {canSwitch && <ChevronsUpDown size={14} />}
         </button>
@@ -320,18 +326,39 @@ export function Sidebar({
 
       <Loop videos={videos} project={project.id} versions={versions} audit={audit} go={go} />
 
-      <div className={`engine ${engine}`} title={`Engine ${engine}`}>
-        <span className="engine-dot" />
-        <span>
-          {engine === "online"
-            ? "Engine online"
-            : engine === "starting"
-              ? "Starting engine…"
-              : engine === "lost"
-                ? "Engine not answering"
-                : "Engine offline"}
-        </span>
+      <div className="sidebar-foot">
+        <div className={`engine ${engine}`} title={`Engine ${engine}`}>
+          <span className="engine-dot" />
+          <span>
+            {engine === "online"
+              ? "Engine online"
+              : engine === "starting"
+                ? "Starting engine…"
+                : engine === "lost"
+                  ? "Engine not answering"
+                  : "Engine offline"}
+          </span>
+        </div>
+        <ThemeButton />
       </div>
     </aside>
+  );
+}
+
+const THEME_LABEL: Record<ThemeChoice, string> = { system: "System theme", light: "Light theme", dark: "Dark theme" };
+
+/** One button that steps System → Light → Dark. The icon shows the current choice. */
+function ThemeButton() {
+  const [theme, setTheme] = useTheme();
+  const next = NEXT[theme];
+  return (
+    <button
+      className="icon theme-btn"
+      onClick={() => setTheme(next)}
+      aria-label={`${THEME_LABEL[theme]}. Switch to ${THEME_LABEL[next].toLowerCase()}`}
+      title={`${THEME_LABEL[theme]} (click for ${THEME_LABEL[next].toLowerCase()})`}
+    >
+      {theme === "light" ? <Sun size={15} /> : theme === "dark" ? <Moon size={15} /> : <Monitor size={15} />}
+    </button>
   );
 }
