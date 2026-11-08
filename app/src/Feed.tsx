@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { Video } from "./api";
-import { VideoCard } from "./VideoCard";
+import { ClipCard } from "./ClipCard";
 import { stylesIn, stylesOf } from "./Styles";
 import "./Feed.css";
 import { CircleCheck, Undo2 } from "lucide-react";
@@ -194,7 +194,7 @@ export function Feed({
       ) : (
         <div className="grid feed-grid">
           {sorted.map((video) => (
-            <VideoCard key={video.id} video={video} onChange={refresh} mode={mode} />
+            <ClipCard key={video.id} video={video} onChange={refresh} />
           ))}
         </div>
       )}

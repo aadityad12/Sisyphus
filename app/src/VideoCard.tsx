@@ -14,7 +14,7 @@ import {
   Undo2,
 } from "lucide-react";
 import "./VideoCard.css";
-import { api, type Video } from "./api";
+import { api, type EditPlan, type Video } from "./api";
 import { StyleTags } from "./Styles";
 import { Transcript } from "./Transcript";
 
@@ -47,12 +47,12 @@ function cuts(n: number) {
 
 /** The heading already says approved or sent back, so drop the Reviewer's own "Approved:" / "Send back:" lead-in. */
 const VERDICT_LEAD = /^\s*(approve[sd]?|reject(?:ed|s)?|sen[dt]s?(?: it)? back)(?: as[- ]is)?\s*[:.—–-]\s*/i;
-function reasonText(reason: string) {
+export function reasonText(reason: string) {
   const rest = reason.replace(VERDICT_LEAD, "");
   return rest ? rest[0].toUpperCase() + rest.slice(1) : reason;
 }
 
-function fmt(s: number) {
+export function fmt(s: number) {
   return `${s.toFixed(1)}s`;
 }
 
@@ -85,7 +85,7 @@ export function Steps({ video }: { video: Video }) {
 
 /** The first thing to read on a card: what the Reviewer decided and why, or where the clip is. */
 /** The reason a hand-given verdict is recorded with, so the card can say a person decided, not the Reviewer. */
-const MANUAL_REASON = "Manual verdict after a Reviewer error";
+export const MANUAL_REASON = "Manual verdict after a Reviewer error";
 
 /**
  * A Reviewer error leaves a clip in "reviewing" with nothing to retry it while the engine runs (a
@@ -262,7 +262,7 @@ function ago(t: number) {
 }
 
 /** One line on how the human's vote sits against the Reviewer's verdict: disagreements are what the Auditor learns from. */
-function agreement(video: Video): { text: string; cls: string } | null {
+export function agreement(video: Video): { text: string; cls: string } | null {
   if (video.human_liked === null || video.review_approved === null) return null;
   if (video.review_reason === MANUAL_REASON) return null; // a person gave that verdict, not the Reviewer
   if (video.human_liked === video.review_approved) return { text: "You agree with the Reviewer.", cls: "agree" };
@@ -272,6 +272,44 @@ function agreement(video: Video): { text: string; cls: string } | null {
       : "You disliked a clip the Reviewer approved. The Auditor learns from this.",
     cls: "disagree",
   };
+}
+
+/** The Creator's edit plan: the hook, every kept segment and the render settings. */
+export function PlanDetails({ plan }: { plan: EditPlan }) {
+  return (
+    <>
+      <p className="vc-hook">
+        <span className="k">Hook</span> {plan.hook || <em className="dim">none</em>}
+      </p>
+      <ol className="vc-segs">
+        {plan.segments.map((s, i) => (
+          <li key={i}>
+            <span className="i">{i + 1}</span>
+            <code>
+              {fmt(s.start)} → {fmt(s.end)}
+            </code>
+            <span className="dim">{fmt(s.end - s.start)}</span>
+            {s.punch && s.punch > 1 ? <span className="chip">punch {s.punch.toFixed(2)}×</span> : null}
+          </li>
+        ))}
+      </ol>
+      <div className="vc-knobs">
+        <span className="chip">crop {plan.crop_x.toFixed(2)}</span>
+        <span className="chip">
+          captions {plan.caption_style} ×{plan.caption_words}
+        </span>
+        {plan.caption_size && (
+          <span className="chip">
+            {`${plan.caption_size} ${plan.caption_color ?? ""} ${plan.caption_position ?? ""}`.trim()}
+            {plan.caption_caps ? " caps" : ""}
+          </span>
+        )}
+        {plan.color_filter && plan.color_filter !== "none" && <span className="chip">{plan.color_filter}</span>}
+        {plan.speed && plan.speed !== 1 && <span className="chip">{plan.speed}× speed</span>}
+      </div>
+      {plan.rationale && <p className="vc-rationale">{plan.rationale}</p>}
+    </>
+  );
 }
 
 type Panel = "plan" | "transcript" | "comments";
@@ -446,36 +484,7 @@ export function VideoCard({
 
         {panel === "plan" && (
           <div className="vc-panel vc-plan" role="tabpanel">
-            <p className="vc-hook">
-              <span className="k">Hook</span> {plan.hook || <em className="dim">none</em>}
-            </p>
-            <ol className="vc-segs">
-              {plan.segments.map((s, i) => (
-                <li key={i}>
-                  <span className="i">{i + 1}</span>
-                  <code>
-                    {fmt(s.start)} → {fmt(s.end)}
-                  </code>
-                  <span className="dim">{fmt(s.end - s.start)}</span>
-                  {s.punch && s.punch > 1 ? <span className="chip">punch {s.punch.toFixed(2)}×</span> : null}
-                </li>
-              ))}
-            </ol>
-            <div className="vc-knobs">
-              <span className="chip">crop {plan.crop_x.toFixed(2)}</span>
-              <span className="chip">
-                captions {plan.caption_style} ×{plan.caption_words}
-              </span>
-              {plan.caption_size && (
-                <span className="chip">
-                  {`${plan.caption_size} ${plan.caption_color ?? ""} ${plan.caption_position ?? ""}`.trim()}
-                  {plan.caption_caps ? " caps" : ""}
-                </span>
-              )}
-              {plan.color_filter && plan.color_filter !== "none" && <span className="chip">{plan.color_filter}</span>}
-              {plan.speed && plan.speed !== 1 && <span className="chip">{plan.speed}× speed</span>}
-            </div>
-            {plan.rationale && <p className="vc-rationale">{plan.rationale}</p>}
+            <PlanDetails plan={plan} />
           </div>
         )}
 

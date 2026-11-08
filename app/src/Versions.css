@@ -34,7 +34,7 @@
   gap: 6px;
   height: 24px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-2);
   border-radius: var(--r-sm);
 }
@@ -47,8 +47,8 @@
   color: var(--text-2);
 }
 .vz-current-item code {
-  font-size: 11px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
 }
 .vz-current-dot {
   width: 6px;
@@ -70,7 +70,7 @@
 
 .vz-kpis {
   display: grid;
-  grid-template-columns: 1.35fr 1fr 1fr 1fr;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   overflow: hidden;
 }
 .vz-kpi {
@@ -87,12 +87,12 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-3);
 }
 .vz-kpi-label svg {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vz-kpi-value {
   display: flex;
@@ -115,22 +115,22 @@
   color: color-mix(in srgb, var(--err) 75%, var(--text-3));
 }
 .vz-kpi-value strong.zero {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vz-slash {
   font-size: 20px;
   font-weight: 300;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vz-kpi-sub {
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .vz-kpi-sub code {
-  font-size: 11px;
+  font-size: 15px;
   color: var(--text-2);
 }
 .vz-kpi-sub .agentname {
@@ -144,7 +144,7 @@
   height: 18px;
   padding: 0 6px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 15px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   border-radius: var(--r-xs);
@@ -168,10 +168,10 @@
   gap: 4px 10px;
 }
 .vz-card-head h2 {
-  font-size: 14px;
+  font-size: 15px;
 }
 .vz-sub {
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
 }
 
@@ -200,7 +200,7 @@
 }
 .vz-note-line {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
   max-width: 640px;
 }
@@ -212,7 +212,7 @@
   margin-top: 14px;
   padding: 24px;
   text-align: center;
-  font-size: 13px;
+  font-size: 15px;
   color: var(--text-3);
   border: 1px dashed var(--border-2);
   border-radius: var(--r-md);
@@ -238,8 +238,8 @@
   right: 8px;
   transform: translateY(50%);
   font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -320,7 +320,7 @@
 }
 .vz-val strong {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-1);
   font-variant-numeric: tabular-nums;
@@ -330,7 +330,7 @@
 }
 .vz-col.awaiting .vz-val strong,
 .vz-col.ghost .vz-val strong {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 /* A promoted version with no clips yet: a hatched, outlined slot. */
 .vz-col.awaiting .vz-bar {
@@ -358,20 +358,20 @@
   font-family: var(--mono);
 }
 .vz-vname {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-1);
 }
 .vz-col.ghost .vz-vname {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vz-vlabel code {
-  font-size: 11px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
 }
 .vz-vnote {
   margin-top: 6px;
-  font-size: 11.5px;
+  font-size: 15px;
   line-height: 1.3;
   color: var(--text-2);
   display: -webkit-box;
@@ -381,7 +381,7 @@
 }
 .vz-vnote.none,
 .vz-col.ghost .vz-vnote {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vz-vclips {
   display: flex;
@@ -389,13 +389,13 @@
   gap: 6px;
   margin-top: 2px;
   font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 .vz-now {
   font-family: var(--font);
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--ok);
 }
@@ -422,7 +422,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 15px;
 }
 .vz-auditor-mark {
   display: grid;
@@ -441,7 +441,7 @@
   margin-left: auto;
   height: 22px;
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-3);
   background: var(--fill-active);
@@ -472,7 +472,7 @@
 .vz-auditor-detail {
   padding: 8px 10px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 15px;
   color: var(--text-2);
   background: var(--bg-0);
   border: 1px solid var(--border-1);
@@ -503,14 +503,14 @@
   font-variant-numeric: tabular-nums;
 }
 .vz-failcounts > div > span {
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
 }
 .vz-failcounts .agentname {
   font-weight: 500;
 }
 .vz-auditor-explain {
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.55;
   color: var(--text-3);
 }
@@ -602,7 +602,7 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  font-size: 12.5px;
+  font-size: 15px;
 }
 .vz-change-head .grow {
   flex: 1;
@@ -619,13 +619,13 @@
   align-items: center;
   gap: 6px;
   padding-left: 8px;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
   border-left: 1px solid var(--border-2);
 }
 .vz-time {
-  font-size: 11px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
 }
 .vz-change-card h3 {
   margin: 10px 0 4px;
@@ -638,14 +638,14 @@
   display: flex;
   gap: 8px;
   align-items: baseline;
-  font-size: 12.5px;
+  font-size: 15px;
   color: var(--text-2);
 }
 .vz-k {
   flex: none;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vz-from {
   color: var(--text-3);
@@ -653,7 +653,7 @@
 .vz-rationale {
   margin-top: 8px;
   max-width: 88ch;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.6;
   color: var(--text-3);
 }
@@ -680,7 +680,7 @@
   grid-template-columns: 128px minmax(80px, 1fr) 48px minmax(0, auto);
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: 15px;
 }
 .vz-arm-label {
   color: var(--text-3);
@@ -714,7 +714,7 @@
 }
 .vz-arm-pct {
   font-family: var(--mono);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   text-align: right;
   color: var(--text-2);
@@ -731,8 +731,8 @@
 }
 .vz-arm-count {
   font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -757,7 +757,7 @@
 }
 .vz-delta .unit {
   margin-left: 2px;
-  font-size: 11px;
+  font-size: 15px;
   font-weight: 500;
   letter-spacing: 0;
   opacity: 0.75;
@@ -776,7 +776,7 @@
   align-items: flex-start;
   gap: 8px;
   padding-top: 10px;
-  font-size: 12.5px;
+  font-size: 15px;
   color: var(--text-2);
   border-top: 1px solid var(--border-1);
 }
@@ -809,7 +809,7 @@
   background: var(--bg-1);
   border: 1px solid var(--border-1);
   border-radius: var(--r-md);
-  font-size: 12.5px;
+  font-size: 15px;
   color: var(--text-2);
 }
 .vz-h2h-head {
@@ -827,7 +827,7 @@
   display: inline-flex;
   gap: 6px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 .vz-h2h-score .up {
@@ -840,7 +840,7 @@
 }
 .vz-h2h-score .same,
 .vz-h2h-score .sep {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vz-h2h ul {
   display: flex;
@@ -856,7 +856,7 @@
   grid-template-columns: 112px minmax(0, 1fr);
   align-items: baseline;
   gap: 10px;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
 }
 .vz-h2h li .pill {
@@ -887,7 +887,7 @@
   gap: 4px;
   margin-left: 2px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 .vz-stat .add {
@@ -903,8 +903,8 @@
   min-width: 0;
   max-width: 46%;
   padding: 0 8px;
-  font-size: 11px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
 }
 .vz-branch span {
   overflow: hidden;
@@ -936,20 +936,20 @@
   gap: 8px;
   height: 34px;
   padding: 0 12px;
-  font-size: 12px;
+  font-size: 15px;
   color: #8b949e;
   background: #161b22;
   border-bottom: 1px solid #30363d;
 }
 .vz-diff-path {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 500;
   color: #e6edf3;
 }
 .vz-diff-index {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 15px;
   color: #6e7681;
 }
 .vz-diff-body {
@@ -960,7 +960,7 @@
   width: 100%;
   border-collapse: collapse;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 20px;
 }
 .vz-diff td {
@@ -1029,9 +1029,9 @@
 .vz-clips-head {
   height: 34px;
   align-items: center;
-  font-size: 11.5px;
+  font-size: 15px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
   border-bottom: 1px solid var(--border-1);
 }
 .vz-clips-row {
@@ -1043,7 +1043,7 @@
   border-top: 1px solid var(--border-1);
 }
 .vz-brief {
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--text-2);
   max-width: 48ch;
@@ -1092,7 +1092,7 @@
   color: var(--text-3);
 }
 .vz-clip-reason {
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--text-3);
 }
@@ -1113,7 +1113,7 @@
   background: var(--fill-hover);
 }
 .vz-history > summary .sub {
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
 }
 .vz-chev {
@@ -1150,7 +1150,7 @@
   margin-bottom: 8px;
 }
 .vz-timeline-head h3 {
-  font-size: 13px;
+  font-size: 15px;
 }
 .vz-timeline ol {
   position: relative;
@@ -1174,7 +1174,7 @@
   gap: 10px;
   height: 28px;
   padding-left: 18px;
-  font-size: 12.5px;
+  font-size: 15px;
 }
 .vz-timeline li::before {
   content: "";
@@ -1194,7 +1194,7 @@
 }
 .vz-hash {
   flex: none;
-  font-size: 11px;
+  font-size: 15px;
   color: var(--text-3);
 }
 .vz-subject {
@@ -1207,8 +1207,8 @@
 }
 .vz-ctime {
   flex: none;
-  font-size: 10.5px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
 }
 
 @media (max-width: 1100px) {

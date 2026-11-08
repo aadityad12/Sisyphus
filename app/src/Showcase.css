@@ -28,7 +28,7 @@
   gap: 7px;
   margin-bottom: 20px;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
 }
 .sc-isolation svg {
   color: var(--info);
@@ -42,7 +42,7 @@
   gap: 8px;
   margin-bottom: 14px;
   padding: 9px 12px;
-  font-size: 12.5px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--text-2);
   background: var(--bg-2);
@@ -151,8 +151,8 @@
 /* ---------- Brief column ---------- */
 
 .sc-eyebrow {
-  color: var(--text-4);
-  font-size: 11px;
+  color: var(--text-3);
+  font-size: 15px;
   font-weight: 500;
 }
 .sc-yardstick {
@@ -161,20 +161,20 @@
   gap: 4px;
 }
 .sc-yardstick > strong {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-1);
 }
 .sc-score-scope {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
 }
 .sc-yardstick-note {
   margin-top: 8px;
   padding-top: 10px;
   border-top: 1px solid var(--border-1);
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.6;
 }
 .sc-brief-content {
@@ -188,26 +188,26 @@
 .sc-brief-content > strong {
   display: block;
   margin-bottom: 2px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
   color: var(--text-1);
 }
 .sc-speaker {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
 }
 .sc-brief-content p {
   margin-top: 10px;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.65;
   font-style: italic;
 }
 .sc-unscored-label {
   margin: 4px 0 6px;
   height: 18px;
-  font-size: 11px;
+  font-size: 15px;
   color: var(--text-3);
   background: transparent;
   border-style: dashed;
@@ -242,12 +242,12 @@
   align-items: baseline;
   gap: 8px;
   color: var(--text-1);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
 }
 .sc-version-kind code {
   color: var(--text-3);
-  font-size: 11.5px;
+  font-size: 15px;
   font-weight: 400;
 }
 .sc-score-row {
@@ -279,7 +279,7 @@
 }
 .sc-score-label {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
 }
 .sc-meter {
   height: 4px;
@@ -298,7 +298,7 @@
 .sc-completion {
   margin-top: 8px;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
   font-variant-numeric: tabular-nums;
 }
 .sc-change {
@@ -312,11 +312,11 @@
   line-height: 1.4;
 }
 .sc-change-label {
-  color: var(--text-4);
-  font-size: 11px;
+  color: var(--text-3);
+  font-size: 15px;
 }
 .sc-change > strong {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
   color: var(--text-1);
   overflow-wrap: anywhere;
@@ -324,7 +324,7 @@
 .sc-change code {
   margin-top: 2px;
   color: var(--text-3);
-  font-size: 11px;
+  font-size: 15px;
 }
 
 /* The "After" slot of a baseline-only table: dashed, waiting. */
@@ -342,7 +342,7 @@
 }
 .sc-after-head p {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.6;
 }
 .sc-after-head button {
@@ -372,12 +372,12 @@
   border: 1px dashed var(--border-2);
   border-radius: var(--r-md);
   color: var(--text-3);
-  font-size: 12px;
+  font-size: 15px;
   text-align: center;
 }
 .sc-cell.empty strong {
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 .sc-empty-mark {
@@ -444,12 +444,12 @@
 }
 .sc-placeholder strong {
   color: var(--text-1);
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 500;
 }
 .sc-placeholder > span:last-of-type {
   max-width: 24ch;
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.55;
 }
 .sc-placeholder button {
@@ -476,7 +476,7 @@
   gap: 4px;
 }
 .sc-review {
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.6;
   border: 1px solid var(--border-1);
   border-radius: var(--r-md);
@@ -488,7 +488,7 @@
   gap: 6px;
   padding: 6px 10px;
   color: var(--reviewer);
-  font-size: 12px;
+  font-size: 15px;
   cursor: pointer;
   border-radius: var(--r-md);
   transition: background var(--fast) var(--ease);
@@ -515,7 +515,7 @@
 }
 .sc-cell .sc-error {
   color: var(--err);
-  font-size: 12px;
+  font-size: 15px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -523,8 +523,8 @@
 .sc-footnote {
   max-width: 760px;
   margin: 14px 2px 0;
-  color: var(--text-4);
-  font-size: 11.5px;
+  color: var(--text-3);
+  font-size: 15px;
   line-height: 1.65;
 }
 .sc-sr-only {

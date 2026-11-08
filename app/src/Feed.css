@@ -70,7 +70,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 15px;
   color: var(--text-3);
 }
 .feed-stat dd {
@@ -96,8 +96,8 @@
 }
 .feed-note {
   grid-area: note;
-  font-size: 12px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
 }
 
 .feed-toolbar {
@@ -115,8 +115,8 @@
   gap: 10px;
 }
 .feed-tool-label {
-  font-size: 12px;
-  color: var(--text-4);
+  font-size: 15px;
+  color: var(--text-3);
 }
 
 @media (max-width: 1000px) {
