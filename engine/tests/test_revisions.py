@@ -129,3 +129,39 @@ def test_the_auditor_counts_a_brief_once_however_often_it_is_sent_back(db, monke
     assert [f["video_id"] for f in store.failures()] == [vid]
     store.update_video(rev["id"], review_approved=1, status="approved", human_liked=0)  # approved, then disliked
     assert {f["video_id"] for f in store.failures()} == {vid, rev["id"]}
+
+
+def _reject_again(rev_id, reason="Still slow."):
+    store.update_video(rev_id, plan={"segments": []}, video_path="v.mp4")
+    jobs.record_review(rev_id, False, reason)
+
+
+def test_a_rescued_original_leaves_the_later_rejection_as_creator_evidence(db):
+    vid = _rejected()
+    (rev,) = _revisions()
+    _reject_again(rev["id"])
+    store.update_video(vid, human_liked=1)  # attempt 1 is now the Reviewer's failure, not the Creator's
+    by_id = {f["video_id"]: f["agents"] for f in store.failures()}
+    assert by_id == {vid: ["reviewer"], rev["id"]: ["creator"]}
+
+
+def test_liking_attempt_one_stops_a_queued_attempt_three(db, monkeypatch):
+    vid = _rejected()
+    (rev,) = _revisions()
+    _reject_again(rev["id"])
+    third = next(v for v in _revisions() if v["attempt"] == 3)
+    store.update_video(vid, human_liked=1)
+    monkeypatch.setattr(creator, "create", lambda *a, **k: pytest.fail("the Creator ran"))
+    jobs._run(third["id"], projects.FOOTAGE_DIR / "a.mp4", "30s on X", None)
+    assert store.get_video(third["id"])["status"] == "failed"
+    assert jobs.revise(third["id"]) is None
+
+
+def test_a_hand_verdict_changed_to_approval_cancels_its_revision(db, monkeypatch):
+    vid = store.add_video("a.mp4", "brief")
+    jobs.record_review(vid, False, "By hand: no.")
+    (rev,) = _revisions()
+    jobs.record_review(vid, True, "By hand: actually yes.")
+    monkeypatch.setattr(creator, "create", lambda *a, **k: pytest.fail("the Creator ran"))
+    jobs._run(rev["id"], projects.FOOTAGE_DIR / "a.mp4", "brief", None)
+    assert "approved by hand" in store.get_video(rev["id"])["error"]
