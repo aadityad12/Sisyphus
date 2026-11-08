@@ -124,7 +124,7 @@ export function ClipCard({
           {title}
         </h3>
         <Versions video={video} />
-        {chain.length > 1 && (
+        {chain.length > 0 && (
           <div ref={historyOpener} className="clip-lineage">
             <LineageStrip
               video={video}

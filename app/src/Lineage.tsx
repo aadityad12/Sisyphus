@@ -219,9 +219,12 @@ export function planChanges(prev: EditPlan, next: EditPlan): Change[] {
 
 /* ---------- The strip on a card ---------- */
 
-/** The attempts behind a card, as a row of marks; opens the clip's history. Nothing for a first-try clip. */
+/**
+ * The attempts behind a card, as a row of marks; opens the clip's history. Every card has one, a first-try clip
+ * too, so the way in is always in the same place (on 2026-11-07 the first cards in the Feed were all first tries,
+ * and a strip shown only on revised clips went unnoticed).
+ */
 export function LineageStrip({ video, chain, onOpen }: { video: Video; chain: Video[]; onOpen: () => void }) {
-  if (chain.length < 2) return null;
   const at = chain.findIndex((v) => v.id === video.id);
   const sentBack = chain.flatMap((v, i) => (v.status === "rejected" ? [i + 1] : []));
   const label = [
@@ -243,9 +246,7 @@ export function LineageStrip({ video, chain, onOpen }: { video: Video; chain: Vi
           </span>
         ))}
       </span>
-      <span className="ln-strip-text">
-        Attempt {at + 1} of {chain.length}
-      </span>
+      <span className="ln-strip-text">{chain.length === 1 ? "First try" : `Attempt ${at + 1} of ${chain.length}`}</span>
       <span className="ln-strip-cta">
         <History size={14} aria-hidden /> History
         <ChevronRight size={14} aria-hidden />
@@ -579,9 +580,11 @@ export function LineageWindow({ chain, start, close }: { chain: Video[]; start: 
                 );
               })}
             </div>
-            <p className="ln-rail-hint">
-              <kbd>↑</kbd> <kbd>↓</kbd> to move between attempts
-            </p>
+            {chain.length > 1 && (
+              <p className="ln-rail-hint">
+                <kbd>↑</kbd> <kbd>↓</kbd> to move between attempts
+              </p>
+            )}
           </nav>
 
           <Detail key={chain[at].id} chain={chain} index={at} />
