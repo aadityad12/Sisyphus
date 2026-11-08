@@ -117,17 +117,20 @@ function App() {
   // Skills are shared, so a Creator version's pass rate (top bar, Versions, Styles) counts every project's clips.
   // The work views show only this project's; an engine without projects sends no `project`, which is the default.
   const all = regular.filter((v) => (v.project ?? "default") === project.id);
+  // A revision is a retry of a brief that already failed, with the Reviewer's reasons in hand, so pass rates
+  // (top bar, Versions, Styles) count first attempts only: otherwise retries of hard briefs weigh on a version.
+  const measured = regular.filter((v) => (v.attempt ?? 1) === 1);
 
   const approved = all.filter((v) => v.status === "approved");
   const rejected = all.filter((v) => v.status === "rejected");
   const inFlight = all.filter((v) => ["queued", "creating", "reviewing"].includes(v.status)).length;
 
-  const rates = passRates(regular);
+  const rates = passRates(measured);
   // When the Creator has moved past the newest measured version, say how the current one is doing.
   const current = health.data?.versions.creator;
   let currentLine: string | null = null;
   if (rates && current && current !== "unknown" && !samePrefix(current, rates.lastVersion)) {
-    const judged = regular.filter(
+    const judged = measured.filter(
       (v) =>
         v.creator_version && samePrefix(v.creator_version, current) && (v.human_liked ?? v.review_approved) !== null,
     );
@@ -351,8 +354,8 @@ function App() {
             {tab === "Studio" && <Studio videos={all} refresh={videos.refresh} project={project} />}
             {tab === "Feed" && <Feed videos={approved} mode="feed" refresh={videos.refresh} />}
             {tab === "Rejected" && <Feed videos={rejected} mode="rejected" refresh={videos.refresh} />}
-            {tab === "Versions" && <Versions videos={regular} />}
-            {tab === "Styles" && <StylesTab videos={regular} />}
+            {tab === "Versions" && <Versions videos={measured} />}
+            {tab === "Styles" && <StylesTab videos={measured} />}
             {tab === "Showcase" && <Showcase />}
           </div>
         </div>

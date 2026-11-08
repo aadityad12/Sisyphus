@@ -220,6 +220,9 @@ def failures() -> list[dict]:
         }
         for v in list_videos()
         if v["failed_agents"] and v["experiment_id"] is None and not v.get("showcase")
+        # A revision the Reviewer sent back again is the same brief failing again: counting each attempt would
+        # let one hard clip make a pattern on its own. A human verdict on a revision is new evidence, so it counts.
+        and not (v.get("revision_of") and v["failed_agents"] == ["creator"])
     ]
 
 

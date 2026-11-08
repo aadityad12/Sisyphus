@@ -109,3 +109,23 @@ def test_missing_footage_is_not_an_error(db):
     vid = store.add_video("gone.mp4", "brief")
     store.update_video(vid, status="rejected", review_approved=0)
     assert jobs.revise(vid) is None
+
+
+def test_a_revision_skips_a_clip_a_person_rescued(db, monkeypatch):
+    vid = _rejected()
+    (rev,) = _revisions()
+    store.update_video(vid, human_liked=1)
+    monkeypatch.setattr(creator, "create", lambda *a, **k: pytest.fail("the Creator ran"))
+    jobs._run(rev["id"], projects.FOOTAGE_DIR / "a.mp4", "30s on X", None)
+    assert store.get_video(rev["id"])["status"] == "failed"
+
+
+def test_the_auditor_counts_a_brief_once_however_often_it_is_sent_back(db, monkeypatch):
+    monkeypatch.setattr(jobs, "MAX_ATTEMPTS", 2)
+    vid = _rejected()
+    (rev,) = _revisions()
+    store.update_video(rev["id"], plan={"segments": []}, video_path="v.mp4")
+    jobs.record_review(rev["id"], False, "Still slow.")
+    assert [f["video_id"] for f in store.failures()] == [vid]
+    store.update_video(rev["id"], review_approved=1, status="approved", human_liked=0)  # approved, then disliked
+    assert {f["video_id"] for f in store.failures()} == {vid, rev["id"]}

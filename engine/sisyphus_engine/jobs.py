@@ -195,6 +195,13 @@ def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None, style
 def _create_and_review(
     video_id: int, footage: Path, brief: str, skills_ref: str | None, styles: list[str] | None
 ) -> None:
+    v = store.get_video(video_id)
+    parent = store.get_video(v["revision_of"]) if v and v.get("revision_of") else None
+    if parent and parent["human_liked"] is True:
+        # A person rescued the clip from Rejected while this attempt waited: it needs no second try. Checked once the
+    # slot is held, so a like that comes in while the job is queued still counts.
+        store.update_video(video_id, status="failed", error=f"Not needed: a person liked #{parent['id']}.")
+        return
     try:
         store.update_video(video_id, status="creating")
         plan, video = creator.create(
