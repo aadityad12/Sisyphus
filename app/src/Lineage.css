@@ -443,7 +443,9 @@
   border-left: 3px solid rgba(240, 138, 138, 0.55);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
-.ln-why blockquote > span {
+.ln-why blockquote > span,
+.ln-review,
+.ln-rationale {
   display: block;
 }
 /* The clamp sits on the text, not the quote: clamping a padded box lets the next line show in the padding. */
@@ -606,7 +608,20 @@
     width: min(280px, 100%);
     margin: 0 auto;
   }
+  /* Two players and the arrow share the width, so side by side never scrolls sideways on a phone. */
+  .comparing .ln-players {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    column-gap: 8px;
+  }
   .ln-player.compact {
-    width: min(200px, 42vw);
+    width: 100%;
+    max-width: 220px;
+    min-width: 0;
+  }
+  .ln-player.compact figcaption {
+    flex-wrap: wrap;
+  }
+  .ln-detail {
+    padding: 16px;
   }
 }

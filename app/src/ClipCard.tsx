@@ -182,7 +182,8 @@ export function ClipCard({
           start={Math.max(0, chain.findIndex((v) => v.id === video.id))}
           close={() => {
             setHistory(false);
-            historyOpener.current?.querySelector("button")?.focus();
+            // The strip can be gone by now (the chain changed while the window was open): fall back to the card.
+            (historyOpener.current?.querySelector("button") ?? opener.current)?.focus();
           }}
         />
       )}

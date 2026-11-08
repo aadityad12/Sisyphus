@@ -115,11 +115,12 @@ export function useModalKeys(box: RefObject<HTMLElement | null>, close: () => vo
         return;
       }
       if (e.key !== "Tab") return;
+      // Elements taken out of the Tab order (a tab list's unselected tabs) don't count; a video with controls does.
       const focusable = [
         ...root.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])',
+          'button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), summary, video[controls], [tabindex]',
         ),
-      ];
+      ].filter((el) => el.getAttribute("tabindex") !== "-1");
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];

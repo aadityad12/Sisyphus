@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowRight,
@@ -50,10 +57,14 @@ export function chainOf(video: Video, pool: Map<number, Video>): Video[] {
 }
 
 type Kind = "ok" | "no" | "fail" | "live";
+
+/** A Reviewer error leaves a clip in "reviewing" with an error set until a person gives the verdict. */
+const stuck = (v: Video) => v.status === "reviewing" && !!v.error;
+
 function kindOf(v: Video): Kind {
   if (v.status === "approved") return "ok";
   if (v.status === "rejected") return "no";
-  if (v.status === "failed") return "fail";
+  if (v.status === "failed" || stuck(v)) return "fail";
   return "live";
 }
 
@@ -65,6 +76,7 @@ const VERDICT: Record<Video["status"], string> = {
   rejected: "Sent back",
   failed: "Didn't finish",
 };
+const verdictOf = (v: Video) => (stuck(v) ? "Needs your verdict" : VERDICT[v.status]);
 
 function KindIcon({ kind, size = 14 }: { kind: Kind; size?: number }) {
   if (kind === "ok") return <Check size={size} strokeWidth={2.6} aria-hidden />;
@@ -97,18 +109,69 @@ function listOf(ns: number[]) {
 function outcome(chain: Video[]): { text: string; kind: Kind } {
   const last = chain[chain.length - 1];
   const n = chain.length;
-  const took = span(last.updated_at - chain[0].created_at);
+  // No timing here: `updated_at` moves with every vote and comment, so it isn't when the verdict came.
   if (last.status === "approved")
     return n === 1
       ? { text: "Approved on the first try.", kind: "ok" }
-      : { text: `Approved on attempt ${n}, ${took} after the first try.`, kind: "ok" };
+      : { text: `Approved on attempt ${n}, after ${n - 1} sent back.`, kind: "ok" };
   if (last.status === "rejected") {
-    if (last.human_liked === true) return { text: `Sent back ${n === 1 ? "once" : `${n} times`}, but you called the last one good.`, kind: "no" };
-    return { text: `Sent back ${n === 1 ? "once" : `all ${n} times`}. No more attempts.`, kind: "no" };
+    const times = n === 1 ? "once" : `all ${n} times`;
+    // A like on any attempt stops the revisions (jobs.settled_ancestor), so it is why the chain ended.
+    const liked = chain.findIndex((v) => v.human_liked === true);
+    if (liked >= 0)
+      return {
+        text: `Sent back ${times}, but you called ${liked === n - 1 ? "the last one" : `attempt ${liked + 1}`} good.`,
+        kind: "no",
+      };
+    return { text: `Sent back ${times}. No more attempts.`, kind: "no" };
   }
-  if (last.status === "failed")
-    return { text: last.error?.startsWith("Not needed") ? "Stopped: an earlier attempt was already good." : `Attempt ${n} didn't finish.`, kind: "fail" };
+  if (last.status === "failed") return { text: `Attempt ${n} didn't finish.`, kind: "fail" };
+  if (stuck(last)) return { text: `Attempt ${n} needs your verdict: the Reviewer failed on it.`, kind: "fail" };
   return { text: `Attempt ${n} is with the agents now.`, kind: "live" };
+}
+
+/**
+ * Text cut to a few lines (the line count is in the CSS `.clamp` rule), with a button to show the rest. The
+ * button appears only when the text really overflows, measured, since the width it wraps at varies.
+ */
+function Clamp({
+  className,
+  quote,
+  more = "Show all of it",
+  children,
+}: {
+  className: string;
+  quote?: boolean;
+  more?: string;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [open, setOpen] = useState(false);
+  const [over, setOver] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || open) return;
+    const check = () => setOver(el.scrollHeight > el.clientHeight + 1);
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [children, open]);
+  const text = (
+    <span ref={ref} className={open ? className : `${className} clamp`}>
+      {children}
+    </span>
+  );
+  return (
+    <>
+      {quote ? <blockquote>{text}</blockquote> : text}
+      {(over || open) && (
+        <button className="link" onClick={() => setOpen(!open)} aria-expanded={open}>
+          {open ? "Show less" : more}
+        </button>
+      )}
+    </>
+  );
 }
 
 /* ---------- What changed between two attempts ---------- */
@@ -136,7 +199,8 @@ export function planChanges(prev: EditPlan, next: EditPlan): Change[] {
   if (Math.abs(prev.crop_x - next.crop_x) >= 0.02 && (next.layout ?? "crop") !== "fit")
     add("Framing", `x ${prev.crop_x.toFixed(2)}`, `x ${next.crop_x.toFixed(2)}`);
   add("Captions", captions(prev), captions(next));
-  add("Words per caption", String(prev.caption_words), String(next.caption_words));
+  if (prev.caption_style !== "none" || next.caption_style !== "none")
+    add("Words per caption", String(prev.caption_words), String(next.caption_words));
   add("Colour", prev.color_filter ?? "none", next.color_filter ?? "none");
   add("Speed", `${prev.speed ?? 1}×`, `${next.speed ?? 1}×`);
   add("Styles", (prev.styles ?? []).join(", ") || "auto", (next.styles ?? []).join(", ") || "auto");
@@ -144,8 +208,8 @@ export function planChanges(prev: EditPlan, next: EditPlan): Change[] {
   // Same moments but cut at different points: say so, rather than claiming nothing changed.
   if (
     out.every((c) => c.label !== "Length" && c.label !== "Cuts") &&
-    prev.segments.some((s, i) => {
-      const t = next.segments[i];
+    (prev.rendered_segments ?? prev.segments).some((s, i) => {
+      const t = (next.rendered_segments ?? next.segments)[i];
       return !t || Math.abs(s.start - t.start) > 0.25 || Math.abs(s.end - t.end) > 0.25;
     })
   )
@@ -159,9 +223,9 @@ export function planChanges(prev: EditPlan, next: EditPlan): Change[] {
 export function LineageStrip({ video, chain, onOpen }: { video: Video; chain: Video[]; onOpen: () => void }) {
   if (chain.length < 2) return null;
   const at = chain.findIndex((v) => v.id === video.id);
-  const sentBack = chain.flatMap((v, i) => (v.status === "rejected" && i !== at ? [i + 1] : []));
+  const sentBack = chain.flatMap((v, i) => (v.status === "rejected" ? [i + 1] : []));
   const label = [
-    `Attempt ${at + 1} of ${chain.length}.`,
+    `Attempt ${at + 1} of ${chain.length}, ${verdictOf(video).toLowerCase()}.`,
     sentBack.length ? `The Reviewer sent back ${listOf(sentBack)}.` : "",
     "Show this clip's history.",
   ]
@@ -194,10 +258,13 @@ export function LineageStrip({ video, chain, onOpen }: { video: Video; chain: Vi
 
 function useSrc(video: Video | undefined) {
   const [src, setSrc] = useState<string | null>(null);
+  // Keyed on whether there is a plan, not the plan object: every poll brings a new one, and reloading the source
+  // on each would restart a playing video every two seconds. A Player is keyed by video id, so it starts empty.
+  const id = video?.id;
+  const hasPlan = !!video?.plan;
   useEffect(() => {
-    setSrc(null);
-    if (video?.plan) api.videoUrl(video.id).then((u) => setSrc(`${u}#t=0.1`));
-  }, [video?.id, video?.plan]);
+    if (hasPlan && id !== undefined) api.videoUrl(id).then((u) => setSrc(`${u}#t=0.1`));
+  }, [id, hasPlan]);
   return src;
 }
 
@@ -227,13 +294,13 @@ function Player({
         ) : (
           <div className="ln-frame-empty">
             <KindIcon kind={kind} size={22} />
-            <span>{kind === "live" ? VERDICT[video.status] : kind === "fail" ? "No video: it didn't finish" : "No video"}</span>
+            <span>{kind === "live" ? verdictOf(video) : kind === "fail" ? "No video: it didn't finish" : "No video"}</span>
           </div>
         )}
       </div>
       <figcaption>
         <span className={`ln-pill k-${kind}`}>
-          <KindIcon kind={kind} size={12} /> {VERDICT[video.status]}
+          <KindIcon kind={kind} size={12} /> {verdictOf(video)}
         </span>
         <span>Attempt {n}</span>
       </figcaption>
@@ -261,13 +328,10 @@ function Detail({ chain, index }: { chain: Video[]; index: number }) {
   const video = chain[index];
   const prev = index > 0 ? chain[index - 1] : undefined;
   const [compare, setCompare] = useState(false);
-  const [fullReview, setFullReview] = useState(false);
-  const [fullAsk, setFullAsk] = useState(false);
-  const [fullWhy, setFullWhy] = useState(false);
   const a = useRef<HTMLVideoElement>(null);
   const b = useRef<HTMLVideoElement>(null);
   const text = review(video);
-  const asked = prev && review(prev);
+  const asked = prev && prev.review_reason !== MANUAL_REASON ? review(prev) : null;
   const changes = prev?.plan && video.plan ? planChanges(prev.plan, video.plan) : null;
   const canCompare = !!prev?.plan && !!video.plan;
   const comparing = compare && canCompare;
@@ -330,17 +394,14 @@ function Detail({ chain, index }: { chain: Video[]; index: number }) {
           {prev && (
             <section className="ln-section ln-why">
               <h4>Why there was an attempt {n}</h4>
-              {asked ? (
+              {prev.review_reason === MANUAL_REASON ? (
+                <p className="ln-note">The Reviewer failed on attempt {n - 1}, so a person sent it back.</p>
+              ) : asked ? (
                 <>
                   <p className="ln-asked-lead">The Reviewer sent attempt {n - 1} back:</p>
-                  <blockquote>
-                    <span className={fullAsk ? "" : "clamp"}>{asked}</span>
-                  </blockquote>
-                  {asked.length > 200 && (
-                    <button className="link" onClick={() => setFullAsk(!fullAsk)} aria-expanded={fullAsk}>
-                      {fullAsk ? "Show less" : "Show all of it"}
-                    </button>
-                  )}
+                  <Clamp className="ln-quote" quote>
+                    {asked}
+                  </Clamp>
                 </>
               ) : (
                 <p className="ln-note">Attempt {n - 1} was sent back without a reason.</p>
@@ -365,17 +426,10 @@ function Detail({ chain, index }: { chain: Video[]; index: number }) {
                     </dl>
                   )}
                   {video.plan?.rationale && (
-                    <>
-                      <p className={fullWhy ? "ln-rationale" : "ln-rationale clamp"}>
-                        <span className="ln-rationale-lead">In its words: </span>
-                        {video.plan.rationale}
-                      </p>
-                      {video.plan.rationale.length > 220 && (
-                        <button className="link" onClick={() => setFullWhy(!fullWhy)} aria-expanded={fullWhy}>
-                          {fullWhy ? "Show less" : "Show all of it"}
-                        </button>
-                      )}
-                    </>
+                    <Clamp className="ln-rationale">
+                      <span className="ln-rationale-lead">In its words: </span>
+                      {video.plan.rationale}
+                    </Clamp>
                   )}
                 </>
               )}
@@ -394,17 +448,16 @@ function Detail({ chain, index }: { chain: Video[]; index: number }) {
             <h4>{video.review_reason === MANUAL_REASON ? "The verdict" : "What the Reviewer said"}</h4>
             {video.status === "failed" ? (
               <p className="ln-note">{video.error?.split("\n")[0] ?? "The Creator couldn't finish this attempt."}</p>
+            ) : stuck(video) ? (
+              <p className="ln-note">
+                The Reviewer failed on this attempt. Give the verdict yourself from its card in the Studio.
+              </p>
             ) : kindOf(video) === "live" ? (
               <p className="ln-note">Nothing yet: this attempt is still {VERDICT[video.status].toLowerCase()}</p>
             ) : text ? (
-              <>
-                <p className={fullReview ? "ln-review" : "ln-review clamp"}>{text}</p>
-                {text.length > 260 && (
-                  <button className="link" onClick={() => setFullReview(!fullReview)} aria-expanded={fullReview}>
-                    {fullReview ? "Show less" : "Show the full review"}
-                  </button>
-                )}
-              </>
+              <Clamp className="ln-review" more="Show the full review">
+                {text}
+              </Clamp>
             ) : (
               <p className="ln-note">No reason given.</p>
             )}
@@ -517,7 +570,7 @@ export function LineageWindow({ chain, start, close }: { chain: Video[]; start: 
                     <span className="ln-step-text">
                       <span className="ln-step-head">
                         <strong>Attempt {i + 1}</strong>
-                        <span className="ln-step-verdict">{VERDICT[v.status]}</span>
+                        <span className="ln-step-verdict">{verdictOf(v)}</span>
                       </span>
                       <span className="ln-step-time">{i === 0 ? when(v.created_at) : `+${span(v.created_at - first.created_at)}`}</span>
                       {said && kind !== "live" && <span className="ln-step-said">{said}</span>}
