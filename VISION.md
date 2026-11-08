@@ -41,6 +41,11 @@ Failures can come from the Creator, the Reviewer, or both:
 | The Reviewer sends back a video that humans liked. | The Reviewer's only. This overrides the row above. |
 | The Reviewer pushes forward a video that humans dislike. | Both agents'. |
 
+A video sent back goes back to the Creator as a new attempt, with the Reviewer's reasons and the plan it
+rejected, until it passes or reaches three attempts in all (`SISYPHUS_MAX_ATTEMPTS`). The rejected attempt
+stays in the record as a failure. A/B and showcase clips are measurements, so they are judged on their
+first attempt only.
+
 ### Improving
 
 The Auditor turns identified failures into changes. Every change is **versioned** and **verified** before it becomes the new standard.
