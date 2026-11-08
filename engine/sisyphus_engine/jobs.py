@@ -143,9 +143,20 @@ def can_revise(v: dict) -> bool:
         and v["experiment_id"] is None
         and not v.get("showcase")
         and v["human_liked"] is not True
+        and settled_ancestor(v) is None
         and v["revised_by"] is None
         and v["attempt"] < MAX_ATTEMPTS
     )
+
+
+def settled_ancestor(v: dict) -> dict | None:
+    """An earlier attempt in this clip's chain that no longer needs another try: a person liked it, or its
+    verdict was changed to an approval that no person has disliked. Any such attempt makes every later one moot."""
+    while v and v.get("revision_of"):
+        v = store.get_video(v["revision_of"])
+        if v and (v["human_liked"] is True or (v["status"] != "rejected" and v["human_liked"] is not False)):
+            return v
+    return None
 
 
 def revise(video_id: int) -> int | None:
@@ -195,12 +206,15 @@ def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None, style
 def _create_and_review(
     video_id: int, footage: Path, brief: str, skills_ref: str | None, styles: list[str] | None
 ) -> None:
-    v = store.get_video(video_id)
-    parent = store.get_video(v["revision_of"]) if v and v.get("revision_of") else None
-    if parent and parent["human_liked"] is True:
-        # A person rescued the clip from Rejected while this attempt waited: it needs no second try. Checked once
-        # the slot is held, so a like that comes in while the job is queued still counts.
-        store.update_video(video_id, status="failed", error=f"Not needed: a person liked #{parent['id']}.")
+    # A person rescued an earlier attempt, or approved it by hand, while this one waited: it needs no further
+    # try. Checked once the slot is held, so a change that comes in while the job is queued still counts.
+    done = settled_ancestor(store.get_video(video_id) or {})
+    if done:
+        why = "a person liked" if done["human_liked"] is True else "it was approved by hand,"
+        # Detached from its parent, so if the verdict is turned back to a rejection the clip can be revised again.
+        store.update_video(
+            video_id, status="failed", revision_of=None, error=f"Not needed: {why} #{done['id']}."
+        )
         return
     try:
         store.update_video(video_id, status="creating")

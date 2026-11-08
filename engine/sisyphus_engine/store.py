@@ -204,26 +204,44 @@ def add_comment(video_id: int, text: str) -> None:
 
 
 def failures() -> list[dict]:
-    """Every video with at least one failed agent, with the reasons the Auditor clusters on."""
-    return [
-        {
-            "video_id": v["id"],
-            "agents": v["failed_agents"],
-            "brief": v["brief"],
-            "review_reason": v["review_reason"],
-            "review_tags": v["review_tags"],
-            "human_liked": v["human_liked"],
-            "comments": [c["text"] for c in v["comments"]],
-            "creator_version": v["creator_version"],
-            "styles": v["styles"],
-            "styles_requested": v["styles_requested"],
-        }
-        for v in list_videos()
-        if v["failed_agents"] and v["experiment_id"] is None and not v.get("showcase")
-        # A revision the Reviewer sent back again is the same brief failing again: counting each attempt would
-        # let one hard clip make a pattern on its own. A human verdict on a revision is new evidence, so it counts.
-        and not (v.get("revision_of") and v["failed_agents"] == ["creator"])
-    ]
+    """Every video with at least one failed agent, with the reasons the Auditor clusters on.
+
+    Attempts at one brief that the Reviewer kept sending back are one Creator failure, not one per attempt:
+    otherwise a single hard clip could make a pattern on its own. The earliest such attempt in a revision chain
+    stands for it. A failure that names the Reviewer (a person disagreed with it) is new evidence and always counts.
+    """
+    videos = list_videos()
+    parent = {v["id"]: v.get("revision_of") for v in videos}
+
+    def root(vid: int) -> int:
+        while parent.get(vid):
+            vid = parent[vid]
+        return vid
+
+    out, creator_chains = [], set()
+    for v in sorted(videos, key=lambda v: v["id"]):
+        if not v["failed_agents"] or v["experiment_id"] is not None or v.get("showcase"):
+            continue
+        if v["failed_agents"] == ["creator"]:
+            chain = root(v["id"])
+            if chain in creator_chains:
+                continue
+            creator_chains.add(chain)
+        out.append(
+            {
+                "video_id": v["id"],
+                "agents": v["failed_agents"],
+                "brief": v["brief"],
+                "review_reason": v["review_reason"],
+                "review_tags": v["review_tags"],
+                "human_liked": v["human_liked"],
+                "comments": [c["text"] for c in v["comments"]],
+                "creator_version": v["creator_version"],
+                "styles": v["styles"],
+                "styles_requested": v["styles_requested"],
+            }
+        )
+    return out[::-1]  # newest first, as before
 
 
 def add_change(agent: str, branch: str, title: str, **fields) -> int:
