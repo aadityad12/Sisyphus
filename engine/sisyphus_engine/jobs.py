@@ -151,10 +151,10 @@ def can_revise(v: dict) -> bool:
 
 def settled_ancestor(v: dict) -> dict | None:
     """An earlier attempt in this clip's chain that no longer needs another try: a person liked it, or its
-    verdict was changed by hand to an approval. Any such attempt makes every later one moot."""
+    verdict was changed to an approval that no person has disliked. Any such attempt makes every later one moot."""
     while v and v.get("revision_of"):
         v = store.get_video(v["revision_of"])
-        if v and (v["human_liked"] is True or v["status"] != "rejected"):
+        if v and (v["human_liked"] is True or (v["status"] != "rejected" and v["human_liked"] is not False)):
             return v
     return None
 
@@ -211,7 +211,10 @@ def _create_and_review(
     done = settled_ancestor(store.get_video(video_id) or {})
     if done:
         why = "a person liked" if done["human_liked"] is True else "it was approved by hand,"
-        store.update_video(video_id, status="failed", error=f"Not needed: {why} #{done['id']}.")
+        # Detached from its parent, so if the verdict is turned back to a rejection the clip can be revised again.
+        store.update_video(
+            video_id, status="failed", revision_of=None, error=f"Not needed: {why} #{done['id']}."
+        )
         return
     try:
         store.update_video(video_id, status="creating")

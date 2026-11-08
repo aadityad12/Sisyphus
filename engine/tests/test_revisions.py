@@ -165,3 +165,22 @@ def test_a_hand_verdict_changed_to_approval_cancels_its_revision(db, monkeypatch
     monkeypatch.setattr(creator, "create", lambda *a, **k: pytest.fail("the Creator ran"))
     jobs._run(rev["id"], projects.FOOTAGE_DIR / "a.mp4", "brief", None)
     assert "approved by hand" in store.get_video(rev["id"])["error"]
+
+
+def test_a_clip_rejected_again_after_a_cancelled_revision_is_sent_back_again(db, monkeypatch):
+    vid = store.add_video("a.mp4", "brief")
+    jobs.record_review(vid, False, "By hand: no.")
+    (first,) = _revisions()
+    jobs.record_review(vid, True, "By hand: yes.")
+    monkeypatch.setattr(creator, "create", lambda *a, **k: pytest.fail("the Creator ran"))
+    jobs._run(first["id"], projects.FOOTAGE_DIR / "a.mp4", "brief", None)  # cancelled
+    jobs.record_review(vid, False, "By hand: no after all.")
+    (second,) = _revisions()
+    assert second["id"] != first["id"] and store.get_video(vid)["revised_by"] == second["id"]
+
+
+def test_an_approval_a_person_disliked_does_not_cancel_the_revision(db):
+    vid = _rejected()
+    (rev,) = _revisions()
+    store.update_video(vid, status="approved", review_approved=1, human_liked=0)
+    assert jobs.settled_ancestor(store.get_video(rev["id"])) is None
