@@ -387,8 +387,10 @@ export function VideoCard({
         <Verdict video={video} onChange={onChange} />
 
         <div className="vc-what">
-          <h3 title={plan.title ?? video.brief}>{plan.title ?? video.brief}</h3>
-          {plan.title && (
+          {/* The Creator sometimes returns an empty title (clip #96, 2026-11-07): fall back to the brief, as the
+              other cards do, instead of an empty heading with the brief hidden. */}
+          <h3 title={plan.title?.trim() || video.brief}>{plan.title?.trim() || video.brief}</h3>
+          {plan.title?.trim() && (
             <p className="vc-brief" title={video.brief}>
               “{video.brief}”
             </p>
