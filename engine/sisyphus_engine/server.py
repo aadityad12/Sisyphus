@@ -22,12 +22,37 @@ app.add_middleware(
 )
 
 store.init()
+jobs.load_settings()
 jobs.resume_unfinished()
 
 
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "versions": versioning.current_versions()}
+
+
+def _settings() -> dict:
+    return {"workers": jobs.slots.limit, "max_workers": jobs.MAX_WORKERS, "running": jobs.slots.active}
+
+
+@app.get("/settings")
+def settings_get() -> dict:
+    """Engine-wide settings: how many jobs run at once (`workers`), its ceiling, and how many are running now."""
+    return _settings()
+
+
+class SettingsIn(BaseModel):
+    workers: int
+
+
+@app.patch("/settings")
+def settings_update(body: SettingsIn) -> dict:
+    """Change how many jobs run at once. It applies to running and queued jobs without a restart."""
+    try:
+        jobs.set_workers(body.workers)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    return _settings()
 
 
 def _project(project_id: str) -> dict:

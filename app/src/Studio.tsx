@@ -34,6 +34,42 @@ function splitSpeaker(speaker: string): [string, string | null] {
 }
 
 /**
+ * How many clips the engine edits and reviews at once (#35). It counts every project's jobs, A/B and showcase
+ * clips included, and a change applies at once: raising it starts queued clips, lowering it lets running ones finish.
+ */
+function Workers() {
+  const settings = usePoll(api.settings, 5000);
+  const [saving, setSaving] = useState(false);
+  // An engine from before this setting answers 404: show nothing rather than a control that can't work.
+  if (!settings.data) return null;
+  const { workers, max_workers } = settings.data;
+  const change = async (n: number) => {
+    setSaving(true);
+    try {
+      await api.setWorkers(n);
+      await settings.refresh();
+    } catch (e) {
+      toast(`Couldn't change it: ${e instanceof Error ? e.message : String(e)}`, "err");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <label className="sub st-workers" title="Across every project, A/B and showcase clips included">
+      Run
+      <select value={workers} disabled={saving} onChange={(e) => change(Number(e.target.value))}>
+        {Array.from({ length: max_workers }, (_, i) => i + 1).map((n) => (
+          <option key={n} value={n}>
+            {n}
+          </option>
+        ))}
+      </select>
+      at once
+    </label>
+  );
+}
+
+/**
  * Stills from the footage. Each is one <video> that fetches the metadata and one frame (the file server answers
  * range requests), drawn to a JPEG, after which the video is unmounted so its connection closes. They load two at
  * a time: a dozen open video requests would take every connection the webview allows to the engine and stall the
@@ -492,6 +528,8 @@ export function Studio({ videos, refresh, project }: { videos: Video[]; refresh:
           <h2>
             In progress <span className="count">{inFlight.length}</span>
           </h2>
+          <span className="grow" />
+          <Workers />
         </div>
         {inFlight.length === 0 ? (
           <p className="st-none">Nothing in progress. Start a clip above.</p>

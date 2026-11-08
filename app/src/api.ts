@@ -199,7 +199,13 @@ async function req<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+/** Engine-wide settings (#35): how many jobs run at once, its ceiling, and how many are running now. */
+export type Settings = { workers: number; max_workers: number; running: number };
+
 export const api = {
+  settings: () => req<Settings>("/settings"),
+  setWorkers: (workers: number) =>
+    req<Settings>("/settings", { method: "PATCH", body: JSON.stringify({ workers }) }),
   health: () => req<{ status: string; versions: Record<string, string> }>("/health"),
   projects: () => req<Project[]>("/projects"),
   createProject: (name: string) => req<Project>("/projects", { method: "POST", body: JSON.stringify({ name }) }),
