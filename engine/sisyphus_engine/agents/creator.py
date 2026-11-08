@@ -52,9 +52,26 @@ def style_prompt(wanted: list[str], ref: str | None) -> str:
     )
 
 
+def revision_prompt(history: list[dict]) -> str:
+    """The Reviewer's verdicts on earlier attempts at this clip, oldest first, and the plan it last sent back."""
+    if not history:
+        return ""
+    lines = [
+        "\n\n# This clip was sent back\n\nThe Reviewer rejected earlier attempts at this brief. Write a new plan "
+        "that fixes what it objected to; keep what it did not object to only if it still serves the brief.\n"
+    ]
+    for n, h in enumerate(history, 1):
+        tags = f" [{', '.join(h['tags'])}]" if h.get("tags") else ""
+        lines.append(f"Attempt {n}{tags}: {h['reason'] or 'no reason given'}")
+    last = {k: v for k, v in (history[-1].get("plan") or {}).items() if k != "rendered_segments"}
+    if last:
+        lines.append(f"\nThe plan the Reviewer last sent back:\n{json.dumps(last)}")
+    return "\n".join(lines)
+
+
 def make_plan(
     footage: Path, brief: str, workdir: Path, skills_ref: str | None = None, model: str | None = None,
-    styles: list[str] | None = None,
+    styles: list[str] | None = None, history: list[dict] | None = None,
 ) -> tuple[EditPlan, dict]:
     info = probe(footage)
     transcript = transcribe(footage)
@@ -70,6 +87,7 @@ def make_plan(
             f"Brief: {brief}\n"
             f"Source: {footage.name}, {info['duration']:.0f}s, {info['width']}x{info['height']}\n\n"
             f"Transcript (start-end seconds):\n{as_prompt_text(transcript)}"
+            + revision_prompt(history or [])
         )},
         *[llm.image_part(f) for f in frames],
     ]
@@ -83,11 +101,13 @@ def make_plan(
 
 def create(
     footage: Path, brief: str, workdir: Path, skills_ref: str | None = None, model: str | None = None,
-    styles: list[str] | None = None,
+    styles: list[str] | None = None, history: list[dict] | None = None,
 ) -> tuple[EditPlan, Path]:
-    """Plan and render one video. Returns the plan and the MP4 path. No `styles` means Auto."""
+    """Plan and render one video. Returns the plan and the MP4 path. No `styles` means Auto.
+
+    `history` holds the Reviewer's verdicts on earlier attempts when this is a revision of a rejected clip."""
     workdir.mkdir(parents=True, exist_ok=True)
-    plan, info = make_plan(footage, brief, workdir, skills_ref, model, styles)
+    plan, info = make_plan(footage, brief, workdir, skills_ref, model, styles, history)
     (workdir / "plan.json").write_text(json.dumps(plan.model_dump(), indent=2), encoding="utf-8")
     video = render(plan, footage, transcribe(footage), workdir / "video.mp4", info["width"], info["height"])
     return plan, video

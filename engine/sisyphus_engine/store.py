@@ -86,6 +86,8 @@ MIGRATIONS = [
     ("videos", "showcase", "INTEGER"),  # 1 = a showcase render: the demo's yardstick, never Auditor input
     ("videos", "styles_requested", "TEXT"),  # JSON list of style names the job asked for; empty or null = Auto
     ("videos", "project", f"TEXT NOT NULL DEFAULT '{DEFAULT_PROJECT}'"),  # existing videos join the default project
+    ("videos", "revision_of", "INTEGER"),  # the rejected video this one revises; null = a first attempt
+    ("videos", "attempt", "INTEGER"),  # 1 for a first attempt (null on rows from before revisions), 2 for its revision, ...
 ]
 
 
@@ -114,8 +116,10 @@ def set_setting(key: str, value: str) -> None:
         )
 
 
-def _video(row: sqlite3.Row, comments: list[dict] | None = None) -> dict:
+def _video(row: sqlite3.Row, comments: list[dict] | None = None, revised_by: int | None = None) -> dict:
     v = dict(row)
+    v["attempt"] = v.get("attempt") or 1
+    v["revised_by"] = revised_by  # the id of the revision a rejection was sent back as, if any
     v["plan"] = json.loads(v["plan"]) if v["plan"] else None
     v["review_tags"] = json.loads(v["review_tags"]) if v.get("review_tags") else []
     v["styles_requested"] = json.loads(v["styles_requested"]) if v.get("styles_requested") else []
@@ -164,7 +168,8 @@ def get_video(video_id: int) -> dict | None:
         if row is None:
             return None
         comments = [dict(r) for r in c.execute("SELECT * FROM comments WHERE video_id=? ORDER BY id", (video_id,))]
-        return _video(row, comments)
+        child = c.execute("SELECT id FROM videos WHERE revision_of=? ORDER BY id LIMIT 1", (video_id,)).fetchone()
+        return _video(row, comments, child["id"] if child else None)
 
 
 def list_videos(
@@ -186,7 +191,10 @@ def list_videos(
         comments: dict[int, list[dict]] = {}
         for r in c.execute("SELECT * FROM comments ORDER BY id"):
             comments.setdefault(r["video_id"], []).append(dict(r))
-        out = [_video(r, comments.get(r["id"])) for r in rows]
+        revised_by: dict[int, int] = {}
+        for r in c.execute("SELECT id, revision_of FROM videos WHERE revision_of IS NOT NULL ORDER BY id DESC"):
+            revised_by[r["revision_of"]] = r["id"]  # descending, so the first revision wins
+        out = [_video(r, comments.get(r["id"]), revised_by.get(r["id"])) for r in rows]
     return [v for v in out if style in v["styles"]] if style else out
 
 
@@ -212,6 +220,9 @@ def failures() -> list[dict]:
         }
         for v in list_videos()
         if v["failed_agents"] and v["experiment_id"] is None and not v.get("showcase")
+        # A revision the Reviewer sent back again is the same brief failing again: counting each attempt would
+        # let one hard clip make a pattern on its own. A human verdict on a revision is new evidence, so it counts.
+        and not (v.get("revision_of") and v["failed_agents"] == ["creator"])
     ]
 
 

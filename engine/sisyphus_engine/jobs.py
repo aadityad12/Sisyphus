@@ -79,6 +79,10 @@ def set_workers(n: int) -> int:
         store.set_setting("workers", str(n))
         slots.set(n)
     return n
+# A clip the Reviewer sends back goes back to the Creator, with the reasons, until it passes or runs out of
+# attempts. The cap is attempts in all, the first included, so a clip that keeps failing doesn't spend forever.
+MAX_ATTEMPTS = int(os.environ.get("SISYPHUS_MAX_ATTEMPTS", "3"))
+_revise_lock = threading.Lock()
 
 
 def video_dir(video_id: int) -> Path:
@@ -126,7 +130,55 @@ def resume_unfinished() -> int:
     unreviewed = [v for v in videos if v["status"] == "reviewing" and v["video_path"] and v["review_approved"] is None]
     for v in reversed(unreviewed):
         executor.submit(_review_in_slot, v["id"])
-    return len(stuck) + len(unreviewed)
+    # Rejections from before revisions existed, or whose revision a restart lost: send them back now.
+    revised = [vid for v in reversed(videos) if v["status"] == "rejected" and (vid := revise(v["id"])) is not None]
+    return len(stuck) + len(unreviewed) + len(revised)
+
+
+def can_revise(v: dict) -> bool:
+    """Whether a verdict sends this clip back to the Creator. A/B and showcase clips are measurements, judged
+    on their first attempt, and a clip a person has already called good needs no second one."""
+    return (
+        v["status"] == "rejected"
+        and v["experiment_id"] is None
+        and not v.get("showcase")
+        and v["human_liked"] is not True
+        and v["revised_by"] is None
+        and v["attempt"] < MAX_ATTEMPTS
+    )
+
+
+def revise(video_id: int) -> int | None:
+    """Queue a new attempt at a rejected clip, with the Reviewer's reasons. Returns its id, or None if the clip
+    isn't one to revise. The rejected video stays as it is: it is still a Creator failure for the Auditor."""
+    with _revise_lock:  # a restart's resume and a fresh verdict must not both revise one clip
+        v = store.get_video(video_id)
+        if not v or not can_revise(v):
+            return None
+        try:
+            return submit(
+                v["footage"],
+                v["brief"],
+                skills_ref=v["skills_ref"],
+                styles=v["styles_requested"] or None,
+                project=v["project"],
+                revision_of=video_id,
+                attempt=v["attempt"] + 1,
+            )
+        except (FileNotFoundError, LookupError) as exc:  # footage or project removed since
+            log.warning("can't revise video %s: %s", video_id, exc)
+            return None
+
+
+def history(video_id: int) -> list[dict]:
+    """The Reviewer's verdicts on the attempts before this one, oldest first."""
+    out = []
+    v = store.get_video(video_id)
+    while v and v.get("revision_of"):
+        v = store.get_video(v["revision_of"])
+        if v:
+            out.append({"reason": v["review_reason"], "tags": v["review_tags"], "plan": v["plan"]})
+    return out[::-1]
 
 
 def _review_in_slot(video_id: int) -> None:
@@ -143,9 +195,18 @@ def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None, style
 def _create_and_review(
     video_id: int, footage: Path, brief: str, skills_ref: str | None, styles: list[str] | None
 ) -> None:
+    v = store.get_video(video_id)
+    parent = store.get_video(v["revision_of"]) if v and v.get("revision_of") else None
+    if parent and parent["human_liked"] is True:
+        # A person rescued the clip from Rejected while this attempt waited: it needs no second try. Checked once
+        # the slot is held, so a like that comes in while the job is queued still counts.
+        store.update_video(video_id, status="failed", error=f"Not needed: a person liked #{parent['id']}.")
+        return
     try:
         store.update_video(video_id, status="creating")
-        plan, video = creator.create(footage, brief, video_dir(video_id), skills_ref=skills_ref, styles=styles)
+        plan, video = creator.create(
+            footage, brief, video_dir(video_id), skills_ref=skills_ref, styles=styles, history=history(video_id)
+        )
         stored = plan.model_dump()
         # The cut points the renderer actually used, so later changes to snapping don't rewrite history.
         stored["rendered_segments"] = [
@@ -203,6 +264,8 @@ def record_review(
         **fields,
     )
     _settle(video_id)
+    if not approved:
+        revise(video_id)
 
 
 def _settle(video_id: int) -> None:

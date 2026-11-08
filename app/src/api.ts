@@ -94,6 +94,11 @@ export type Video = {
   arm: "control" | "candidate" | null;
   review_tags?: string | string[] | null;
   showcase?: number | null;
+  // A rejected clip goes back to the Creator: `revised_by` is the new attempt's id, `revision_of` the clip it
+  // revises, `attempt` counts from 1. Absent on an engine without revisions.
+  revision_of?: number | null;
+  revised_by?: number | null;
+  attempt?: number;
   failed_agents: string[];
   // Editing styles (#13): `styles` is what the Creator used (the video's tags), `styles_requested` what the
   // Studio asked for; empty means Auto, so the Creator picked. Absent on an engine without styles.

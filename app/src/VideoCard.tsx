@@ -155,6 +155,14 @@ function Verdict({ video, onChange }: { video: Video; onChange: () => void }) {
               : "Reviewer sent it back"}
           {video.reviewer_version && !manual && <code className="vc-ver">{shortVersion(video.reviewer_version)}</code>}
         </div>
+        {(video.attempt ?? 1) > 1 && (
+          <p className="dim small">
+            Attempt {video.attempt}, revising #{video.revision_of} with the Reviewer's reasons.
+          </p>
+        )}
+        {!ok && video.revised_by != null && (
+          <p className="dim small">Back with the Creator: the new attempt is #{video.revised_by}.</p>
+        )}
         {manual ? (
           <p className="dim small">The Reviewer failed on this clip, so a person gave the verdict.</p>
         ) : reason ? (
