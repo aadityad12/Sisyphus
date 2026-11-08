@@ -70,7 +70,7 @@
 
 .vz-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
 }
 .vz-kpi {
@@ -107,20 +107,6 @@
   letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
   color: var(--text-1);
-}
-.vz-kpi-value strong.ok {
-  color: var(--ok);
-}
-.vz-kpi-value strong.err {
-  color: color-mix(in srgb, var(--err) 75%, var(--text-3));
-}
-.vz-kpi-value strong.zero {
-  color: var(--text-3);
-}
-.vz-slash {
-  font-size: 20px;
-  font-weight: 300;
-  color: var(--text-3);
 }
 .vz-kpi-sub {
   font-size: 12px;
@@ -1214,15 +1200,6 @@
 @media (max-width: 1100px) {
   .vz-evo {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .vz-kpis {
-    grid-template-columns: 1fr 1fr;
-  }
-  .vz-kpi:nth-child(3) {
-    border-left: none;
-  }
-  .vz-kpi:nth-child(n + 3) {
-    border-top: 1px solid var(--border-1);
   }
   .vz-current {
     display: none;
