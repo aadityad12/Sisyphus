@@ -327,3 +327,13 @@
 .st-errors[open] .st-chev {
   transform: rotate(90deg);
 }
+
+/* "Run [6] at once": how many clips the engine works on together (#35). */
+.st-workers {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.st-workers select {
+  height: 26px;
+}

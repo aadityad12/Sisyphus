@@ -46,6 +46,10 @@ CREATE TABLE IF NOT EXISTS comments (
     text TEXT NOT NULL,
     created_at REAL NOT NULL
 );
+CREATE TABLE IF NOT EXISTS settings (           -- engine-wide settings changed from the app
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS changes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     agent TEXT NOT NULL,
@@ -94,6 +98,20 @@ def init() -> None:
                 c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
         # created_at 0 keeps it first in any ordering by age.
         c.execute("INSERT OR IGNORE INTO projects (id, name, created_at) VALUES (?, 'Default', 0)", (DEFAULT_PROJECT,))
+
+
+def get_setting(key: str) -> str | None:
+    with conn() as c:
+        row = c.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    return row["value"] if row else None
+
+
+def set_setting(key: str, value: str) -> None:
+    with conn() as c:
+        c.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value),
+        )
 
 
 def _video(row: sqlite3.Row, comments: list[dict] | None = None) -> dict:

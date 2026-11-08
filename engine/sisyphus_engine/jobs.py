@@ -3,8 +3,10 @@
 import json
 import os
 import logging
+import threading
 import traceback
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 
 from . import RUNS_DIR, projects, store, versioning
@@ -14,8 +16,67 @@ from .transcribe import transcribe
 from .transcribe import words as transcript_words
 
 log = logging.getLogger(__name__)
-# Jobs mostly wait on the model API; a render takes ~10 s of CPU.
-executor = ThreadPoolExecutor(max_workers=int(os.environ.get("SISYPHUS_WORKERS", "2")), thread_name_prefix="job")
+
+# How many videos are edited and reviewed at once. Jobs mostly wait on the model API and a render takes ~10 s of
+# CPU, so the old default of 2 left briefs queued for minutes behind two slow model calls (issue #35).
+# SISYPHUS_WORKERS sets the starting value; once someone picks one in the app, the stored setting wins.
+DEFAULT_WORKERS = 6
+MAX_WORKERS = 16
+
+
+class _Slots:
+    """A limit on running jobs that, unlike a ThreadPoolExecutor's max_workers, can change while jobs run.
+
+    Lowering it lets running jobs finish and holds the next ones back; raising it starts queued ones at once.
+    """
+
+    def __init__(self, limit: int) -> None:
+        self.limit = limit
+        self.active = 0
+        self._cv = threading.Condition()
+
+    def set(self, limit: int) -> None:
+        with self._cv:
+            self.limit = limit
+            self._cv.notify_all()
+
+    @contextmanager
+    def held(self):
+        with self._cv:
+            self._cv.wait_for(lambda: self.active < self.limit)
+            self.active += 1
+        try:
+            yield
+        finally:
+            with self._cv:
+                self.active -= 1
+                self._cv.notify_all()
+
+
+def _clamp(n: int) -> int:
+    return max(1, min(MAX_WORKERS, n))
+
+
+slots = _Slots(_clamp(int(os.environ.get("SISYPHUS_WORKERS", DEFAULT_WORKERS))))
+# Enough threads that every job allowed to run has one; queued jobs wait on `slots`, in a thread or in the pool's
+# queue. Shadow A/B scoring (reviewer_ab) also runs here, outside the limit.
+executor = ThreadPoolExecutor(max_workers=MAX_WORKERS * 2, thread_name_prefix="job")
+
+
+def load_settings() -> None:
+    """Apply the worker count saved from the app, if any. Called once the store exists."""
+    saved = store.get_setting("workers")
+    if saved is not None:
+        slots.set(_clamp(int(saved)))
+
+
+def set_workers(n: int) -> int:
+    """Run up to `n` jobs at once from now on, and remember it across restarts."""
+    if not 1 <= n <= MAX_WORKERS:
+        raise ValueError(f"workers must be between 1 and {MAX_WORKERS}")
+    store.set_setting("workers", str(n))
+    slots.set(n)
+    return n
 
 
 def video_dir(video_id: int) -> Path:
@@ -62,11 +123,24 @@ def resume_unfinished() -> int:
     # A restart during a review leaves a rendered video with no verdict: review it again.
     unreviewed = [v for v in videos if v["status"] == "reviewing" and v["video_path"] and v["review_approved"] is None]
     for v in reversed(unreviewed):
-        executor.submit(run_review, v["id"])
+        executor.submit(_review_in_slot, v["id"])
     return len(stuck) + len(unreviewed)
 
 
+def _review_in_slot(video_id: int) -> None:
+    with slots.held():
+        run_review(video_id)
+
+
 def _run(video_id: int, footage: Path, brief: str, skills_ref: str | None, styles: list[str] | None = None) -> None:
+    # The slot covers the Creator, the render and the Reviewer: a video waits in 'queued' until one is free.
+    with slots.held():
+        _create_and_review(video_id, footage, brief, skills_ref, styles)
+
+
+def _create_and_review(
+    video_id: int, footage: Path, brief: str, skills_ref: str | None, styles: list[str] | None
+) -> None:
     try:
         store.update_video(video_id, status="creating")
         plan, video = creator.create(footage, brief, video_dir(video_id), skills_ref=skills_ref, styles=styles)
