@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { Video } from "./api";
 import { ClipCard } from "./ClipCard";
+import { chainOf } from "./Lineage";
 import { stylesIn, stylesOf } from "./Styles";
 import "./Feed.css";
 import { CircleCheck, Undo2 } from "lucide-react";
@@ -25,10 +26,13 @@ function sortVideos(videos: Video[], sort: SortMode) {
 /** The Reviewer's verdicts: approved clips (Feed) or sent-back clips (Rejected), for humans to agree or disagree. */
 export function Feed({
   videos: allVideos,
+  pool,
   mode,
   refresh,
 }: {
   videos: Video[];
+  // Every clip in the project, whatever its status, so a card can show the attempts behind it (#45).
+  pool: Video[];
   mode: "feed" | "rejected";
   refresh: () => void;
 }) {
@@ -51,6 +55,7 @@ export function Feed({
   const unvoted = videos.filter((video) => video.human_liked === null).length;
   const order = useRef<{ sort: SortMode; ids: number[] }>({ sort, ids: [] });
   const videosById = new Map(allVideos.map((video) => [video.id, video]));
+  const poolById = new Map(pool.map((video) => [video.id, video]));
 
   // Only a deliberate sort change may move existing cards. Newly finished clips join at the top;
   // polling still supplies fresh video objects, so votes and comments update without moving anything.
@@ -194,7 +199,7 @@ export function Feed({
       ) : (
         <div className="grid feed-grid">
           {sorted.map((video) => (
-            <ClipCard key={video.id} video={video} onChange={refresh} />
+            <ClipCard key={video.id} video={video} chain={chainOf(video, poolById)} onChange={refresh} />
           ))}
         </div>
       )}

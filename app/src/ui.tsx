@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { CircleAlert, CircleCheck } from "lucide-react";
 
 /** Small pieces every page shares: keyboard hints, empty states, project chips and toasts. */
@@ -94,4 +94,45 @@ export function Toasts() {
       ))}
     </div>
   );
+}
+
+/**
+ * A modal window's keyboard: Escape closes it and Tab stays inside it. Both listen on the document, not the window:
+ * clicking the video or some text, or a focused button turning disabled, drops focus to <body>, and the window must
+ * still own the keyboard. The window itself carries `data-own-keys`, so the app's shortcuts stand aside.
+ */
+export function useModalKeys(box: RefObject<HTMLElement | null>, close: () => void) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const root = box.current;
+      if (!root) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = [
+        ...root.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])',
+        ),
+      ];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const inside = root.contains(document.activeElement);
+      if (!inside || (e.shiftKey && document.activeElement === first) || (e.shiftKey && document.activeElement === root)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [box]);
 }

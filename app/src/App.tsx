@@ -311,8 +311,8 @@ function App() {
           {/* Keyed by project and page: a switch remounts the page, so it reloads its own data and fades in. */}
           <div className="page-inner" key={`${project.id}:${tab}`}>
             {tab === "Studio" && <Studio videos={all} refresh={videos.refresh} project={project} />}
-            {tab === "Feed" && <Feed videos={approved} mode="feed" refresh={videos.refresh} />}
-            {tab === "Rejected" && <Feed videos={rejected} mode="rejected" refresh={videos.refresh} />}
+            {tab === "Feed" && <Feed videos={approved} pool={all} mode="feed" refresh={videos.refresh} />}
+            {tab === "Rejected" && <Feed videos={rejected} pool={all} mode="rejected" refresh={videos.refresh} />}
             {tab === "Versions" && <Versions videos={measured} />}
             {tab === "Styles" && <StylesTab videos={measured} />}
             {tab === "Showcase" && <Showcase />}
