@@ -20,10 +20,9 @@ import { Versions } from "./Versions";
 import { Showcase } from "./Showcase";
 import { StylesTab } from "./Styles";
 import { usePoll } from "./usePoll";
-import { passRates, samePrefix } from "./Loop";
 import { Sidebar, ProjectDialog, type Engine, type NavItem, type ProjectDialogMode } from "./Sidebar";
 import { CommandPalette, type Command } from "./CommandPalette";
-import { ProjectChip, Spark, Toasts, toast } from "./ui";
+import { ProjectChip, Toasts, toast } from "./ui";
 
 const TABS = ["Studio", "Feed", "Rejected", "Styles", "Versions", "Showcase"] as const;
 type Tab = (typeof TABS)[number];
@@ -112,31 +111,19 @@ function App() {
 
   // Every clip, A/B and showcase included: the agents are busy with all of them, in every project.
   const every = videos.data ?? [];
-  // A/B clips and showcase renders are not regular work: they stay out of Studio, Feed, Rejected and the pass rate.
+  // A/B clips and showcase renders are not regular work: they stay out of Studio, Feed, Rejected and the pass rates.
   const regular = every.filter((v) => v.experiment_id === null && !v.showcase);
-  // Skills are shared, so a Creator version's pass rate (top bar, Versions, Styles) counts every project's clips.
+  // Skills are shared, so a Creator version's pass rate (Versions, Styles) counts every project's clips.
   // The work views show only this project's; an engine without projects sends no `project`, which is the default.
   const all = regular.filter((v) => (v.project ?? "default") === project.id);
   // A revision is a retry of a brief that already failed, with the Reviewer's reasons in hand, so pass rates
-  // (top bar, Versions, Styles) count first attempts only: otherwise retries of hard briefs weigh on a version.
+  // (Versions, Styles) count first attempts only: otherwise retries of hard briefs weigh on a version.
   const measured = regular.filter((v) => (v.attempt ?? 1) === 1);
 
   const approved = all.filter((v) => v.status === "approved");
   const rejected = all.filter((v) => v.status === "rejected");
   const inFlight = all.filter((v) => ["queued", "creating", "reviewing"].includes(v.status)).length;
 
-  const rates = passRates(measured);
-  // When the Creator has moved past the newest measured version, say how the current one is doing.
-  const current = health.data?.versions.creator;
-  let currentLine: string | null = null;
-  if (rates && current && current !== "unknown" && !samePrefix(current, rates.lastVersion)) {
-    const judged = measured.filter(
-      (v) =>
-        v.creator_version && samePrefix(v.creator_version, current) && (v.human_liked ?? v.review_approved) !== null,
-    );
-    const passed = judged.filter((v) => v.human_liked ?? v.review_approved).length;
-    currentLine = `Current ${current.slice(0, 7)}: ${judged.length ? `${passed}/${judged.length} clips` : "no verdicts yet"}`;
-  }
   // Before the first answer the engine may still be starting (the desktop app launches it).
   const engine: Engine = health.data
     ? health.error
@@ -243,6 +230,8 @@ function App() {
   useEffect(() => {
     let g = 0;
     const onKey = (e: KeyboardEvent) => {
+      // A clip's feedback window owns the keyboard while it is open, ⌘K included: the palette would open behind it.
+      if (document.querySelector("[data-own-keys]")) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPalette((p) => !p);
@@ -301,36 +290,6 @@ function App() {
           </div>
           <span className="hint">{TAB_HINT[tab]}</span>
           <span className="grow" />
-          <div
-            className="metric"
-            title={
-              "Share of the Creator's clips that passed (a human vote, else the Reviewer), first version against the latest" +
-              (rates ? `\n${rates.lastVersion.slice(0, 7)}: ${rates.passed}/${rates.clips} clips` : "") +
-              (currentLine ? `\n${currentLine}` : "")
-            }
-          >
-            <span>Pass rate</span>
-            {rates ? (
-              <>
-                {rates.versions > 1 && <Spark values={rates.series} />}
-                {rates.versions > 1 && (
-                  <>
-                    <span className="was">{rates.first}%</span>
-                    <span className="arrow">→</span>
-                  </>
-                )}
-                <strong
-                  className={
-                    rates.versions > 1 ? (rates.last > rates.first ? "up" : rates.last < rates.first ? "down" : "") : ""
-                  }
-                >
-                  {rates.last}%
-                </strong>
-              </>
-            ) : (
-              <strong className="dim">–</strong>
-            )}
-          </div>
           {tab !== "Studio" && (
             <button className="primary sm" onClick={newClip} title="New clip (C)">
               <Plus size={14} /> New clip

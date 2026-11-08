@@ -95,19 +95,3 @@ export function Toasts() {
     </div>
   );
 }
-
-/** A tiny sparkline: one point per Creator version's pass rate. */
-export function Spark({ values, width = 44, height = 16 }: { values: number[]; width?: number; height?: number }) {
-  if (values.length < 2) return null;
-  const step = width / (values.length - 1);
-  const y = (v: number) => height - 2 - (v / 100) * (height - 4);
-  const d = values.map((v, i) => `${i ? "L" : "M"}${(i * step).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
-  const up = values[values.length - 1] >= values[0];
-  const color = up ? "var(--ok)" : "var(--err)";
-  return (
-    <svg className="spark" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden>
-      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx={width} cy={y(values[values.length - 1])} r="2" fill={color} />
-    </svg>
-  );
-}

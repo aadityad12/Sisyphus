@@ -36,7 +36,14 @@
   --accent-tint: rgba(234, 63, 0, 0.14);
   --accent-ring: rgba(255, 106, 51, 0.55);
 
+  /* Primary buttons: white on brand orange is only 4.0:1, so the fill is a darker orange (5.6:1, WCAG AA). */
+  --action: #c23400;
+  --action-hover: #d63c03;
+
   --ok: #46c48a;
+  /* Status words on their own tint (the Approved / Rejected label): lighter tones that keep 4.5:1. */
+  --ok-text: #7ee2a0;
+  --err-text: #f08a8a;
   --ok-tint: rgba(70, 196, 138, 0.12);
   --err: #f0595d;
   --err-tint: rgba(240, 89, 93, 0.12);
@@ -174,7 +181,7 @@ code,
 pre,
 kbd {
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 code {
   color: var(--text-2);
@@ -194,7 +201,7 @@ a:hover {
   color: var(--text-3);
 }
 .faint {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .small {
   font-size: 12px;
@@ -227,7 +234,7 @@ kbd {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-3);
   background: var(--bg-4);
@@ -295,8 +302,8 @@ button svg {
 
 button.primary {
   color: #fff;
-  background: linear-gradient(180deg, #f0541c 0%, var(--accent-strong) 100%);
-  border-color: rgba(255, 140, 90, 0.35);
+  background: var(--action);
+  border-color: rgba(255, 140, 90, 0.3);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 1px 2px rgba(0, 0, 0, 0.4),
@@ -304,8 +311,8 @@ button.primary {
   font-weight: 600;
 }
 button.primary:hover:not(:disabled) {
-  background: linear-gradient(180deg, #f6632d 0%, #dd4006 100%);
-  border-color: rgba(255, 160, 115, 0.5);
+  background: var(--action-hover);
+  border-color: rgba(255, 160, 115, 0.45);
 }
 button.primary:disabled {
   opacity: 0.4;
@@ -385,7 +392,7 @@ select {
 }
 input::placeholder,
 textarea::placeholder {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 input:hover,
 textarea:hover,
@@ -436,7 +443,7 @@ details > summary::-webkit-details-marker {
   gap: 5px;
   height: 20px;
   padding: 0 7px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
   background: var(--fill-active);
@@ -491,7 +498,7 @@ details > summary::-webkit-details-marker {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
@@ -519,7 +526,7 @@ details > summary::-webkit-details-marker {
   gap: 5px;
   height: 22px;
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: var(--r-sm);
   background: var(--fill-active);
@@ -771,7 +778,7 @@ details > summary::-webkit-details-marker {
   color: var(--text-3);
 }
 .crumbs .sep {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .crumbs strong {
   display: inline-flex;
@@ -784,7 +791,7 @@ details > summary::-webkit-details-marker {
   color: var(--text-3);
 }
 .topbar .hint {
-  color: var(--text-4);
+  color: var(--text-3);
   font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
@@ -792,44 +799,6 @@ details > summary::-webkit-details-marker {
 }
 .topbar .grow {
   flex: 1;
-}
-
-/* The headline number: is the Creator getting better? */
-.metric {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  height: 30px;
-  padding: 0 10px 0 12px;
-  border: 1px solid var(--border-1);
-  border-radius: var(--r-md);
-  background: var(--bg-2);
-  box-shadow: var(--inset-top);
-  font-size: 12px;
-  color: var(--text-3);
-  white-space: nowrap;
-}
-.metric strong {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-1);
-  font-variant-numeric: tabular-nums;
-}
-.metric strong.up {
-  color: var(--ok);
-}
-.metric strong.down {
-  color: var(--err);
-}
-.metric .was {
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-}
-.metric .arrow {
-  color: var(--text-4);
-}
-.metric .spark {
-  display: block;
 }
 
 .page {
@@ -941,7 +910,7 @@ details > summary::-webkit-details-marker {
   text-overflow: ellipsis;
 }
 .workspace-sub {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 450;
   color: var(--text-3);
 }
@@ -963,6 +932,10 @@ details > summary::-webkit-details-marker {
 }
 .search-btn span {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   text-align: left;
 }
 .search-btn:hover:not(:disabled) {
@@ -979,9 +952,9 @@ details > summary::-webkit-details-marker {
 }
 .nav-label {
   padding: 4px 8px 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
   letter-spacing: 0.01em;
 }
 .nav-item {
@@ -1058,15 +1031,15 @@ details > summary::-webkit-details-marker {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .agents-head .loopback {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .loop {
   display: flex;
@@ -1149,12 +1122,12 @@ details > summary::-webkit-details-marker {
   color: var(--text-1);
 }
 .loop-name code {
-  font-size: 10.5px;
-  color: var(--text-4);
+  font-size: 12px;
+  color: var(--text-3);
   font-weight: 400;
 }
 .loop-activity {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-3);
   font-weight: 450;
   overflow: hidden;
@@ -1175,7 +1148,7 @@ details > summary::-webkit-details-marker {
   gap: 8px;
   height: 28px;
   padding: 0 8px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-3);
 }
 .engine-dot {
@@ -1216,9 +1189,9 @@ details > summary::-webkit-details-marker {
 }
 .menu-label {
   padding: 6px 8px 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .menu-item {
   display: flex;
@@ -1243,8 +1216,8 @@ details > summary::-webkit-details-marker {
   text-overflow: ellipsis;
 }
 .menu-item .meta {
-  font-size: 11.5px;
-  color: var(--text-4);
+  font-size: 12px;
+  color: var(--text-3);
 }
 .menu-item svg {
   color: var(--text-3);
@@ -1266,7 +1239,7 @@ details > summary::-webkit-details-marker {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
   flex: none;
@@ -1382,9 +1355,9 @@ details > summary::-webkit-details-marker {
 }
 .cmdk-group {
   padding: 8px 10px 4px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .cmdk-item {
   display: flex;
@@ -1409,7 +1382,7 @@ details > summary::-webkit-details-marker {
   flex: 1;
 }
 .cmdk-item .meta {
-  color: var(--text-4);
+  color: var(--text-3);
   font-size: 12px;
 }
 .cmdk-item:hover:not(:disabled) {
@@ -1435,8 +1408,8 @@ details > summary::-webkit-details-marker {
   align-items: center;
   gap: 14px;
   padding: 8px 14px;
-  font-size: 11.5px;
-  color: var(--text-4);
+  font-size: 12px;
+  color: var(--text-3);
   border-top: 1px solid var(--border-1);
   background: rgba(0, 0, 0, 0.15);
 }

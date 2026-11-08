@@ -97,7 +97,7 @@
 .feed-note {
   grid-area: note;
   font-size: 12px;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 
 .feed-toolbar {
@@ -116,7 +116,7 @@
 }
 .feed-tool-label {
   font-size: 12px;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 
 @media (max-width: 1000px) {

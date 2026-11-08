@@ -603,11 +603,6 @@ export function Versions({ videos }: { videos: Video[] }) {
         >
           <strong>{changes.length}</strong>
         </Kpi>
-        <Kpi icon={<GitMerge size={13} />} label="Promoted / rolled back" sub="decided by A/B on held-out clips">
-          <strong className={promoted ? "ok" : "zero"}>{promoted}</strong>
-          <span className="vz-slash">/</span>
-          <strong className={rolledBack ? "err" : "zero"}>{rolledBack}</strong>
-        </Kpi>
         <Kpi
           icon={<TriangleAlert size={13} />}
           label="Failures to learn from"

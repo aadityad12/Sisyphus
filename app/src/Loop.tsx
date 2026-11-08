@@ -7,37 +7,6 @@ export const samePrefix = (a: string, b: string) => {
   return n >= 7 && a.slice(0, n) === b.slice(0, n);
 };
 
-type Verdicted = { version: string; passed: number; total: number; first: number };
-
-/** Pass rate (human vote, else Reviewer) of the first and the latest Creator version on regular work. */
-export function passRates(videos: Video[]) {
-  const rows = new Map<string, Verdicted>();
-  for (const v of videos) {
-    if (v.experiment_id !== null || v.showcase || !v.creator_version) continue;
-    const ok = v.human_liked ?? v.review_approved;
-    if (ok === null) continue;
-    const r = rows.get(v.creator_version) ?? { version: v.creator_version, passed: 0, total: 0, first: v.created_at };
-    r.total += 1;
-    r.passed += ok ? 1 : 0;
-    r.first = Math.min(r.first, v.created_at);
-    rows.set(v.creator_version, r);
-  }
-  const ordered = [...rows.values()].sort((a, b) => a.first - b.first);
-  const pct = (r: Verdicted) => Math.round((100 * r.passed) / r.total);
-  if (ordered.length === 0) return null;
-  const first = ordered[0];
-  const last = ordered[ordered.length - 1];
-  return {
-    first: pct(first),
-    last: pct(last),
-    versions: ordered.length,
-    passed: last.passed,
-    clips: last.total,
-    lastVersion: last.version,
-    series: ordered.map(pct),
-  };
-}
-
 const AUDIT_LABEL: Record<AuditStatus["state"], string> = {
   idle: "watching for failures",
   clustering: "grouping failures",

@@ -293,7 +293,7 @@ export function Sidebar({
 
       <button className="search-btn" onClick={openPalette}>
         <Search size={14} />
-        <span>Search or jump to…</span>
+        <span>Search…</span>
         <Keys keys={[MOD, "K"]} />
       </button>
 

@@ -84,7 +84,7 @@
 .vc-ver {
   margin-left: auto;
   padding: 1px 6px;
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--reviewer);
   background: var(--reviewer-tint);
   border-radius: var(--r-xs);
@@ -121,7 +121,7 @@
 .vc-error {
   margin: 8px 0 0;
   padding: 8px 10px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--err);
   background: var(--err-tint);
   border-radius: var(--r-sm);
@@ -136,8 +136,8 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: 11.5px;
-  color: var(--text-4);
+  font-size: 12px;
+  color: var(--text-3);
 }
 .vc-steps li {
   display: flex;
@@ -158,11 +158,12 @@
 .vc-steps .dot {
   display: grid;
   place-items: center;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   border: 1.5px solid var(--border-3);
-  font-size: 9px;
+  font-size: 12px;
+  line-height: 1;
   font-weight: 700;
   flex: none;
 }
@@ -257,7 +258,7 @@
   gap: 6px;
   height: 20px;
   padding: 0 7px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
   background: var(--fill-active);
@@ -265,7 +266,7 @@
   border-radius: var(--r-sm);
 }
 .vc-maker code {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--text-3);
 }
 .agent-dot {
@@ -288,8 +289,8 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 11.5px;
-  color: var(--text-4);
+  font-size: 12px;
+  color: var(--text-3);
 }
 .vc-source .file {
   min-width: 0;
@@ -305,11 +306,11 @@
   flex: 0 1 auto;
 }
 .vc-source code {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-3);
 }
 .vc-source .sep {
-  color: var(--text-4);
+  color: var(--text-3);
   opacity: 0.6;
 }
 
@@ -333,9 +334,9 @@
   gap: 10px;
 }
 .vc-label {
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
   white-space: nowrap;
 }
 .vc-votes {
@@ -379,6 +380,7 @@
 
 .vc-tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   margin: 0 -6px;
 }
@@ -394,7 +396,7 @@
   box-shadow: none;
 }
 .vc-tabs button svg {
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vc-tabs button:hover:not(:disabled) {
   color: var(--text-1);
@@ -410,8 +412,8 @@
   color: var(--text-2);
 }
 .vc-tabs .n {
-  font-size: 11px;
-  color: var(--text-4);
+  font-size: 12px;
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -435,9 +437,9 @@
 .vc-hook .k,
 .vc-plan .k {
   margin-right: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  color: var(--text-4);
+  color: var(--text-3);
 }
 .vc-segs {
   display: flex;
@@ -463,8 +465,8 @@
 }
 .vc-segs .i {
   width: 16px;
-  font-size: 11px;
-  color: var(--text-4);
+  font-size: 12px;
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -554,7 +556,7 @@
   align-items: center;
   gap: 10px;
   margin-top: 2px;
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-3);
   white-space: nowrap;
   overflow: hidden;
@@ -573,7 +575,7 @@
   min-width: 64px;
   justify-content: flex-end;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
