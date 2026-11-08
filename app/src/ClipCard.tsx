@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronRight, MessageSquare, Pause, Play, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import "./ClipCard.css";
@@ -78,6 +78,10 @@ export function ClipCard({ video, onChange }: { video: Video; onChange: () => vo
   const [started, setStarted] = useState(false);
   const [more, setMore] = useState(false);
   const [open, setOpen] = useState(false);
+  // The comment being written lives here, not in the window, so closing the window (Escape, a click outside)
+  // doesn't throw it away.
+  const [draft, setDraft] = useState("");
+  const [timed, setTimed] = useState(true);
   const title = video.plan?.title || video.brief;
   const text = review(video);
 
@@ -119,7 +123,14 @@ export function ClipCard({ video, onChange }: { video: Video; onChange: () => vo
         </div>
 
         <span className="grow" />
-        <button ref={opener} className="primary clip-feedback" onClick={() => setOpen(true)}>
+        <button
+          ref={opener}
+          className="primary clip-feedback"
+          onClick={() => {
+            player.current?.pause();
+            setOpen(true);
+          }}
+        >
           <MessageSquare size={18} /> Give feedback
           {video.comments.length > 0 && <span className="clip-count">{video.comments.length}</span>}
         </button>
@@ -130,6 +141,10 @@ export function ClipCard({ video, onChange }: { video: Video; onChange: () => vo
           video={video}
           src={src}
           onChange={onChange}
+          draft={draft}
+          setDraft={setDraft}
+          timed={timed}
+          setTimed={setTimed}
           close={() => {
             setOpen(false);
             opener.current?.focus();
@@ -145,11 +160,19 @@ export function FeedbackWindow({
   video,
   src,
   onChange,
+  draft,
+  setDraft,
+  timed,
+  setTimed,
   close,
 }: {
   video: Video;
   src: string | null;
   onChange: () => void;
+  draft: string;
+  setDraft: (d: string | ((d: string) => string)) => void;
+  timed: boolean;
+  setTimed: (t: boolean) => void;
   close: () => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -158,13 +181,15 @@ export function FeedbackWindow({
   const [time, setTime] = useState(0);
   const [length, setLength] = useState(0);
   const [playing, setPlaying] = useState(false);
-  const [timed, setTimed] = useState(true);
-  const [draft, setDraft] = useState("");
   const [fullReview, setFullReview] = useState(false);
   const [details, setDetails] = useState(false);
   // One request at a time: a double-click or a held Enter must not send it twice.
   const [pending, setPending] = useState(false);
   const [failed, setFailed] = useState<string | null>(null);
+  // The vote as last clicked, ahead of the poll that confirms it: a quick second click must toggle from what was
+  // just sent, not from the stale prop.
+  const [liked, setLiked] = useState(video.human_liked);
+  useEffect(() => setLiked(video.human_liked), [video.human_liked]);
 
   const approved = video.status === "approved";
   const manual = video.review_reason === MANUAL_REASON;
@@ -178,27 +203,41 @@ export function FeedbackWindow({
     closeBtn.current?.focus();
   }, []);
 
-  function onKey(e: ReactKeyboardEvent) {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      close();
-      return;
+  // Escape and the Tab trap listen on the document, not the window: clicking the video or some text, or a focused
+  // button turning disabled, drops focus to <body>, and the window must still own the keyboard.
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const root = box.current;
+      if (!root) return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = [
+        ...root.querySelectorAll<HTMLElement>(
+          'button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])',
+        ),
+      ];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const inside = root.contains(document.activeElement);
+      if (!inside || (e.shiftKey && document.activeElement === first) || (e.shiftKey && document.activeElement === root)) {
+        e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
-    // Keep Tab inside the window while it is open.
-    if (e.key !== "Tab" || !box.current) return;
-    const focusable = box.current.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), video[controls], summary, [tabindex]:not([tabindex="-1"])',
-    );
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
-    }
-  }
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, []);
 
   function toggle() {
     const v = player.current;
@@ -230,8 +269,11 @@ export function FeedbackWindow({
     }
   }
 
-  function vote(liked: boolean) {
-    feedback({ liked: video.human_liked === liked ? null : liked });
+  async function vote(choice: boolean) {
+    const next = liked === choice ? null : choice;
+    const before = liked;
+    setLiked(next);
+    if (!(await feedback({ liked: next }))) setLiked(before);
   }
 
   async function post() {
@@ -252,7 +294,8 @@ export function FeedbackWindow({
         role="dialog"
         aria-modal="true"
         aria-labelledby={`fb-title-${video.id}`}
-        onKeyDown={onKey}
+        tabIndex={-1}
+        data-own-keys
       >
         <header className="fb-head">
           <div className="fb-head-text">
@@ -322,16 +365,16 @@ export function FeedbackWindow({
               <h3 id={`fb-vote-${video.id}`}>Is this a good clip?</h3>
               <div className="fb-votes" role="group" aria-labelledby={`fb-vote-${video.id}`}>
                 <button
-                  className={video.human_liked === true ? "fb-vote on up" : "fb-vote"}
-                  aria-pressed={video.human_liked === true}
+                  className={liked === true ? "fb-vote on up" : "fb-vote"}
+                  aria-pressed={liked === true}
                   disabled={pending}
                   onClick={() => vote(true)}
                 >
                   <ThumbsUp size={18} /> Good clip
                 </button>
                 <button
-                  className={video.human_liked === false ? "fb-vote on down" : "fb-vote"}
-                  aria-pressed={video.human_liked === false}
+                  className={liked === false ? "fb-vote on down" : "fb-vote"}
+                  aria-pressed={liked === false}
                   disabled={pending}
                   onClick={() => vote(false)}
                 >
@@ -409,7 +452,8 @@ export function FeedbackWindow({
                   onFocus={() => player.current?.pause()}
                   onChange={(e) => setDraft(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    // Not while an input method is composing a word (Vietnamese Telex, for one).
+                    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                       e.preventDefault();
                       post();
                     }

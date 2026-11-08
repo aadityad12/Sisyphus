@@ -1,4 +1,5 @@
-/* The Feed and Rejected card, and the feedback window it opens. Text is 15px or larger and meets WCAG AA. */
+/* The Feed and Rejected card, and the feedback window it opens. Reading text is 14–15px, small labels 12–13px
+   (nothing under 12px), and every colour pair meets WCAG AA. */
 
 .clip-card {
   display: grid;
@@ -104,16 +105,16 @@
 
 .clip-versions {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-3);
 }
 .clip-versions code {
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-2);
 }
 
 .clip-label {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-3);
 }
@@ -127,7 +128,7 @@
 }
 .clip-review p {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.55;
   color: var(--text-2);
 }
@@ -143,7 +144,7 @@
 }
 .clip-card button.link,
 .fb-window button.link {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--accent-text);
 }
@@ -162,7 +163,7 @@
 .clip-count {
   min-width: 22px;
   padding: 0 6px;
-  font-size: 15px;
+  font-size: 12px;
   line-height: 22px;
   text-align: center;
   background: rgba(0, 0, 0, 0.25);
@@ -258,7 +259,7 @@
 }
 .fb-time {
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
 }
@@ -287,7 +288,7 @@
 }
 .fb-hint {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.45;
   color: var(--text-3);
 }
@@ -340,7 +341,7 @@
 }
 .fb-agree {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-2);
 }
 .fb-agree.disagree {
@@ -362,13 +363,13 @@
 }
 .fb-note {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.5;
   color: var(--text-3);
 }
 .fb-failed {
   margin: 0;
-  font-size: 15px;
+  font-size: 13px;
   color: var(--err-text);
 }
 
@@ -393,6 +394,7 @@
 }
 .fb-comments p {
   margin: 0;
+  white-space: pre-wrap;
   padding-top: 3px;
   font-size: 15px;
   line-height: 1.5;
@@ -405,7 +407,7 @@
   padding: 0 8px;
   justify-content: center;
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 12px;
   color: var(--accent-text);
   background: var(--bg-3);
   border: 1px solid var(--border-2);
@@ -433,7 +435,7 @@
   justify-self: start;
   height: 30px;
   padding: 0 10px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--accent-text);
   background: var(--accent-tint);

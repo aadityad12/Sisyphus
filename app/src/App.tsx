@@ -230,14 +230,14 @@ function App() {
   useEffect(() => {
     let g = 0;
     const onKey = (e: KeyboardEvent) => {
+      // A clip's feedback window owns the keyboard while it is open, ⌘K included: the palette would open behind it.
+      if (document.querySelector("[data-own-keys]")) return;
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPalette((p) => !p);
         return;
       }
-      // A clip's feedback window is a modal too: its keys are its own.
-      const modal = !!document.querySelector('[aria-modal="true"]');
-      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey || palette || dialog || modal) return;
+      if (typing(e) || e.metaKey || e.ctrlKey || e.altKey || palette || dialog) return;
       const k = e.key.toUpperCase();
       if (Date.now() - g < 1200) {
         const t = TABS.find((x) => CHORD[x] === k);

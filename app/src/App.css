@@ -105,7 +105,7 @@
   --shadow: var(--inset-top), 0 1px 2px rgba(0, 0, 0, 0.3);
 
   font-family: var(--font);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.5;
   font-feature-settings: "cv11", "ss01", "ss03";
   color: var(--text-1);
@@ -166,11 +166,11 @@ h4 {
   letter-spacing: -0.012em;
 }
 h2 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 h3 {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
 }
 p {
@@ -181,7 +181,7 @@ code,
 pre,
 kbd {
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 12px;
 }
 code {
   color: var(--text-2);
@@ -204,7 +204,7 @@ a:hover {
   color: var(--text-3);
 }
 .small {
-  font-size: 15px;
+  font-size: 12px;
 }
 .num {
   font-variant-numeric: tabular-nums;
@@ -217,7 +217,7 @@ a:hover {
 }
 .error {
   color: var(--err);
-  font-size: 15px;
+  font-size: 12px;
   margin: 6px 0 0;
   white-space: pre-wrap;
 }
@@ -234,7 +234,7 @@ kbd {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-3);
   background: var(--bg-4);
@@ -261,7 +261,7 @@ button {
   gap: 6px;
   height: 30px;
   padding: 0 12px;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-1);
   background: var(--bg-3);
@@ -347,12 +347,12 @@ button.danger:hover:not(:disabled) {
 button.sm {
   height: 26px;
   padding: 0 9px;
-  font-size: 15px;
+  font-size: 12px;
 }
 button.lg {
   height: 36px;
   padding: 0 16px;
-  font-size: 15px;
+  font-size: 13.5px;
 }
 button.icon {
   width: 28px;
@@ -368,7 +368,7 @@ button.link {
   box-shadow: none;
   color: var(--text-3);
   font-weight: 500;
-  font-size: 15px;
+  font-size: 12px;
   gap: 4px;
 }
 button.link:hover:not(:disabled) {
@@ -384,7 +384,7 @@ select {
   border: 1px solid var(--border-2);
   border-radius: var(--r-sm);
   padding: 7px 10px;
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-1);
   transition:
     border-color var(--fast) var(--ease),
@@ -443,7 +443,7 @@ details > summary::-webkit-details-marker {
   gap: 5px;
   height: 20px;
   padding: 0 7px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
   background: var(--fill-active);
@@ -498,7 +498,7 @@ details > summary::-webkit-details-marker {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   color: var(--text-3);
@@ -526,7 +526,7 @@ details > summary::-webkit-details-marker {
   gap: 5px;
   height: 22px;
   padding: 0 8px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: var(--r-sm);
   background: var(--fill-active);
@@ -577,7 +577,7 @@ details > summary::-webkit-details-marker {
 .seg button {
   height: 24px;
   padding: 0 10px;
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-3);
   background: transparent;
   border: 1px solid transparent;
@@ -610,12 +610,12 @@ details > summary::-webkit-details-marker {
   border-radius: var(--r-lg);
 }
 .empty h3 {
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text-1);
 }
 .empty p {
   max-width: 380px;
-  font-size: 15px;
+  font-size: 13px;
 }
 .empty-icon {
   display: grid;
@@ -644,7 +644,7 @@ details > summary::-webkit-details-marker {
 }
 .section-head .sub {
   color: var(--text-3);
-  font-size: 15px;
+  font-size: 12px;
 }
 .section-head .grow {
   flex: 1;
@@ -672,7 +672,7 @@ details > summary::-webkit-details-marker {
   aspect-ratio: 9 / 16;
   border-radius: var(--r-md);
   color: var(--text-3);
-  font-size: 15px;
+  font-size: 12px;
   background: var(--bg-0);
   border: 1px solid var(--border-1);
 }
@@ -774,7 +774,7 @@ details > summary::-webkit-details-marker {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 15px;
+  font-size: 13px;
   color: var(--text-3);
 }
 .crumbs .sep {
@@ -792,7 +792,7 @@ details > summary::-webkit-details-marker {
 }
 .topbar .hint {
   color: var(--text-3);
-  font-size: 15px;
+  font-size: 12px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -827,7 +827,7 @@ details > summary::-webkit-details-marker {
 .page-title p {
   margin-top: 4px;
   color: var(--text-3);
-  font-size: 15px;
+  font-size: 13px;
   max-width: 640px;
 }
 .page-title .grow {
@@ -839,7 +839,7 @@ details > summary::-webkit-details-marker {
   align-items: center;
   gap: 10px;
   padding: 10px 20px;
-  font-size: 15px;
+  font-size: 12.5px;
   color: var(--text-2);
   background: linear-gradient(90deg, var(--err-tint), transparent);
   border-bottom: 1px solid rgba(240, 89, 93, 0.25);
@@ -902,7 +902,7 @@ details > summary::-webkit-details-marker {
   line-height: 1.2;
 }
 .workspace-name {
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-1);
   max-width: 100%;
@@ -910,7 +910,7 @@ details > summary::-webkit-details-marker {
   text-overflow: ellipsis;
 }
 .workspace-sub {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 450;
   color: var(--text-3);
 }
@@ -921,7 +921,7 @@ details > summary::-webkit-details-marker {
 .search-btn {
   justify-content: flex-start;
   width: 100%;
-  height: 34px;
+  height: 30px;
   margin: 6px 0 10px;
   padding: 0 6px 0 9px;
   color: var(--text-3);
@@ -952,7 +952,7 @@ details > summary::-webkit-details-marker {
 }
 .nav-label {
   padding: 4px 8px 4px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-3);
   letter-spacing: 0.01em;
@@ -1031,7 +1031,7 @@ details > summary::-webkit-details-marker {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-3);
 }
@@ -1117,17 +1117,17 @@ details > summary::-webkit-details-marker {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 15px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-1);
 }
 .loop-name code {
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-3);
   font-weight: 400;
 }
 .loop-activity {
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-3);
   font-weight: 450;
   overflow: hidden;
@@ -1148,7 +1148,7 @@ details > summary::-webkit-details-marker {
   gap: 8px;
   height: 28px;
   padding: 0 8px;
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-3);
 }
 .engine-dot {
@@ -1189,7 +1189,7 @@ details > summary::-webkit-details-marker {
 }
 .menu-label {
   padding: 6px 8px 4px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-3);
 }
@@ -1216,7 +1216,7 @@ details > summary::-webkit-details-marker {
   text-overflow: ellipsis;
 }
 .menu-item .meta {
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-3);
 }
 .menu-item svg {
@@ -1239,7 +1239,7 @@ details > summary::-webkit-details-marker {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
   flex: none;
@@ -1287,7 +1287,7 @@ details > summary::-webkit-details-marker {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
 }
@@ -1355,7 +1355,7 @@ details > summary::-webkit-details-marker {
 }
 .cmdk-group {
   padding: 8px 10px 4px;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-3);
 }
@@ -1383,7 +1383,7 @@ details > summary::-webkit-details-marker {
 }
 .cmdk-item .meta {
   color: var(--text-3);
-  font-size: 15px;
+  font-size: 12px;
 }
 .cmdk-item:hover:not(:disabled) {
   background: transparent;
@@ -1408,7 +1408,7 @@ details > summary::-webkit-details-marker {
   align-items: center;
   gap: 14px;
   padding: 8px 14px;
-  font-size: 15px;
+  font-size: 12px;
   color: var(--text-3);
   border-top: 1px solid var(--border-1);
   background: rgba(0, 0, 0, 0.15);
@@ -1436,7 +1436,7 @@ details > summary::-webkit-details-marker {
   min-width: 260px;
   max-width: 420px;
   padding: 10px 14px;
-  font-size: 15px;
+  font-size: 12.5px;
   color: var(--text-1);
   background: var(--bg-3);
   border-radius: var(--r-md);
