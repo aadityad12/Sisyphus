@@ -113,6 +113,11 @@
   color: var(--text-2);
 }
 
+.clip-lineage {
+  display: flex;
+  align-self: stretch;
+}
+
 .clip-label {
   font-size: 13px;
   font-weight: 500;

@@ -4,6 +4,8 @@ import { Check, ChevronRight, MessageSquare, Pause, Play, ThumbsDown, ThumbsUp, 
 import "./ClipCard.css";
 import { api, type Video } from "./api";
 import { Transcript } from "./Transcript";
+import { useModalKeys } from "./ui";
+import { LineageStrip, LineageWindow } from "./Lineage";
 import { agreement, MANUAL_REASON, PlanDetails, reasonText, shortVersion } from "./VideoCard";
 
 /*
@@ -71,13 +73,24 @@ function review(video: Video) {
   return video.review_reason ? reasonText(video.review_reason) : "No reason given.";
 }
 
-export function ClipCard({ video, onChange }: { video: Video; onChange: () => void }) {
+export function ClipCard({
+  video,
+  chain = [video],
+  onChange,
+}: {
+  video: Video;
+  // Every attempt in this clip's revision chain, first try first (#45); just the clip when it passed first time.
+  chain?: Video[];
+  onChange: () => void;
+}) {
   const src = useVideoUrl(video);
   const player = useRef<HTMLVideoElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const [started, setStarted] = useState(false);
   const [more, setMore] = useState(false);
   const [open, setOpen] = useState(false);
+  const [history, setHistory] = useState(false);
+  const historyOpener = useRef<HTMLDivElement>(null);
   // The comment being written lives here, not in the window, so closing the window (Escape, a click outside)
   // doesn't throw it away.
   const [draft, setDraft] = useState("");
@@ -111,6 +124,18 @@ export function ClipCard({ video, onChange }: { video: Video; onChange: () => vo
           {title}
         </h3>
         <Versions video={video} />
+        {chain.length > 0 && (
+          <div ref={historyOpener} className="clip-lineage">
+            <LineageStrip
+              video={video}
+              chain={chain}
+              onOpen={() => {
+                player.current?.pause();
+                setHistory(true);
+              }}
+            />
+          </div>
+        )}
 
         <div className="clip-review">
           <span className="clip-label">Review</span>
@@ -148,6 +173,17 @@ export function ClipCard({ video, onChange }: { video: Video; onChange: () => vo
           close={() => {
             setOpen(false);
             opener.current?.focus();
+          }}
+        />
+      )}
+      {history && (
+        <LineageWindow
+          chain={chain}
+          start={Math.max(0, chain.findIndex((v) => v.id === video.id))}
+          close={() => {
+            setHistory(false);
+            // The strip can be gone by now (the chain changed while the window was open): fall back to the card.
+            (historyOpener.current?.querySelector("button") ?? opener.current)?.focus();
           }}
         />
       )}
@@ -203,41 +239,7 @@ export function FeedbackWindow({
     closeBtn.current?.focus();
   }, []);
 
-  // Escape and the Tab trap listen on the document, not the window: clicking the video or some text, or a focused
-  // button turning disabled, drops focus to <body>, and the window must still own the keyboard.
-  const closeRef = useRef(close);
-  closeRef.current = close;
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      const root = box.current;
-      if (!root) return;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        closeRef.current();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const focusable = [
-        ...root.querySelectorAll<HTMLElement>(
-          'button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), summary, [tabindex]:not([tabindex="-1"])',
-        ),
-      ];
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const inside = root.contains(document.activeElement);
-      if (!inside || (e.shiftKey && document.activeElement === first) || (e.shiftKey && document.activeElement === root)) {
-        e.preventDefault();
-        (e.shiftKey ? last : first).focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
-    document.addEventListener("keydown", onKey, true);
-    return () => document.removeEventListener("keydown", onKey, true);
-  }, []);
+  useModalKeys(box, close);
 
   function toggle() {
     const v = player.current;
